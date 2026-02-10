@@ -1,0 +1,18 @@
+[gd_resource type="SpriteFrames" load_steps=3 format=3 uid="uid://cpcmabbbk00du"]
+
+[ext_resource type="Texture2D" uid="uid://mebc5r4kchpu" path="res://heroes/hero_orange.png" id="1_uu3qq"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fyfg6"]
+atlas = ExtResource("1_uu3qq")
+region = Rect2(0, 0, 128, 128)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fyfg6")
+}],
+"loop": true,
+"name": &"JUMP",
+"speed": 5.0
+}]

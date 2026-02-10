@@ -1,0 +1,97 @@
+[gd_scene load_steps=2 format=3 uid="uid://dhfx3og1cf0cj"]
+
+[ext_resource type="Script" uid="uid://bccj45bqt7cxy" path="res://MainMenu.gd" id="1_nsm8v"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_nsm8v")
+
+[node name="RootHBox" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="LeftPanel" type="Panel" parent="RootHBox"]
+custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
+
+[node name="RightPanel" type="CenterContainer" parent="RootHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NicknameLabel" type="Label" parent="RootHBox/LeftPanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+custom_minimum_size = Vector2(0, 40)
+text = "Nickname: —"
+
+[node name="VBoxButtons" type="VBoxContainer" parent="RootHBox/LeftPanel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 80.0
+offset_right = 304.0
+offset_bottom = -24.0
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="TitleLabel" type="Label" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "BLACKOUT RUN"
+
+[node name="PlayButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Play"
+
+[node name="ChampionsButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Champions"
+
+[node name="ProfileButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Profile / Settings"
+
+[node name="CubeViewButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "View Cube"
+
+[node name="AvatarPreview" type="TextureRect" parent="RootHBox/RightPanel"]
+custom_minimum_size = Vector2(504, 504)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="WarnDialog" type="AcceptDialog" parent="."]
+oversampling_override = 1.0
+title = "Внимание"
+dialog_text = "..."

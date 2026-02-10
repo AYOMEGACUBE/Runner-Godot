@@ -1,0 +1,95 @@
+[gd_scene load_steps=12 format=3 uid="uid://dqjhrv658k7px"]
+
+[ext_resource type="Script" uid="uid://b1f0nnjwe1y4n" path="res://scripts/Level.gd" id="1_dp35j"]
+[ext_resource type="Script" uid="uid://d2qhqiwwdgihd" path="res://scripts/Player.gd" id="2_hc4jq"]
+[ext_resource type="SpriteFrames" uid="uid://c0nyy5461gg26" path="res://heroes/hero_default_jump_frames.tres" id="3_default_frames"]
+[ext_resource type="Script" uid="uid://yfnnihpjke51" path="res://HUD.gd" id="4_kqdme"]
+[ext_resource type="SpriteFrames" uid="uid://blt1544junb0x" path="res://heroes/hero_monster_jump_frames.tres" id="4_mtnfr"]
+[ext_resource type="SpriteFrames" uid="uid://keh6xhe2lv" path="res://heroes/hero_red_jump_frames.tres" id="5_tdk6w"]
+[ext_resource type="SpriteFrames" uid="uid://b5liyg33sbvg0" path="res://heroes/hero_blue_jump_frames.tres" id="6_km5ld"]
+[ext_resource type="SpriteFrames" uid="uid://cpcmabbbk00du" path="res://heroes/hero_orange_jump_frames.tres" id="7_i2t4f"]
+[ext_resource type="PackedScene" uid="uid://dpol13adfo7g3" path="res://wall/wall.tscn" id="8_wall"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_oqtl3"]
+size = Vector2(16, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_pdllj"]
+animations = [{
+"frames": [],
+"loop": true,
+"name": &"JUMP",
+"speed": 5.0
+}]
+
+[node name="Level" type="Node2D"]
+script = ExtResource("1_dp35j")
+
+[node name="Platforms" type="Node2D" parent="."]
+
+[node name="Wall" parent="." instance=ExtResource("8_wall")]
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(200, 250)
+up_direction = Vector2(0, 1)
+script = ExtResource("2_hc4jq")
+main_menu_scene = "uid://dhfx3og1cf0cj"
+frames_default = ExtResource("3_default_frames")
+frames_monster = ExtResource("4_mtnfr")
+frames_red = ExtResource("5_tdk6w")
+frames_blue = ExtResource("6_km5ld")
+frames_orange = ExtResource("7_i2t4f")
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+zoom = Vector2(1.2, 1.2)
+drag_vertical_enabled = true
+drag_top_margin = 0.25
+drag_bottom_margin = 0.45
+editor_draw_drag_margin = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_oqtl3")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Player"]
+scale = Vector2(0.6, 0.6)
+sprite_frames = SubResource("SpriteFrames_pdllj")
+animation = &"JUMP"
+
+[node name="CustomAvatarSprite" type="Sprite2D" parent="Player"]
+visible = false
+scale = Vector2(0.6, 0.6)
+
+[node name="HUDLayer" type="CanvasLayer" parent="."]
+
+[node name="HUD" type="Control" parent="HUDLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_kqdme")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUDLayer/HUD"]
+layout_mode = 1
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 56.0
+offset_bottom = 66.0
+
+[node name="NameLabel" type="Label" parent="HUDLayer/HUD/VBoxContainer"]
+layout_mode = 2
+
+[node name="ScoreLabel" type="Label" parent="HUDLayer/HUD/VBoxContainer"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="HUDLayer/HUD"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -120.0
+offset_top = 16.0
+offset_right = -67.0
+offset_bottom = 47.0
+grow_horizontal = 0
+text = "Menu"

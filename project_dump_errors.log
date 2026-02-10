@@ -1,0 +1,564 @@
+﻿[Errors log] 2026-02-05T18:08:24.5827419+03:00
+[diagnose] File: D:\YandexDisk\Projects\Runner\Godot\wall\segment\WallSegment.tscn; Length=799; LastWrite=04.02.2026 18:49:28
+[diagnose] No null bytes in first 512 bytes -> likely text/UTF-8
+[diagnose] First 80 lines:
+001: [gd_scene load_steps=4 format=3 uid="uid://ddaj86ldrt5dv"]
+002: 
+003: [ext_resource type="Script" uid="uid://vefl2li33f3i" path="res://wall/segment/WallSegment.gd" id="1_6wo4f"]
+004: [ext_resource type="Texture2D" uid="uid://ctja12icu7s5l" path="res://wall/textures/wall_segment.png" id="2_16rbj"]
+005: 
+006: [sub_resource type="RectangleShape2D" id="RectangleShape2D_6wo4f"]
+007: size = Vector2(48, 48)
+008: 
+009: [node name="WallSegment" type="Node2D"]
+010: script = ExtResource("1_6wo4f")
+011: 
+012: [node name="Area2D" type="Area2D" parent="."]
+013: 
+014: [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+015: shape = SubResource("RectangleShape2D_6wo4f")
+016: 
+017: [node name="FlipTimer" type="Timer" parent="."]
+018: wait_time = 1.5
+019: 
+020: [node name="Sprite2D" type="Sprite2D" parent="."]
+021: z_index = 1
+022: position = Vector2(0, -1)
+023: texture = ExtResource("2_16rbj")
+[diagnose] No lines matching '[node' found by Select-String
+[diagnose] File: D:\YandexDisk\Projects\Runner\Godot\wall\wall.tscn; Length=220; LastWrite=30.01.2026 14:52:58
+[diagnose] No null bytes in first 512 bytes -> likely text/UTF-8
+[diagnose] First 80 lines:
+001: [gd_scene load_steps=2 format=3 uid="uid://dpol13adfo7g3"]
+002: 
+003: [ext_resource type="Script" uid="uid://bhoujd3rj3ox8" path="res://wall/wall.gd" id="1_sef87"]
+004: 
+005: [node name="Wall" type="Node2D"]
+006: script = ExtResource("1_sef87")
+[diagnose] No lines matching '[node' found by Select-String
+[diagnose] File: D:\YandexDisk\Projects\Runner\Godot\Champions.tscn; Length=1487; LastWrite=07.01.2026 16:47:36
+[diagnose] No null bytes in first 512 bytes -> likely text/UTF-8
+[diagnose] First 80 lines:
+001: [gd_scene load_steps=2 format=3 uid="uid://champions_scene_uid"]
+002: 
+003: [ext_resource type="Script" path="res://Champions.gd" id="1_champions"]
+004: 
+005: [node name="Champions" type="Control"]
+006: layout_mode = 3
+007: anchors_preset = 15
+008: anchor_right = 1.0
+009: anchor_bottom = 1.0
+010: grow_horizontal = 2
+011: grow_vertical = 2
+012: script = ExtResource("1_champions")
+013: 
+014: [node name="CenterContainer" type="CenterContainer" parent="."]
+015: layout_mode = 1
+016: anchors_preset = 15
+017: anchor_right = 1.0
+018: anchor_bottom = 1.0
+019: grow_horizontal = 2
+020: grow_vertical = 2
+021: 
+022: [node name="Panel" type="Panel" parent="CenterContainer"]
+023: custom_minimum_size = Vector2(800, 520)
+024: layout_mode = 2
+025: 
+026: [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Panel"]
+027: layout_mode = 1
+028: anchors_preset = 15
+029: anchor_right = 1.0
+030: anchor_bottom = 1.0
+031: grow_horizontal = 2
+032: grow_vertical = 2
+033: offset_left = 24.0
+034: offset_top = 24.0
+035: offset_right = -24.0
+036: offset_bottom = -24.0
+037: 
+038: [node name="TitleLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer"]
+039: layout_mode = 2
+040: theme_override_font_sizes/font_size = 32
+041: text = "Champions"
+042: 
+043: [node name="ScrollContainer" type="ScrollContainer" parent="CenterContainer/Panel/VBoxContainer"]
+044: layout_mode = 2
+045: size_flags_vertical = 3
+046: 
+047: [node name="List" type="VBoxContainer" parent="CenterContainer/Panel/VBoxContainer/ScrollContainer"]
+048: layout_mode = 2
+049: size_flags_vertical = 3
+050: 
+051: [node name="BackButton" type="Button" parent="CenterContainer/Panel/VBoxContainer"]
+052: layout_mode = 2
+053: custom_minimum_size = Vector2(0, 64)
+054: text = "Back"
+[diagnose] No lines matching '[node' found by Select-String
+[diagnose] File: D:\YandexDisk\Projects\Runner\Godot\Coin.tscn; Length=256; LastWrite=03.01.2026 10:15:54
+[diagnose] No null bytes in first 512 bytes -> likely text/UTF-8
+[diagnose] First 80 lines:
+001: [gd_scene load_steps=2 format=3 uid="uid://caso0eomqoq3b"]
+002: 
+003: [ext_resource type="Script" path="res://Coin.gd" id="1_7hm3t"]
+004: 
+005: [node name="Coin" type="Area2D"]
+006: script = ExtResource("1_7hm3t")
+007: 
+008: [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[diagnose] No lines matching '[node' found by Select-String
+[diagnose] File: D:\YandexDisk\Projects\Runner\Godot\level.tscn; Length=3292; LastWrite=30.01.2026 16:18:30
+[diagnose] No null bytes in first 512 bytes -> likely text/UTF-8
+[diagnose] First 80 lines:
+001: [gd_scene load_steps=12 format=3 uid="uid://dqjhrv658k7px"]
+002: 
+003: [ext_resource type="Script" uid="uid://b1f0nnjwe1y4n" path="res://scripts/Level.gd" id="1_dp35j"]
+004: [ext_resource type="Script" uid="uid://d2qhqiwwdgihd" path="res://scripts/Player.gd" id="2_hc4jq"]
+005: [ext_resource type="SpriteFrames" uid="uid://c0nyy5461gg26" path="res://heroes/hero_default_jump_frames.tres" id="3_default_frames"]
+006: [ext_resource type="Script" uid="uid://yfnnihpjke51" path="res://HUD.gd" id="4_kqdme"]
+007: [ext_resource type="SpriteFrames" uid="uid://blt1544junb0x" path="res://heroes/hero_monster_jump_frames.tres" id="4_mtnfr"]
+008: [ext_resource type="SpriteFrames" uid="uid://keh6xhe2lv" path="res://heroes/hero_red_jump_frames.tres" id="5_tdk6w"]
+009: [ext_resource type="SpriteFrames" uid="uid://b5liyg33sbvg0" path="res://heroes/hero_blue_jump_frames.tres" id="6_km5ld"]
+010: [ext_resource type="SpriteFrames" uid="uid://cpcmabbbk00du" path="res://heroes/hero_orange_jump_frames.tres" id="7_i2t4f"]
+011: [ext_resource type="PackedScene" uid="uid://dpol13adfo7g3" path="res://wall/wall.tscn" id="10_2orkt"]
+012: 
+013: [sub_resource type="RectangleShape2D" id="RectangleShape2D_oqtl3"]
+014: size = Vector2(16, 32)
+015: 
+016: [sub_resource type="SpriteFrames" id="SpriteFrames_pdllj"]
+017: animations = [{
+018: "frames": [],
+019: "loop": true,
+020: "name": &"JUMP",
+021: "speed": 5.0
+022: }]
+023: 
+024: [node name="Level" type="Node2D"]
+025: script = ExtResource("1_dp35j")
+026: 
+027: [node name="Platforms" type="Node2D" parent="."]
+028: 
+029: [node name="Player" type="CharacterBody2D" parent="."]
+030: position = Vector2(200, 250)
+031: up_direction = Vector2(0, 1)
+032: script = ExtResource("2_hc4jq")
+033: main_menu_scene = "uid://dhfx3og1cf0cj"
+034: frames_default = ExtResource("3_default_frames")
+035: frames_monster = ExtResource("4_mtnfr")
+036: frames_red = ExtResource("5_tdk6w")
+037: frames_blue = ExtResource("6_km5ld")
+038: frames_orange = ExtResource("7_i2t4f")
+039: 
+040: [node name="Camera2D" type="Camera2D" parent="Player"]
+041: zoom = Vector2(1.2, 1.2)
+042: drag_vertical_enabled = true
+043: drag_top_margin = 0.25
+044: drag_bottom_margin = 0.45
+045: editor_draw_drag_margin = true
+046: 
+047: [node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+048: shape = SubResource("RectangleShape2D_oqtl3")
+049: 
+050: [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Player"]
+051: scale = Vector2(0.6, 0.6)
+052: sprite_frames = SubResource("SpriteFrames_pdllj")
+053: animation = &"JUMP"
+054: 
+055: [node name="CustomAvatarSprite" type="Sprite2D" parent="Player"]
+056: visible = false
+057: scale = Vector2(0.6, 0.6)
+058: 
+059: [node name="HUDLayer" type="CanvasLayer" parent="."]
+060: 
+061: [node name="HUD" type="Control" parent="HUDLayer"]
+062: layout_mode = 3
+063: anchors_preset = 15
+064: anchor_right = 1.0
+065: anchor_bottom = 1.0
+066: grow_horizontal = 2
+067: grow_vertical = 2
+068: script = ExtResource("4_kqdme")
+069: 
+070: [node name="VBoxContainer" type="VBoxContainer" parent="HUDLayer/HUD"]
+071: layout_mode = 1
+072: offset_left = 16.0
+073: offset_top = 16.0
+074: offset_right = 56.0
+075: offset_bottom = 66.0
+076: 
+077: [node name="NameLabel" type="Label" parent="HUDLayer/HUD/VBoxContainer"]
+078: layout_mode = 2
+079: 
+080: [node name="ScoreLabel" type="Label" parent="HUDLayer/HUD/VBoxContainer"]
+[diagnose] No lines matching '[node' found by Select-String
+[diagnose] File: D:\YandexDisk\Projects\Runner\Godot\MainMenu.tscn; Length=2434; LastWrite=29.01.2026 10:02:25
+[diagnose] No null bytes in first 512 bytes -> likely text/UTF-8
+[diagnose] First 80 lines:
+001: [gd_scene load_steps=2 format=3 uid="uid://dhfx3og1cf0cj"]
+002: 
+003: [ext_resource type="Script" uid="uid://bccj45bqt7cxy" path="res://MainMenu.gd" id="1_nsm8v"]
+004: 
+005: [node name="MainMenu" type="Control"]
+006: layout_mode = 3
+007: anchors_preset = 15
+008: anchor_right = 1.0
+009: anchor_bottom = 1.0
+010: grow_horizontal = 2
+011: grow_vertical = 2
+012: script = ExtResource("1_nsm8v")
+013: 
+014: [node name="CenterContainer" type="CenterContainer" parent="."]
+015: layout_mode = 1
+016: anchors_preset = 15
+017: anchor_right = 1.0
+018: anchor_bottom = 1.0
+019: grow_horizontal = 2
+020: grow_vertical = 2
+021: 
+022: [node name="Panel" type="Panel" parent="CenterContainer"]
+023: custom_minimum_size = Vector2(900, 620)
+024: layout_mode = 2
+025: 
+026: [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Panel"]
+027: layout_mode = 1
+028: anchors_preset = 15
+029: anchor_right = 1.0
+030: anchor_bottom = 1.0
+031: offset_left = 24.0
+032: offset_top = 24.0
+033: offset_right = -24.0
+034: offset_bottom = -24.0
+035: grow_horizontal = 2
+036: grow_vertical = 2
+037: theme_override_constants/separation = 14
+038: 
+039: [node name="TitleLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer"]
+040: custom_minimum_size = Vector2(0, 80)
+041: layout_mode = 2
+042: theme_override_font_sizes/font_size = 32
+043: text = "BLACKOUT RUN"
+044: 
+045: [node name="NicknameLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer"]
+046: custom_minimum_size = Vector2(0, 40)
+047: layout_mode = 2
+048: text = "Nickname: вЂ”"
+049: 
+050: [node name="AvatarPreview" type="TextureRect" parent="CenterContainer/Panel/VBoxContainer"]
+051: custom_minimum_size = Vector2(140, 140)
+052: layout_mode = 2
+053: expand_mode = 1
+054: stretch_mode = 5
+055: 
+056: [node name="PlayButton" type="Button" parent="CenterContainer/Panel/VBoxContainer"]
+057: custom_minimum_size = Vector2(0, 80)
+058: layout_mode = 2
+059: theme_override_font_sizes/font_size = 32
+060: text = "Play"
+061: 
+062: [node name="ChampionsButton" type="Button" parent="CenterContainer/Panel/VBoxContainer"]
+063: custom_minimum_size = Vector2(0, 80)
+064: layout_mode = 2
+065: theme_override_font_sizes/font_size = 32
+066: text = "Champions"
+067: 
+068: [node name="ProfileButton" type="Button" parent="CenterContainer/Panel/VBoxContainer"]
+069: custom_minimum_size = Vector2(0, 80)
+070: layout_mode = 2
+071: theme_override_font_sizes/font_size = 32
+072: text = "Profile"
+073: 
+074: [node name="GoogleButton" type="Button" parent="CenterContainer/Panel/VBoxContainer"]
+075: custom_minimum_size = Vector2(0, 80)
+076: layout_mode = 2
+077: theme_override_font_sizes/font_size = 32
+078: text = "Р’С…РѕРґ С‡РµСЂРµР· Google"
+079: 
+080: [node name="WarnDialog" type="AcceptDialog" parent="."]
+[diagnose] No lines matching '[node' found by Select-String
+[diagnose] File: D:\YandexDisk\Projects\Runner\Godot\Platform.tscn; Length=508; LastWrite=30.01.2026 16:48:15
+[diagnose] No null bytes in first 512 bytes -> likely text/UTF-8
+[diagnose] First 80 lines:
+001: [gd_scene load_steps=3 format=3 uid="uid://be75ddpx283h6"]
+002: 
+003: [ext_resource type="Script" uid="uid://d3vnfw24h7bdb" path="res://scripts/Platform.gd" id="1_hyugo"]
+004: 
+005: [sub_resource type="RectangleShape2D" id="RectangleShape2D_s2m6q"]
+006: size = Vector2(32, 32)
+007: 
+008: [node name="Platform" type="StaticBody2D"]
+009: constant_linear_velocity = Vector2(64, 64)
+010: script = ExtResource("1_hyugo")
+011: coin_spawn_chance = 0.3
+012: 
+013: [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+014: shape = SubResource("RectangleShape2D_s2m6q")
+[diagnose] No lines matching '[node' found by Select-String
+[diagnose] File: D:\YandexDisk\Projects\Runner\Godot\Profile.tscn; Length=3911; LastWrite=09.01.2026 15:01:27
+[diagnose] No null bytes in first 512 bytes -> likely text/UTF-8
+[diagnose] First 80 lines:
+001: [gd_scene load_steps=2 format=3 uid="uid://dg133jef00bhu"]
+002: 
+003: [ext_resource type="Script" uid="uid://ce7583hntybfd" path="res://Profile.gd" id="1_profile"]
+004: 
+005: [node name="Profile" type="Control"]
+006: layout_mode = 3
+007: anchors_preset = 15
+008: anchor_right = 1.0
+009: anchor_bottom = 1.0
+010: grow_horizontal = 2
+011: grow_vertical = 2
+012: script = ExtResource("1_profile")
+013: 
+014: [node name="CenterContainer" type="CenterContainer" parent="."]
+015: layout_mode = 1
+016: anchors_preset = 15
+017: anchor_right = 1.0
+018: anchor_bottom = 1.0
+019: grow_horizontal = 2
+020: grow_vertical = 2
+021: 
+022: [node name="Panel" type="Panel" parent="CenterContainer"]
+023: custom_minimum_size = Vector2(900, 620)
+024: layout_mode = 2
+025: 
+026: [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Panel"]
+027: layout_mode = 1
+028: anchors_preset = 15
+029: anchor_right = 1.0
+030: anchor_bottom = 1.0
+031: offset_left = 24.0
+032: offset_top = 24.0
+033: offset_right = -24.0
+034: offset_bottom = -24.0
+035: grow_horizontal = 2
+036: grow_vertical = 2
+037: 
+038: [node name="TitleLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer"]
+039: layout_mode = 2
+040: theme_override_font_sizes/font_size = 32
+041: text = "Profile"
+042: 
+043: [node name="NicknameEdit" type="LineEdit" parent="CenterContainer/Panel/VBoxContainer"]
+044: custom_minimum_size = Vector2(0, 72)
+045: layout_mode = 2
+046: theme_override_font_sizes/font_size = 28
+047: placeholder_text = "Р’РІРµРґРёС‚Рµ РЅРёРєРЅРµР№Рј"
+048: 
+049: [node name="HeroSelector" type="HBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+050: layout_mode = 2
+051: theme_override_constants/separation = 16
+052: alignment = 1
+053: 
+054: [node name="HeroLeftButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+055: layout_mode = 2
+056: text = "<"
+057: 
+058: [node name="HeroPreview" type="TextureRect" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+059: custom_minimum_size = Vector2(110, 110)
+060: layout_mode = 2
+061: expand_mode = 1
+062: stretch_mode = 5
+063: 
+064: [node name="HeroRightButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+065: layout_mode = 2
+066: text = ">"
+067: 
+068: [node name="HeroNameLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+069: layout_mode = 2
+070: text = "Runner AYO"
+071: 
+072: [node name="CustomAvatarRow" type="VBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+073: layout_mode = 2
+074: theme_override_constants/separation = 10
+075: 
+076: [node name="CustomAvatarCheck" type="CheckBox" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
+077: layout_mode = 2
+078: text = "РЎРІРѕР№ Р°РІР°С‚Р°СЂ (2 С„РѕС‚Рѕ: jump0/jump1)"
+079: 
+080: [node name="UploadJumpUpButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
+[diagnose] No lines matching '[node' found by Select-String
+[Errors log] 2026-02-05T18:19:21.4709034+03:00
+[Errors log] 2026-02-05T18:26:31.5895816+03:00
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://champions_scene_uid"]
+
+[ext_resource type="Script" path="res://Champions.gd" id="1_champions"]
+
+[node name="Champions" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://caso0eomqoq3b"]
+
+[ext_resource type="Script" path="res://Coin.gd" id="1_7hm3t"]
+
+[node name="Coin" type="Area2D"]
+script = ExtResource("1_7hm3t")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+[DEBUG] First 10 lines:
+[gd_scene load_steps=12 format=3 uid="uid://dqjhrv658k7px"]
+
+[ext_resource type="Script" uid="uid://b1f0nnjwe1y4n" path="res://scripts/Level.gd" id="1_dp35j"]
+[ext_resource type="Script" uid="uid://d2qhqiwwdgihd" path="res://scripts/Player.gd" id="2_hc4jq"]
+[ext_resource type="SpriteFrames" uid="uid://c0nyy5461gg26" path="res://heroes/hero_default_jump_frames.tres" id="3_default_frames"]
+[ext_resource type="Script" uid="uid://yfnnihpjke51" path="res://HUD.gd" id="4_kqdme"]
+[ext_resource type="SpriteFrames" uid="uid://blt1544junb0x" path="res://heroes/hero_monster_jump_frames.tres" id="4_mtnfr"]
+[ext_resource type="SpriteFrames" uid="uid://keh6xhe2lv" path="res://heroes/hero_red_jump_frames.tres" id="5_tdk6w"]
+[ext_resource type="SpriteFrames" uid="uid://b5liyg33sbvg0" path="res://heroes/hero_blue_jump_frames.tres" id="6_km5ld"]
+[ext_resource type="SpriteFrames" uid="uid://cpcmabbbk00du" path="res://heroes/hero_orange_jump_frames.tres" id="7_i2t4f"]
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://dhfx3og1cf0cj"]
+
+[ext_resource type="Script" uid="uid://bccj45bqt7cxy" path="res://MainMenu.gd" id="1_nsm8v"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+[DEBUG] First 10 lines:
+[gd_scene load_steps=3 format=3 uid="uid://be75ddpx283h6"]
+
+[ext_resource type="Script" uid="uid://d3vnfw24h7bdb" path="res://scripts/Platform.gd" id="1_hyugo"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_s2m6q"]
+size = Vector2(32, 32)
+
+[node name="Platform" type="StaticBody2D"]
+constant_linear_velocity = Vector2(64, 64)
+script = ExtResource("1_hyugo")
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://dg133jef00bhu"]
+
+[ext_resource type="Script" uid="uid://ce7583hntybfd" path="res://Profile.gd" id="1_profile"]
+
+[node name="Profile" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+[DEBUG] First 10 lines:
+[gd_scene load_steps=4 format=3 uid="uid://ddaj86ldrt5dv"]
+
+[ext_resource type="Script" uid="uid://vefl2li33f3i" path="res://wall/segment/WallSegment.gd" id="1_6wo4f"]
+[ext_resource type="Texture2D" uid="uid://ctja12icu7s5l" path="res://wall/textures/wall_segment.png" id="2_16rbj"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_6wo4f"]
+size = Vector2(48, 48)
+
+[node name="WallSegment" type="Node2D"]
+script = ExtResource("1_6wo4f")
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://dpol13adfo7g3"]
+
+[ext_resource type="Script" uid="uid://bhoujd3rj3ox8" path="res://wall/wall.gd" id="1_sef87"]
+
+[node name="Wall" type="Node2D"]
+script = ExtResource("1_sef87")
+
+[Errors log] 2026-02-05T18:33:37.1859775+03:00
+[Errors log] 2026-02-05T18:42:35.8032300+03:00
+[Errors log] 2026-02-05T18:44:40.3269297+03:00
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://champions_scene_uid"]
+
+[ext_resource type="Script" path="res://Champions.gd" id="1_champions"]
+
+[node name="Champions" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://caso0eomqoq3b"]
+
+[ext_resource type="Script" path="res://Coin.gd" id="1_7hm3t"]
+
+[node name="Coin" type="Area2D"]
+script = ExtResource("1_7hm3t")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+[DEBUG] First 10 lines:
+[gd_scene load_steps=12 format=3 uid="uid://dqjhrv658k7px"]
+
+[ext_resource type="Script" uid="uid://b1f0nnjwe1y4n" path="res://scripts/Level.gd" id="1_dp35j"]
+[ext_resource type="Script" uid="uid://d2qhqiwwdgihd" path="res://scripts/Player.gd" id="2_hc4jq"]
+[ext_resource type="SpriteFrames" uid="uid://c0nyy5461gg26" path="res://heroes/hero_default_jump_frames.tres" id="3_default_frames"]
+[ext_resource type="Script" uid="uid://yfnnihpjke51" path="res://HUD.gd" id="4_kqdme"]
+[ext_resource type="SpriteFrames" uid="uid://blt1544junb0x" path="res://heroes/hero_monster_jump_frames.tres" id="4_mtnfr"]
+[ext_resource type="SpriteFrames" uid="uid://keh6xhe2lv" path="res://heroes/hero_red_jump_frames.tres" id="5_tdk6w"]
+[ext_resource type="SpriteFrames" uid="uid://b5liyg33sbvg0" path="res://heroes/hero_blue_jump_frames.tres" id="6_km5ld"]
+[ext_resource type="SpriteFrames" uid="uid://cpcmabbbk00du" path="res://heroes/hero_orange_jump_frames.tres" id="7_i2t4f"]
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://dhfx3og1cf0cj"]
+
+[ext_resource type="Script" uid="uid://bccj45bqt7cxy" path="res://MainMenu.gd" id="1_nsm8v"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+[DEBUG] First 10 lines:
+[gd_scene load_steps=3 format=3 uid="uid://be75ddpx283h6"]
+
+[ext_resource type="Script" uid="uid://d3vnfw24h7bdb" path="res://scripts/Platform.gd" id="1_hyugo"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_s2m6q"]
+size = Vector2(32, 32)
+
+[node name="Platform" type="StaticBody2D"]
+constant_linear_velocity = Vector2(64, 64)
+script = ExtResource("1_hyugo")
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://dg133jef00bhu"]
+
+[ext_resource type="Script" uid="uid://ce7583hntybfd" path="res://Profile.gd" id="1_profile"]
+
+[node name="Profile" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+[DEBUG] First 10 lines:
+[gd_scene load_steps=4 format=3 uid="uid://ddaj86ldrt5dv"]
+
+[ext_resource type="Script" uid="uid://vefl2li33f3i" path="res://wall/segment/WallSegment.gd" id="1_6wo4f"]
+[ext_resource type="Texture2D" uid="uid://ctja12icu7s5l" path="res://wall/textures/wall_segment.png" id="2_16rbj"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_6wo4f"]
+size = Vector2(48, 48)
+
+[node name="WallSegment" type="Node2D"]
+script = ExtResource("1_6wo4f")
+[DEBUG] First 10 lines:
+[gd_scene load_steps=2 format=3 uid="uid://dpol13adfo7g3"]
+
+[ext_resource type="Script" uid="uid://bhoujd3rj3ox8" path="res://wall/wall.gd" id="1_sef87"]
+
+[node name="Wall" type="Node2D"]
+script = ExtResource("1_sef87")
+
+[Errors log] 2026-02-05T18:45:49.2269758+03:00
+[Errors log] 2026-02-05T18:47:12.3823944+03:00
+[Errors log] 2026-02-05T18:53:50.5813101+03:00
+[Errors log] 2026-02-05T18:55:01.2123458+03:00
+[Errors log] 2026-02-05T19:02:45.6905946+03:00
+[Errors log] 2026-02-05T19:07:32.3685411+03:00
+[Errors log] 2026-02-05T19:36:42.6864119+03:00
+[Errors log] 2026-02-05T20:02:55.9490222+03:00
+[Errors log] 2026-02-05T20:42:30.6781443+03:00
+[Errors log] 2026-02-06T14:36:03.8668834+03:00
+[Errors log] 2026-02-06T17:30:42.6087522+03:00
+[Errors log] 2026-02-10T11:34:44.4883557+03:00
+[Errors log] 2026-02-10T11:50:53.0556646+03:00

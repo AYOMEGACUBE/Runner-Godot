@@ -1,0 +1,3564 @@
+﻿PROJECT FULL DUMP: 2026-02-06T17:30:42.6027305+03:00
+
+=== PROJECT TREE (ASCII) ===
+
+Godot/    (res://)
+├── android/    (res://android)
+│   ├── build/    (res://android/build)
+│   │   ├── templates/    (res://android/build/templates)
+│   │   │   ├── android_debug.apk    (other)
+│   │   │   ├── android_release.apk    (other)
+│   │   │   ├── android_source.zip    (other)
+│   │   │   ├── icudt_godot.dat    (other)
+│   │   │   ├── ios.zip    (other)
+│   │   │   ├── linux_debug.arm32    (other)
+│   │   │   ├── linux_debug.arm64    (other)
+│   │   │   ├── linux_debug.x86_32    (other)
+│   │   │   ├── linux_debug.x86_64    (other)
+│   │   │   ├── linux_release.arm32    (other)
+│   │   │   ├── linux_release.arm64    (other)
+│   │   │   ├── linux_release.x86_32    (other)
+│   │   │   ├── linux_release.x86_64    (other)
+│   │   │   ├── macos.zip    (other)
+│   │   │   ├── version.txt    (other)
+│   │   │   ├── visionos.zip    (other)
+│   │   │   ├── web_debug.zip    (other)
+│   │   │   ├── web_dlink_debug.zip    (other)
+│   │   │   ├── web_dlink_nothreads_debug.zip    (other)
+│   │   │   ├── web_dlink_nothreads_release.zip    (other)
+│   │   │   ├── web_dlink_release.zip    (other)
+│   │   │   ├── web_nothreads_debug.zip    (other)
+│   │   │   ├── web_nothreads_release.zip    (other)
+│   │   │   ├── web_release.zip    (other)
+│   │   │   ├── windows_debug_arm64.exe    (other)
+│   │   │   ├── windows_debug_arm64_console.exe    (other)
+│   │   │   ├── windows_debug_x86_32.exe    (other)
+│   │   │   ├── windows_debug_x86_32_console.exe    (other)
+│   │   │   ├── windows_debug_x86_64.exe    (other)
+│   │   │   ├── windows_debug_x86_64_console.exe    (other)
+│   │   │   ├── windows_release_arm64.exe    (other)
+│   │   │   ├── windows_release_arm64_console.exe    (other)
+│   │   │   ├── windows_release_x86_32.exe    (other)
+│   │   │   ├── windows_release_x86_32_console.exe    (other)
+│   │   │   ├── windows_release_x86_64.exe    (other)
+│   │   │   └── windows_release_x86_64_console.exe    (other)
+│   │   └── .gdignore    (other)
+│   └── .build_version    (other)
+├── heroes/    (res://heroes)
+│   ├── hero_blue.png    (other)
+│   ├── hero_blue.png.import    (other)
+│   ├── hero_blue_frames.png    (other)
+│   ├── hero_blue_frames.png.import    (other)
+│   ├── hero_blue_jump_frames.tres    (other)
+│   ├── hero_default.png    (other)
+│   ├── hero_default.png.import    (other)
+│   ├── hero_default_frames.png    (other)
+│   ├── hero_default_frames.png.import    (other)
+│   ├── hero_default_jump_frames.tres    (other)
+│   ├── hero_monster.png    (other)
+│   ├── hero_monster.png.import    (other)
+│   ├── hero_monster_frames.png    (other)
+│   ├── hero_monster_frames.png.import    (other)
+│   ├── hero_monster_jump_frames.tres    (other)
+│   ├── hero_orange.png    (other)
+│   ├── hero_orange.png.import    (other)
+│   ├── hero_orange_frames.png    (other)
+│   ├── hero_orange_frames.png.import    (other)
+│   ├── hero_orange_jump_frames.tres    (other)
+│   ├── hero_red.png    (other)
+│   ├── hero_red.png.import    (other)
+│   ├── hero_red_frames.png    (other)
+│   ├── hero_red_frames.png.import    (other)
+│   └── hero_red_jump_frames.tres    (other)
+├── scripts/    (res://scripts)
+│   ├── Level.gd    (gd)
+│   ├── Level.gd.uid    (other)
+│   ├── Platform.gd    (gd)
+│   ├── Platform.gd.uid    (other)
+│   ├── Player.gd    (gd)
+│   └── Player.gd.uid    (other)
+├── wall/    (res://wall)
+│   ├── data/    (res://wall/data)
+│   │   ├── WallData.gd    (gd)
+│   │   └── WallData.gd.uid    (other)
+│   ├── segment/    (res://wall/segment)
+│   │   ├── WallSegment.gd    (gd)
+│   │   ├── WallSegment.gd.uid    (other)
+│   │   └── WallSegment.tscn    (tscn)
+│   │       ├── WallSegment (Node2D)
+│   │       ├── Sprite2D (Sprite2D)
+│   │       └── Area2D (Area2D)
+│   ├── textures/    (res://wall/textures)
+│   │   ├── wall_segment.png    (other)
+│   │   └── wall_segment.png.import    (other)
+│   ├── wall.gd    (gd)
+│   ├── wall.gd.uid    (other)
+│   └── wall.tscn    (tscn)
+├── .gitattributes    (other)
+├── .gitignore    (other)
+├── all_files_list.txt    (other)
+├── Champions.gd    (gd)
+├── Champions.gd.uid    (other)
+├── Champions.tscn    (tscn)
+│   ├── Champions (Control)
+│   └── CenterContainer (CenterContainer)
+├── Coin.gd    (gd)
+├── Coin.gd.uid    (other)
+├── Coin.tscn    (tscn)
+│   ├── Coin (Area2D)
+│   └── CollisionShape2D (CollisionShape2D)
+├── CubeView.gd    (gd)
+├── CubeView.gd.uid    (other)
+├── CubeView.tscn    (tscn)
+│   ├── CubeView (Node2D)
+│   ├── Camera2D (Camera2D)
+│   ├── GateLine (Line2D)
+│   └── UILayer (CanvasLayer)
+├── export_presets.cfg    (other)
+├── GameOver.gd    (gd)
+├── GameOver.gd.uid    (other)
+├── GameOver.tscn    (tscn)
+│   ├── GameOver (CanvasLayer)
+│   └── Panel (Panel)
+├── GameState.gd    (gd)
+├── GameState.gd.uid    (other)
+├── HUD.gd    (gd)
+├── HUD.gd.uid    (other)
+├── icon.svg    (other)
+├── icon.svg.import    (other)
+├── level.tscn    (tscn)
+│   ├── Level (Node2D)
+│   ├── Platforms (Node2D)
+│   ├── Player (CharacterBody2D)
+│   │   ├── Camera2D (Camera2D)
+│   │   ├── CollisionShape2D (CollisionShape2D)
+│   │   ├── AnimatedSprite2D (AnimatedSprite2D)
+│   │   └── CustomAvatarSprite (Sprite2D)
+│   └── HUDLayer (CanvasLayer)
+├── MainMenu.gd    (gd)
+├── MainMenu.gd.uid    (other)
+├── MainMenu.tscn    (tscn)
+│   ├── MainMenu (Control)
+│   ├── RootHBox (HBoxContainer)
+│   │   ├── LeftPanel (Panel)
+│   │   │   ├── NicknameLabel (Label)
+│   │   │   └── VBoxButtons (VBoxContainer)
+│   │   │       ├── TitleLabel (Label)
+│   │   │       ├── PlayButton (Button)
+│   │   │       ├── ChampionsButton (Button)
+│   │   │       ├── ProfileButton (Button)
+│   │   │       └── CubeViewButton (Button)
+│   │   └── RightPanel (CenterContainer)
+│   └── WarnDialog (AcceptDialog)
+├── Platform.tscn    (tscn)
+│   ├── Platform (StaticBody2D)
+│   └── CollisionShape2D (CollisionShape2D)
+├── Profile.gd    (gd)
+├── Profile.gd.uid    (other)
+├── Profile.tscn    (tscn)
+│   ├── Profile (Control)
+│   ├── CenterContainer (CenterContainer)
+│   ├── FileDialogJumpUp (FileDialog)
+│   ├── FileDialogJumpDown (FileDialog)
+│   └── WarnDialog (AcceptDialog)
+├── project.godot    (other)
+├── project_dump_errors.log    (other)
+├── project_full_dump_05_02_2026.txt    (other)
+├── project_full_dump_06_02_2026.txt    (other)
+└── README.txt    (other)
+
+=== SCENE TREES (ASCII) ===
+
+
+res://Champions.tscn : 8 node(s) total
+  - Champions (Control)
+  - CenterContainer (CenterContainer)
+    - Panel (Panel)
+      - VBoxContainer (VBoxContainer)
+        - TitleLabel (Label)
+        - ScrollContainer (ScrollContainer)
+          - List (VBoxContainer)
+        - BackButton (Button)
+res://Coin.tscn : 2 node(s) total
+  - Coin (Area2D)
+  - CollisionShape2D (CollisionShape2D)
+res://CubeView.tscn : 8 node(s) total
+  - CubeView (Node2D)
+  - Camera2D (Camera2D)
+  - GateLine (Line2D)
+  - UILayer (CanvasLayer)
+    - Panel (Panel)
+      - VBoxContainer (VBoxContainer)
+        - TitleLabel (Label)
+        - BackButton (Button)
+res://GameOver.tscn : 10 node(s) total
+  - GameOver (CanvasLayer)
+  - Panel (Panel)
+    - VBox (VBoxContainer)
+      - TitleLabel (Label)
+      - HeightLabel (Label)
+      - ScoreLabel (Label)
+      - Buttons (HBoxContainer)
+        - ViewCubeButton (Button)
+        - RestartButton (Button)
+        - MainMenuButton (Button)
+res://level.tscn : 13 node(s) total
+  - Level (Node2D)
+  - Platforms (Node2D)
+  - Player (CharacterBody2D)
+    - Camera2D (Camera2D)
+    - CollisionShape2D (CollisionShape2D)
+    - AnimatedSprite2D (AnimatedSprite2D)
+    - CustomAvatarSprite (Sprite2D)
+  - HUDLayer (CanvasLayer)
+    - HUD (Control)
+      - VBoxContainer (VBoxContainer)
+        - NameLabel (Label)
+        - ScoreLabel (Label)
+      - BackButton (Button)
+res://MainMenu.tscn : 13 node(s) total
+  - MainMenu (Control)
+  - RootHBox (HBoxContainer)
+    - LeftPanel (Panel)
+      - NicknameLabel (Label)
+      - VBoxButtons (VBoxContainer)
+        - TitleLabel (Label)
+        - PlayButton (Button)
+        - ChampionsButton (Button)
+        - ProfileButton (Button)
+        - CubeViewButton (Button)
+    - RightPanel (CenterContainer)
+      - AvatarPreview (TextureRect)
+  - WarnDialog (AcceptDialog)
+res://Platform.tscn : 2 node(s) total
+  - Platform (StaticBody2D)
+  - CollisionShape2D (CollisionShape2D)
+res://Profile.tscn : 21 node(s) total
+  - Profile (Control)
+  - CenterContainer (CenterContainer)
+    - Panel (Panel)
+      - VBoxContainer (VBoxContainer)
+        - TitleLabel (Label)
+        - NicknameEdit (LineEdit)
+        - HeroSelector (HBoxContainer)
+          - HeroLeftButton (Button)
+          - HeroPreview (TextureRect)
+          - HeroRightButton (Button)
+          - HeroNameLabel (Label)
+        - CustomAvatarRow (VBoxContainer)
+          - CustomAvatarCheck (CheckBox)
+          - UploadJumpUpButton (Button)
+          - UploadJumpDownButton (Button)
+        - ButtonsRow (HBoxContainer)
+          - SaveButton (Button)
+          - BackButton (Button)
+  - FileDialogJumpUp (FileDialog)
+  - FileDialogJumpDown (FileDialog)
+  - WarnDialog (AcceptDialog)
+res://wall/segment/WallSegment.tscn : 4 node(s) total
+  - WallSegment (Node2D)
+  - Sprite2D (Sprite2D)
+  - Area2D (Area2D)
+    - CollisionShape2D (CollisionShape2D)
+res://wall/wall.tscn : 1 node(s) total
+  - Wall (Node2D)
+
+--- VALIDATION ISSUES ---
+INFO: res://wall/wall.tscn has only 1 node (might be correct for simple scenes)
+
+=== FILES (.gd and .tscn) ===
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\Champions.gd ---
+
+extends Control
+# ============================================================================
+# Champions.gd — отдельная сцена таблицы чемпионов
+# ----------------------------------------------------------------------------
+# Требования:
+# - отдельный экран
+# - корректная сортировка (GameState уже сортирует по score desc)
+# - кнопка Back возвращает в MainMenu
+# ============================================================================
+
+@export_file("*.tscn")
+var main_menu_scene: String = "res://MainMenu.tscn"
+
+@onready var list_box: VBoxContainer = $CenterContainer/Panel/VBoxContainer/ScrollContainer/List
+@onready var back_button: Button = $CenterContainer/Panel/VBoxContainer/BackButton
+@onready var title_label: Label = $CenterContainer/Panel/VBoxContainer/TitleLabel
+
+func _ready() -> void:
+	if title_label:
+		title_label.text = "Champions"
+
+	if back_button and not back_button.pressed.is_connected(_on_back_pressed):
+		back_button.pressed.connect(_on_back_pressed)
+
+	_refresh()
+
+func _refresh() -> void:
+	if list_box == null:
+		return
+
+	for c in list_box.get_children():
+		c.queue_free()
+
+	var champs: Array = GameState.get_champions()
+	if champs.is_empty():
+		var lbl := Label.new()
+		lbl.text = "Пока пусто"
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		list_box.add_child(lbl)
+		return
+
+	for i in range(champs.size()):
+		var e = champs[i]
+		var place := i + 1
+		var n := "???"
+		var s := 0
+		if typeof(e) == TYPE_DICTIONARY:
+			n = str(e.get("name", "???"))
+			s = int(e.get("score", 0))
+
+		var lbl2 := Label.new()
+		lbl2.text = str(place) + ". " + n + " — " + str(s)
+		lbl2.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		list_box.add_child(lbl2)
+
+func _on_back_pressed() -> void:
+	var err := get_tree().change_scene_to_file(main_menu_scene)
+	if err != OK:
+		push_error("Champions.gd: не удалось вернуться в меню: " + main_menu_scene)
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\Champions.tscn ---
+
+[gd_scene load_steps=2 format=3 uid="uid://pnkpfmiog8kr"]
+
+[ext_resource type="Script" uid="uid://x4f0dpsn3ien" path="res://Champions.gd" id="1_champions"]
+
+[node name="Champions" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_champions")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="Panel" parent="CenterContainer"]
+custom_minimum_size = Vector2(800, 520)
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Champions"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="List" type="VBoxContainer" parent="CenterContainer/Panel/VBoxContainer/ScrollContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BackButton" type="Button" parent="CenterContainer/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+text = "Back"
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\Coin.gd ---
+
+extends Area2D
+# Coin.gd - ИСПРАВЛЕННАЯ ВЕРСИЯ
+
+@export var value: int = 1
+@export var radius: float = 16.0
+
+@onready var collision: CollisionShape2D = $CollisionShape2D
+
+func _ready() -> void:
+	print("✅ Coin spawned at: ", global_position)
+	
+	# ВАЖНО: Включаем мониторинг
+	monitoring = true
+	monitorable = true
+	
+	# КРИТИЧЕСКИ ВАЖНО: СЛОИ КОЛЛИЗИИ
+	# Монета на слое 2, реагирует на маску 1 (игрок)
+	set_collision_layer_value(2, true)
+	set_collision_mask_value(1, true)
+	
+	# ВЫКЛЮЧАЕМ все остальные слои
+	for i in range(1, 33):
+		if i != 2:
+			set_collision_layer_value(i, false)
+		if i != 1:
+			set_collision_mask_value(i, false)
+
+	# СОЗДАЕМ КОЛЛАЙДЕР (круг)
+	if collision != null:
+		var shape = CircleShape2D.new()
+		shape.radius = radius
+		collision.shape = shape
+
+	# ПОДКЛЮЧАЕМ СИГНАЛ
+	if not body_entered.is_connected(_on_body_entered):
+		body_entered.connect(_on_body_entered)
+		
+	print("✅ Coin setup complete - Layer: 2, Mask: 1")
+	queue_redraw()
+
+func _on_body_entered(body: Node) -> void:
+	print("🎯 Coin: body entered - ", body.name)
+	
+	if body is CharacterBody2D and body.name == "Player":
+		print("💰 Coin collected! Adding ", value, " points")
+		
+		# Добавляем очки
+		GameState.add_coin(value)
+		print("📊 New score: ", GameState.score)
+		
+		# Исчезаем
+		queue_free()
+
+func _draw() -> void:
+	# РИСУЕМ КРАСИВУЮ МОНЕТУ
+	var center = Vector2.ZERO
+	
+	# Жёлтая середина
+	draw_circle(center, radius, Color(1.0, 0.84, 0.0, 1.0))
+	
+	# Тёмно-жёлтый ободок
+	draw_arc(center, radius, 0, TAU, 32, Color(0.8, 0.6, 0.0, 1.0), 3.0)
+	
+	# Внутренний круг
+	draw_circle(center, radius * 0.6, Color(1.0, 0.9, 0.3, 1.0))
+	
+	# Блик
+	draw_circle(Vector2(-radius * 0.3, -radius * 0.3), radius * 0.2, Color(1.0, 1.0, 1.0, 0.8))
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\Coin.tscn ---
+
+[gd_scene load_steps=2 format=3 uid="uid://caso0eomqoq3b"]
+
+[ext_resource type="Script" path="res://Coin.gd" id="1_7hm3t"]
+
+[node name="Coin" type="Area2D"]
+script = ExtResource("1_7hm3t")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\CubeView.gd ---
+
+extends Node2D
+# ============================================================================
+# CubeView.gd
+# ============================================================================
+# СЦЕНА ПРОСМОТРА СТЕНЫ ВНЕ ИГРОВОГО ПРОЦЕССА
+# ----------------------------------------------------------------------------
+# ЗАДАЧА:
+# - Показать ту же самую сцену стены, что используется в игровом уровне.
+# - Не переписывать и не дублировать логику стены/сегментов.
+# - Повторно использовать wall.tscn и WallSegment.gd «как есть».
+# - Добавить высотный гейт (горизонтальная линия), ниже которого сегменты
+#   кликабельны, а выше — клики игнорируются.
+# - Обеспечить архитектуру для будущей покупки сегментов в CubeView.
+# ----------------------------------------------------------------------------
+# ВАЖНЫЙ КОНСТРАИНТ:
+# - Рандомные повороты, дыхание и прочая «жизнь» сегментов реализованы
+#   внутри WallSegment.gd и уже работают. Здесь мы НИЧЕГО в них не трогаем.
+# - CubeView отвечает только за:
+#   * инстанс стены
+#   * установку высотного гейта
+#   * ограничение кликов по сегментам выше гейта
+#   * простейший UI-навигации
+# ============================================================================
+
+## Путь к сцене стены.
+## ВАЖНО: это та же сцена, которая используется в игровом уровне.
+@export_file("*.tscn")
+var wall_scene_path: String = "res://wall/wall.tscn"
+
+## Ссылка на инстанс сцены стены (создаётся в _ready).
+var wall_instance: Node2D = null
+
+## Нода визуальной линии-гейта (Line2D или любой другой Node2D).
+## Типизировано как Node2D, потому что нас интересует только её position.y.
+@onready var gate_line: Node2D = $GateLine
+
+## UI-слой для кнопок навигации / подписей.
+@onready var ui_layer: CanvasLayer = $UILayer
+@onready var back_button: Button = $UILayer/Panel/VBoxContainer/BackButton
+
+## Высота-гейт по Y в мировых координатах CubeView.
+## Сегменты с global_position.y > gate_y считаются НИЖЕ линии (доступны),
+## а с y <= gate_y — ВЫШЕ линии (клики игнорируются).
+var gate_y: float = 0.0
+
+
+func _ready() -> void:
+	# ------------------------------------------------------------
+	# 1. Инстанс существующей сцены стены.
+	# ------------------------------------------------------------
+	# Мы намеренно НЕ создаём новую реализацию стены.
+	# Вместо этого:
+	# - загружаем wall.tscn
+	# - инстанцируем её один раз
+	# - добавляем как ребёнка CubeView
+	# Вся логика генерации сегментов, вращения и «дыхания» остаётся в wall.gd
+	# и WallSegment.gd; CubeView лишь задаёт окружение.
+	# ------------------------------------------------------------
+	if wall_scene_path == "":
+		push_error("CubeView.gd: wall_scene_path is empty")
+	else:
+		# Тип res указываем явно как Resource, затем кастуем к PackedScene.
+		# Это безопасно, т.к. мы знаем, что wall_scene_path указывает на .tscn.
+		var res: Resource = load(wall_scene_path)
+		var packed: PackedScene = res as PackedScene
+		if packed != null:
+			var inst: Node = packed.instantiate()
+			# Дополнительно убеждаемся, что это именно Node2D.
+			wall_instance = inst as Node2D
+			if wall_instance != null:
+				add_child(wall_instance)
+				# Для наглядности центрируем стену около (0,0) CubeView.
+				wall_instance.position = Vector2.ZERO
+		else:
+			push_error("CubeView.gd: cannot load wall scene as PackedScene: " + wall_scene_path)
+
+	# ------------------------------------------------------------
+	# 2. Настройка UI-навигации.
+	# ------------------------------------------------------------
+	# UI здесь минимальный:
+	# - BackButton возвращает игрока в главное меню.
+	# - В будущем сюда можно добавить:
+	#   * информацию о высоте
+	#   * баланс монет
+	#   * кнопки фильтров / сортировки сегментов
+	# ------------------------------------------------------------
+	if back_button != null and not back_button.pressed.is_connected(_on_back_button_pressed):
+		back_button.pressed.connect(_on_back_button_pressed)
+
+	# ------------------------------------------------------------
+	# 3. Вычисляем высоту-гейт на основе GameState.
+	# ------------------------------------------------------------
+	# Архитектурно здесь предполагается, что:
+	# - GameState хранит максимальную достигнутую высоту игрока в world-space.
+	# - Для упрощения считаем, что ось Y такая же, как в Level:
+	#   * чем МЕНЬШЕ y, тем ВЫШЕ игрок находится.
+	#   * max_height_reached / max_height_reached (у нас max_height_reached) —
+	#     минимальное значение y, которого достигал игрок (самая верхняя точка).
+	# В этом коде мы читаем поле GameState.max_height_reached через get().
+	# Если оно пока не задано или не является числом, просто ставим гейт
+	# немного выше центра (условное значение -200).
+	# ------------------------------------------------------------
+	var has_gs: bool = Engine.has_singleton("GameState")
+	if has_gs and GameState.has_method("get"):
+		# Тип v объявлен как Variant, т.к. метод get() может вернуть что угодно.
+		var v: Variant = GameState.get("max_height_reached")
+		if v is float or v is int:
+			gate_y = float(v)
+		else:
+			gate_y = -200.0
+	else:
+		gate_y = -200.0
+
+	# В этом прототипе мы НИКАК не модифицируем GameState;
+	# предполагается, что игровая сцена уже обновляет max_height_reached.
+
+	# ------------------------------------------------------------
+	# 4. Размещаем визуальную линию-гейт.
+	# ------------------------------------------------------------
+	# Мы считаем, что GateLine — это Line2D под корнем CubeView
+	# с точками, заданными относительно её локальной позиции:
+	#   ( -10000, 0 ) .. ( 10000, 0 )
+	# Тогда её global Y = position.y. Мы просто ставим её на gate_y.
+	# ------------------------------------------------------------
+	if gate_line != null:
+		gate_line.position.y = gate_y
+
+	# ------------------------------------------------------------
+	# 5. Ограничиваем клики по сегментам в зависимости от высоты.
+	# ------------------------------------------------------------
+	# ВАЖНО:
+	# - Мы НЕ меняем WallSegment.gd и НЕ вмешиваемся в его логику.
+	# - Вместо этого работаем только со свойствами Area2D:
+	#   * для сегментов ВЫШЕ гейта выключаем input_pickable,
+	#     так что их Area2D не будет получать события ввода.
+	#   * для сегментов НИЖЕ гейта включаем input_pickable.
+	# - Рандомные повороты, дыхание и т.п. по-прежнему работают, так как
+	#   _process в WallSegment не зависит от input_pickable.
+	# ------------------------------------------------------------
+	_apply_height_gate_to_segments()
+
+
+func _apply_height_gate_to_segments() -> void:
+	# Если стена не загружена — нечего ограничивать.
+	if wall_instance == null:
+		return
+
+	# Обходим всех потомков wall_instance в глубину (ручной стек).
+	# Ищем ноды, которые выглядят как наши сегменты:
+	# - называются "WallSegment"
+	# - имеют ребёнка "Area2D" типа Area2D.
+	var stack: Array[Node] = [wall_instance]
+
+	while stack.size() > 0:
+		var current: Node = stack.pop_back()
+
+		# get_children() возвращает Array<Node> (в Godot 4 с типами),
+		# но мы всё равно явно объявляем тип локальной переменной,
+		# чтобы компилятор не выводил её как Variant.
+		for child in current.get_children():
+			var child_node: Node = child
+			stack.push_back(child_node)
+
+		# Проверяем только ноды-сегменты по имени.
+		if current.name == "WallSegment" and current.has_node("Area2D"):
+			# Забираем ребёнка "Area2D" и явно кастуем к Area2D.
+			var area_node: Node = current.get_node("Area2D")
+			var area: Area2D = area_node as Area2D
+			if area == null:
+				continue
+
+			# Нам нужна глобальная позиция сегмента, поэтому кастуем к Node2D.
+			var segment_2d: Node2D = current as Node2D
+			if segment_2d == null:
+				continue
+
+			var seg_global_y: float = segment_2d.global_position.y
+
+			# В системе координат Godot Y растёт вниз:
+			# - МЕНЬШЕ y → ВЫШЕ на экране
+			# - БОЛЬШЕ y → НИЖЕ на экране
+			#
+			# Условие задачи:
+			# - сегменты НИЖЕ линии (y > gate_y) кликабельны
+			# - сегменты ВЫШЕ линии (y <= gate_y) игнорируют клики
+			var clickable: bool = seg_global_y > gate_y
+
+			# Мы меняем только input_pickable и monitoring,
+			# не трогая саму логику WallSegment.
+			area.input_pickable = clickable
+			area.monitoring = clickable
+
+			# Для наглядности можно было бы логировать состояние,
+			# но по условиям задания новый debug вывод не добавляем.
+
+
+func _on_back_button_pressed() -> void:
+	# Простая навигация: возвращаемся в главное меню.
+	# Путь к сцене главного меню может быть прочитан из GameState
+	# или захардкожен/экспортирован в CubeView; в данном прототипе
+	# используем явный путь.
+	var main_menu_path: String = "res://MainMenu.tscn"
+	var err: int = get_tree().change_scene_to_file(main_menu_path)
+	if err != OK:
+		push_error("CubeView.gd: cannot load main menu: " + main_menu_path)
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\CubeView.tscn ---
+
+[gd_scene load_steps=3 format=3 uid="uid://cubeview_scene"]
+
+[ext_resource type="Script" path="res://CubeView.gd" id="1_k3bv4"]
+
+[node name="CubeView" type="Node2D"]
+script = ExtResource("1_k3bv4")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+current = true
+
+[node name="GateLine" type="Line2D" parent="."]
+width = 2.0
+points = PackedVector2Array(-10000, 0, 10000, 0)
+default_color = Color(1, 0, 0, 0.7)
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="Panel" type="Panel" parent="UILayer"]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 260.0
+offset_bottom = 140.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UILayer/Panel"]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+
+[node name="TitleLabel" type="Label" parent="UILayer/Panel/VBoxContainer"]
+text = "Cube View"
+
+[node name="BackButton" type="Button" parent="UILayer/Panel/VBoxContainer"]
+text = "Back to Menu"
+
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\GameOver.gd ---
+
+extends CanvasLayer
+
+# ============================================================================
+# GameOver.gd — UI‑экран завершения забега
+# ----------------------------------------------------------------------------
+# ОБЯЗАННОСТИ:
+# - Показать результаты прошедшего забега:
+#   * максимальная достигнутая высота (GameState.max_height_reached)
+#   * набранные очки (GameState.score)
+# - Дать игроку три варианта:
+#   * View Cube    → перейти в CubeView.tscn для просмотра мегакуба
+#   * Restart Run  → начать новый забег (Level.tscn)
+#   * Main Menu    → вернуться в главное меню (MainMenu.tscn)
+#
+# ВАЖНО:
+# - На этом экране НЕТ игрока, физики и стены. Это чистый UI.
+# - GameState.is_game_over на момент входа сюда уже должен быть true и
+#   НЕ должен сбрасываться до момента Restart Run.
+# - Стена и сегменты продолжают жить в своих сценах (Level / CubeView) и
+#   не зависят от этого экрана.
+# ============================================================================
+
+@export_file("*.tscn")
+var level_scene: String = "res://level.tscn"
+
+@export_file("*.tscn")
+var main_menu_scene: String = "res://MainMenu.tscn"
+
+@export_file("*.tscn")
+var cube_view_scene: String = "res://CubeView.tscn"
+
+@onready var label_height: Label = $Panel/VBox/HeightLabel
+@onready var label_score: Label = $Panel/VBox/ScoreLabel
+
+@onready var button_view_cube: Button = $Panel/VBox/Buttons/ViewCubeButton
+@onready var button_restart: Button = $Panel/VBox/Buttons/RestartButton
+@onready var button_main_menu: Button = $Panel/VBox/Buttons/MainMenuButton
+
+
+func _ready() -> void:
+	# Подключаем сигналы кнопок один раз при входе на экран.
+	if button_view_cube != null and not button_view_cube.pressed.is_connected(_on_view_cube_pressed):
+		button_view_cube.pressed.connect(_on_view_cube_pressed)
+
+	if button_restart != null and not button_restart.pressed.is_connected(_on_restart_pressed):
+		button_restart.pressed.connect(_on_restart_pressed)
+
+	if button_main_menu != null and not button_main_menu.pressed.is_connected(_on_main_menu_pressed):
+		button_main_menu.pressed.connect(_on_main_menu_pressed)
+
+	_update_stats_labels()
+
+
+func _update_stats_labels() -> void:
+	# Максимальная высота:
+	# - GameState.max_height_reached хранит МИНИМАЛЬНОЕ значение Y (чем меньше, тем выше).
+	# - Для игрока удобнее показать это число в человеко‑читаемом виде.
+	# Здесь мы просто выводим его как есть и даём подсказку по системе координат.
+	var max_height_text: String = "N/A"
+	var score_text: String = "0"
+
+	if Engine.has_singleton("GameState"):
+		# Текущий счёт забега.
+		score_text = str(GameState.score)
+
+		# Максимальная достигнутая высота (минимальное Y).
+		var v: Variant = GameState.max_height_reached
+		if v is float or v is int:
+			var y: float = float(v)
+			max_height_text = str(y)
+
+	if label_height != null:
+		label_height.text = "Max height (min Y): " + max_height_text
+
+	if label_score != null:
+		label_score.text = "Score: " + score_text
+
+
+func _on_view_cube_pressed() -> void:
+	# Переходим в CubeView.tscn для просмотра мегакуба и возможной покупки сегментов.
+	# ВАЖНО:
+	# - GameState.max_height_reached уже содержит высоту‑гейт для CubeView.
+	# - GameState.is_game_over остаётся true; CubeView сам решит, как это использовать
+	#   (обычно ему всё равно, он просто читает max_height_reached).
+	var target: String = cube_view_scene
+	if target == "" or target == null:
+		# Если по какой‑то причине путь не задан, логируем ошибку и остаёмся на экране.
+		push_error("GameOver.gd: cube_view_scene is not set")
+		return
+
+	var err: int = get_tree().change_scene_to_file(target)
+	if err != OK:
+		push_error("GameOver.gd: cannot load CubeView scene: " + target)
+
+
+func _on_restart_pressed() -> void:
+	# Начинаем НОВЫЙ забег:
+	# - сбрасываем GameState (start_new_run)
+	# - is_game_over внутри start_new_run устанавливается в false
+	# - загружаем Level.tscn
+	if not Engine.has_singleton("GameState"):
+		push_error("GameOver.gd: GameState singleton not found, cannot restart run")
+	else:
+		GameState.start_new_run()
+
+	var target: String = level_scene
+	if target == "" or target == null:
+		push_error("GameOver.gd: level_scene is not set")
+		return
+
+	var err: int = get_tree().change_scene_to_file(target)
+	if err != OK:
+		push_error("GameOver.gd: cannot load level scene: " + target)
+
+
+func _on_main_menu_pressed() -> void:
+	# Возврат в главное меню:
+	# - ТЕКУЩИЙ забег остаётся завершённым (is_game_over = true).
+	# - На следующем старте Play кнопка сама вызовет start_new_run().
+	var target: String = main_menu_scene
+	if target == "" or target == null:
+		push_error("GameOver.gd: main_menu_scene is not set")
+		return
+
+	var err: int = get_tree().change_scene_to_file(target)
+	if err != OK:
+		push_error("GameOver.gd: cannot load main menu: " + target)
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\GameOver.tscn ---
+
+[gd_scene load_steps=2 format=3 uid="uid://game_over_scene"]
+
+[ext_resource type="Script" path="res://GameOver.gd" id="1_gmovr"]
+
+[node name="GameOver" type="CanvasLayer"]
+script = ExtResource("1_gmovr")
+
+[node name="Panel" type="Panel" parent="."]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 200.0
+offset_top = 120.0
+offset_right = -200.0
+offset_bottom = -120.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 60)
+theme_override_font_sizes/font_size = 36
+text = "GAME OVER"
+horizontal_alignment = 1
+
+[node name="HeightLabel" type="Label" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+theme_override_font_sizes/font_size = 20
+text = "Max height (min Y): N/A"
+
+[node name="ScoreLabel" type="Label" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+theme_override_font_sizes/font_size = 20
+text = "Score: 0"
+
+[node name="Buttons" type="HBoxContainer" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 80)
+alignment = 1
+theme_override_constants/separation = 24
+
+[node name="ViewCubeButton" type="Button" parent="Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(220, 64)
+theme_override_font_sizes/font_size = 24
+text = "View Cube"
+
+[node name="RestartButton" type="Button" parent="Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(220, 64)
+theme_override_font_sizes/font_size = 24
+text = "Restart Run"
+
+[node name="MainMenuButton" type="Button" parent="Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(220, 64)
+theme_override_font_sizes/font_size = 24
+text = "Main Menu"
+
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\GameState.gd ---
+
+extends Node
+# ============================================================================
+# GameState.gd — Autoload Singleton
+# ----------------------------------------------------------------------------
+# Хранит:
+# - рекорды/таблицу чемпионов
+# - выбранного героя
+# - настройки кастом-аватара (jump0/jump1)
+# - НИКНЕЙМ (persisted) — теперь игра не стартует без него
+#
+# Закладки под будущий мультиплеер:
+# - player_uid (пока локально)
+# - auth_provider / auth_token (пока пустые)
+# ============================================================================
+
+const SAVE_PATH: String = "user://blackout_run_scores.save"
+const MAX_CHAMPIONS: int = 20
+
+const DEFAULT_HERO_ID: String = "default"
+
+# --- PERSISTED PROFILE ---
+var nickname: String = ""              # <- ОБЯЗАТЕЛЕН для старта
+var player_uid: String = ""            # <- заглушка (мультиплеер)
+var auth_provider: String = ""         # <- заглушка (Google/Apple/etc)
+var auth_token: String = ""            # <- заглушка
+
+# --- HERO ---
+var selected_hero_id: String = DEFAULT_HERO_ID
+
+# --- CUSTOM AVATAR ---
+var use_custom_avatar: bool = false
+var custom_avatar_up_path: String = "user://avatars/custom_jump_up.png"
+var custom_avatar_down_path: String = "user://avatars/custom_jump_down.png"
+
+# --- RUN STATE ---
+var score: int = 0
+var player_name: String = ""           # имя текущего забега (берём из nickname)
+var is_game_over: bool = false         # флаг завершения текущего забега
+
+# Максимальная достигнутая высота игрока в world-space (ось Y Godot).
+# Принято соглашение:
+# - чем МЕНЬШЕ значение Y, тем ВЫШЕ находится игрок (стандартная 2D-координата).
+# - max_height_reached хранит МИНИМАЛЬНОЕ значение global_position.y,
+#   которого достиг игрок в текущем забеге.
+# Это значение используется в CubeView как позиция высотного гейта.
+var max_height_reached: float = 0.0
+
+# --- RECORDS ---
+var best_score: int = 0
+var champions: Array = [] # { "name": String, "score": int, "time": int }
+
+func _ready() -> void:
+	load_scores()
+
+# ---------------- PROFILE ----------------
+
+func set_nickname(v: String) -> void:
+	nickname = v.strip_edges()
+	save_scores()
+
+func get_nickname() -> String:
+	return nickname
+
+func has_valid_nickname() -> bool:
+	return nickname.strip_edges() != ""
+
+# ---------------- RUN ----------------
+
+func start_new_run() -> void:
+	# Имя забега всегда берём из persisted nickname
+	score = 0
+	player_name = nickname.strip_edges()
+	is_game_over = false
+	# Сбрасываем высоту; реальное начальное значение задаётся в Player._ready()
+	max_height_reached = 0.0
+
+func add_coin(value: int = 1) -> void:
+	score += value
+	if score > best_score:
+		best_score = score
+
+# ---------------- HERO ----------------
+
+func set_selected_hero_id(id: String) -> void:
+	var clean_id := id.strip_edges()
+	if clean_id == "":
+		clean_id = DEFAULT_HERO_ID
+	selected_hero_id = clean_id
+	save_scores()
+
+func get_selected_hero_id() -> String:
+	return selected_hero_id
+
+# ---------------- CUSTOM AVATAR ----------------
+
+func set_use_custom_avatar(v: bool) -> void:
+	use_custom_avatar = v
+	save_scores()
+
+func get_use_custom_avatar() -> bool:
+	return use_custom_avatar
+
+func set_custom_avatar_paths(up_path: String, down_path: String) -> void:
+	if up_path.strip_edges() != "":
+		custom_avatar_up_path = up_path.strip_edges()
+	if down_path.strip_edges() != "":
+		custom_avatar_down_path = down_path.strip_edges()
+	save_scores()
+
+func get_custom_avatar_up_path() -> String:
+	return custom_avatar_up_path
+
+func get_custom_avatar_down_path() -> String:
+	return custom_avatar_down_path
+
+# ---------------- CHAMPIONS ----------------
+
+func register_run_finished() -> void:
+	var player_n := player_name.strip_edges()
+	if player_n == "":
+		player_n = "NoName"
+
+	var entry := {
+		"name": player_n,
+		"score": score,
+		"time": _get_now()
+	}
+
+	champions.append(entry)
+	champions.sort_custom(Callable(self, "_sort_scores_desc"))
+
+	if champions.size() > MAX_CHAMPIONS:
+		champions.resize(MAX_CHAMPIONS)
+
+	save_scores()
+
+func get_champions() -> Array:
+	return champions.duplicate()
+
+func reset_scores() -> void:
+	score = 0
+	best_score = 0
+	champions.clear()
+	save_scores()
+
+# ---------------- SAVE/LOAD ----------------
+
+func save_scores() -> void:
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file == null:
+		push_error("GameState: не удалось открыть файл для записи: " + SAVE_PATH)
+		return
+
+	var data := {
+		# profile
+		"nickname": nickname,
+		"player_uid": player_uid,
+		"auth_provider": auth_provider,
+		"auth_token": auth_token,
+
+		# records
+		"best_score": best_score,
+		"champions": champions,
+
+		# hero
+		"selected_hero_id": selected_hero_id,
+
+		# custom avatar
+		"use_custom_avatar": use_custom_avatar,
+		"custom_avatar_up_path": custom_avatar_up_path,
+		"custom_avatar_down_path": custom_avatar_down_path
+	}
+
+	file.store_var(data)
+
+func load_scores() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		_reset_to_defaults()
+		return
+
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		push_error("GameState: не удалось открыть файл для чтения: " + SAVE_PATH)
+		_reset_to_defaults()
+		return
+
+	var data = file.get_var()
+	if typeof(data) != TYPE_DICTIONARY:
+		_reset_to_defaults()
+		return
+
+	# profile
+	nickname = str(data.get("nickname", "")).strip_edges()
+	player_uid = str(data.get("player_uid", "")).strip_edges()
+	auth_provider = str(data.get("auth_provider", "")).strip_edges()
+	auth_token = str(data.get("auth_token", "")).strip_edges()
+
+	# records
+	best_score = int(data.get("best_score", 0))
+
+	var loaded_champs = data.get("champions", [])
+	champions.clear()
+	if typeof(loaded_champs) == TYPE_ARRAY:
+		for e in loaded_champs:
+			if typeof(e) == TYPE_DICTIONARY:
+				champions.append(e)
+	champions.sort_custom(Callable(self, "_sort_scores_desc"))
+	if champions.size() > MAX_CHAMPIONS:
+		champions.resize(MAX_CHAMPIONS)
+
+	# hero
+	selected_hero_id = str(data.get("selected_hero_id", DEFAULT_HERO_ID)).strip_edges()
+	if selected_hero_id == "":
+		selected_hero_id = DEFAULT_HERO_ID
+
+	# custom avatar
+	use_custom_avatar = bool(data.get("use_custom_avatar", false))
+	custom_avatar_up_path = str(data.get("custom_avatar_up_path", "user://avatars/custom_jump_up.png")).strip_edges()
+	custom_avatar_down_path = str(data.get("custom_avatar_down_path", "user://avatars/custom_jump_down.png")).strip_edges()
+
+	if custom_avatar_up_path == "":
+		custom_avatar_up_path = "user://avatars/custom_jump_up.png"
+	if custom_avatar_down_path == "":
+		custom_avatar_down_path = "user://avatars/custom_jump_down.png"
+
+func _reset_to_defaults() -> void:
+	nickname = ""
+	player_uid = ""
+	auth_provider = ""
+	auth_token = ""
+
+	score = 0
+	player_name = ""
+	best_score = 0
+	champions.clear()
+
+	selected_hero_id = DEFAULT_HERO_ID
+
+	use_custom_avatar = false
+	custom_avatar_up_path = "user://avatars/custom_jump_up.png"
+	custom_avatar_down_path = "user://avatars/custom_jump_down.png"
+
+func _sort_scores_desc(a: Dictionary, b: Dictionary) -> bool:
+	var sa: int = int(a.get("score", 0))
+	var sb: int = int(b.get("score", 0))
+	if sa == sb:
+		var ta: int = int(a.get("time", 0))
+		var tb: int = int(b.get("time", 0))
+		return ta > tb
+	return sa > sb
+
+func _get_now() -> int:
+	return Time.get_unix_time_from_system()
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\HUD.gd ---
+
+extends Control
+# HUD.gd — отображает текущий счёт и имя игрока
+
+@export_file("*.tscn")
+var main_menu_scene: String = "res://MainMenu.tscn"
+
+@onready var score_label: Label = $VBoxContainer/ScoreLabel
+@onready var name_label: Label = $VBoxContainer/NameLabel
+@onready var back_button: Button = $BackButton
+
+func _ready() -> void:
+	if back_button != null and not back_button.pressed.is_connected(_on_back_button_pressed):
+		back_button.pressed.connect(_on_back_button_pressed)
+	_refresh_labels()
+
+func _process(_delta: float) -> void:
+	_refresh_labels()
+
+func _refresh_labels() -> void:
+	var pn := GameState.player_name
+	if pn == "" or pn == "NoName":
+		pn = "NoName"
+	score_label.text = "Score: " + str(GameState.score)
+	name_label.text = "Player: " + pn
+
+func _on_back_button_pressed() -> void:
+	if not Engine.is_editor_hint():
+		GameState.register_run_finished()
+		if main_menu_scene == "":
+			push_error("HUD: не задан путь к сцене главного меню (main_menu_scene).")
+			return
+		var err := get_tree().change_scene_to_file(main_menu_scene)
+		if err != OK:
+			push_error("HUD: не удалось загрузить сцену главного меню: " + main_menu_scene)
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\level.tscn ---
+
+[gd_scene load_steps=12 format=3 uid="uid://dqjhrv658k7px"]
+
+[ext_resource type="Script" uid="uid://b1f0nnjwe1y4n" path="res://scripts/Level.gd" id="1_dp35j"]
+[ext_resource type="Script" uid="uid://d2qhqiwwdgihd" path="res://scripts/Player.gd" id="2_hc4jq"]
+[ext_resource type="SpriteFrames" uid="uid://c0nyy5461gg26" path="res://heroes/hero_default_jump_frames.tres" id="3_default_frames"]
+[ext_resource type="Script" uid="uid://yfnnihpjke51" path="res://HUD.gd" id="4_kqdme"]
+[ext_resource type="SpriteFrames" uid="uid://blt1544junb0x" path="res://heroes/hero_monster_jump_frames.tres" id="4_mtnfr"]
+[ext_resource type="SpriteFrames" uid="uid://keh6xhe2lv" path="res://heroes/hero_red_jump_frames.tres" id="5_tdk6w"]
+[ext_resource type="SpriteFrames" uid="uid://b5liyg33sbvg0" path="res://heroes/hero_blue_jump_frames.tres" id="6_km5ld"]
+[ext_resource type="SpriteFrames" uid="uid://cpcmabbbk00du" path="res://heroes/hero_orange_jump_frames.tres" id="7_i2t4f"]
+[ext_resource type="PackedScene" uid="uid://dpol13adfo7g3" path="res://wall/wall.tscn" id="8_wall"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_oqtl3"]
+size = Vector2(16, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_pdllj"]
+animations = [{
+"frames": [],
+"loop": true,
+"name": &"JUMP",
+"speed": 5.0
+}]
+
+[node name="Level" type="Node2D"]
+script = ExtResource("1_dp35j")
+
+[node name="Platforms" type="Node2D" parent="."]
+
+[node name="Wall" parent="." instance=ExtResource("8_wall")]
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(200, 250)
+up_direction = Vector2(0, 1)
+script = ExtResource("2_hc4jq")
+main_menu_scene = "uid://dhfx3og1cf0cj"
+frames_default = ExtResource("3_default_frames")
+frames_monster = ExtResource("4_mtnfr")
+frames_red = ExtResource("5_tdk6w")
+frames_blue = ExtResource("6_km5ld")
+frames_orange = ExtResource("7_i2t4f")
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+zoom = Vector2(1.2, 1.2)
+drag_vertical_enabled = true
+drag_top_margin = 0.25
+drag_bottom_margin = 0.45
+editor_draw_drag_margin = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_oqtl3")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Player"]
+scale = Vector2(0.6, 0.6)
+sprite_frames = SubResource("SpriteFrames_pdllj")
+animation = &"JUMP"
+
+[node name="CustomAvatarSprite" type="Sprite2D" parent="Player"]
+visible = false
+scale = Vector2(0.6, 0.6)
+
+[node name="HUDLayer" type="CanvasLayer" parent="."]
+
+[node name="HUD" type="Control" parent="HUDLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_kqdme")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUDLayer/HUD"]
+layout_mode = 1
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 56.0
+offset_bottom = 66.0
+
+[node name="NameLabel" type="Label" parent="HUDLayer/HUD/VBoxContainer"]
+layout_mode = 2
+
+[node name="ScoreLabel" type="Label" parent="HUDLayer/HUD/VBoxContainer"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="HUDLayer/HUD"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -120.0
+offset_top = 16.0
+offset_right = -67.0
+offset_bottom = 47.0
+grow_horizontal = 0
+text = "Menu"
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\MainMenu.gd ---
+
+extends Control
+# ============================================================================
+# MainMenu.gd — ГЛАВНЫЙ ЭКРАН (без настроек аватара)
+# ----------------------------------------------------------------------------
+# Требования:
+# - Play НЕ работает без nickname
+# - Champions -> отдельная сцена
+# - Profile -> отдельная сцена (там nickname + avatar + jump(0/1))
+# - На главном экране показываем текущий аватар (по выбору игрока)
+# ============================================================================
+
+@export_file("*.tscn")
+var game_scene: String = "res://level.tscn"
+
+@export_file("*.tscn")
+var champions_scene: String = "res://Champions.tscn"
+
+@export_file("*.tscn")
+var profile_scene: String = "res://Profile.tscn"
+
+@export_file("*.tscn")
+var cube_view_scene: String = "res://CubeView.tscn"
+
+@onready var play_button: Button = $RootHBox/LeftPanel/VBoxButtons/PlayButton
+@onready var champions_button: Button = $RootHBox/LeftPanel/VBoxButtons/ChampionsButton
+@onready var profile_button: Button = $RootHBox/LeftPanel/VBoxButtons/ProfileButton
+@onready var cubeview_button: Button = $RootHBox/LeftPanel/VBoxButtons/CubeViewButton
+
+@onready var nickname_label: Label = $RootHBox/LeftPanel/NicknameLabel
+@onready var avatar_preview: TextureRect = $RootHBox/RightPanel/AvatarPreview
+
+@onready var warn_dialog: AcceptDialog = $WarnDialog
+
+const HERO_PREVIEWS := {
+	"default": "res://heroes/hero_default.png",
+	"monster": "res://heroes/hero_monster.png",
+	"red": "res://heroes/hero_red.png",
+	"blue": "res://heroes/hero_blue.png",
+	"orange": "res://heroes/hero_orange.png"
+}
+
+func _ready() -> void:
+	if play_button and not play_button.pressed.is_connected(_on_play_pressed):
+		play_button.pressed.connect(_on_play_pressed)
+
+	if champions_button and not champions_button.pressed.is_connected(_on_champions_pressed):
+		champions_button.pressed.connect(_on_champions_pressed)
+
+	if profile_button and not profile_button.pressed.is_connected(_on_profile_pressed):
+		profile_button.pressed.connect(_on_profile_pressed)
+
+	if cubeview_button and not cubeview_button.pressed.is_connected(_on_cubeview_pressed):
+		cubeview_button.pressed.connect(_on_cubeview_pressed)
+
+	_refresh_ui()
+
+func _process(_delta: float) -> void:
+	# лёгкий refresh (тут нет тяжёлых операций)
+	_refresh_ui()
+
+func _refresh_ui() -> void:
+	var nick := GameState.get_nickname().strip_edges()
+	if nickname_label:
+		nickname_label.text = "Nickname: " + (nick if nick != "" else "— не задан —")
+
+	# Показываем превью аватара:
+	# - если кастом включён и есть файл jump0 -> показываем его
+	# - иначе показываем preview выбранного героя
+	if avatar_preview == null:
+		return
+
+	if GameState.get_use_custom_avatar():
+		var up_path := GameState.get_custom_avatar_up_path()
+		if FileAccess.file_exists(up_path):
+			var img := Image.new()
+			var err := img.load(up_path)
+			if err == OK:
+				var tex := ImageTexture.create_from_image(img)
+				avatar_preview.texture = tex
+				return
+
+	var hero_id := str(GameState.get_selected_hero_id()).strip_edges()
+	if hero_id == "":
+		hero_id = "default"
+	var p := str(HERO_PREVIEWS.get(hero_id, HERO_PREVIEWS["default"]))
+	if p != "" and ResourceLoader.exists(p):
+		var res := ResourceLoader.load(p, "", ResourceLoader.CACHE_MODE_REPLACE)
+		if res is Texture2D:
+			avatar_preview.texture = res
+
+func _on_profile_pressed() -> void:
+	var err := get_tree().change_scene_to_file(profile_scene)
+	if err != OK:
+		push_error("MainMenu.gd: не удалось открыть Profile: " + profile_scene)
+
+func _on_champions_pressed() -> void:
+	var err := get_tree().change_scene_to_file(champions_scene)
+	if err != OK:
+		push_error("MainMenu.gd: не удалось открыть Champions: " + champions_scene)
+
+
+func _on_cubeview_pressed() -> void:
+	# ----------------------------------------------------------------------------
+	# ПЕРЕХОД В СЦЕНУ ПРОСМОТРА СТЕНЫ (CubeView)
+	# ----------------------------------------------------------------------------
+	# Эта кнопка позволяет игроку открыть сцену CubeView,
+	# где он может рассматривать мегакуб и взаимодействовать с сегментами
+	# в спокойном режиме, вне игрового раннера.
+	# Здесь мы просто меняем сцену на CubeView.tscn.
+	# ВАЖНО: логика стены и сегментов внутри CubeView остаётся той же,
+	# что и в Level — мы лишь меняем окружение.
+	# ----------------------------------------------------------------------------
+	var err := get_tree().change_scene_to_file(cube_view_scene)
+	if err != OK:
+		push_error("MainMenu.gd: не удалось открыть CubeView: " + cube_view_scene)
+
+func _on_play_pressed() -> void:
+	# Запрет старта без nickname
+	if not GameState.has_valid_nickname():
+		_show_warn("Сначала нужно указать никнейм (Profile).")
+		return
+
+	# старт забега
+	GameState.start_new_run()
+
+	var err := get_tree().change_scene_to_file(game_scene)
+	if err != OK:
+		push_error("MainMenu.gd: не удалось загрузить сцену игры: " + game_scene)
+
+func _show_warn(text: String) -> void:
+	if warn_dialog:
+		warn_dialog.dialog_text = text
+		warn_dialog.popup_centered()
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\MainMenu.tscn ---
+
+[gd_scene load_steps=2 format=3 uid="uid://dhfx3og1cf0cj"]
+
+[ext_resource type="Script" uid="uid://bccj45bqt7cxy" path="res://MainMenu.gd" id="1_nsm8v"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_nsm8v")
+
+[node name="RootHBox" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="LeftPanel" type="Panel" parent="RootHBox"]
+custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
+
+[node name="RightPanel" type="CenterContainer" parent="RootHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NicknameLabel" type="Label" parent="RootHBox/LeftPanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+custom_minimum_size = Vector2(0, 40)
+text = "Nickname: —"
+
+[node name="VBoxButtons" type="VBoxContainer" parent="RootHBox/LeftPanel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 80.0
+offset_right = 304.0
+offset_bottom = -24.0
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="TitleLabel" type="Label" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "BLACKOUT RUN"
+
+[node name="PlayButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Play"
+
+[node name="ChampionsButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Champions"
+
+[node name="ProfileButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Profile / Settings"
+
+[node name="CubeViewButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "View Cube"
+
+[node name="AvatarPreview" type="TextureRect" parent="RootHBox/RightPanel"]
+custom_minimum_size = Vector2(504, 504)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="WarnDialog" type="AcceptDialog" parent="."]
+oversampling_override = 1.0
+title = "Внимание"
+dialog_text = "..."
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\Platform.tscn ---
+
+[gd_scene load_steps=3 format=3 uid="uid://be75ddpx283h6"]
+
+[ext_resource type="Script" uid="uid://d3vnfw24h7bdb" path="res://scripts/Platform.gd" id="1_hyugo"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_s2m6q"]
+size = Vector2(32, 32)
+
+[node name="Platform" type="StaticBody2D"]
+constant_linear_velocity = Vector2(64, 64)
+script = ExtResource("1_hyugo")
+coin_spawn_chance = 0.3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_s2m6q")
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\Profile.gd ---
+
+extends Control
+# ============================================================================
+# Profile.gd — отдельная сцена профиля игрока (nickname + выбор героя + кастом-аватар jump(0/1))
+# ----------------------------------------------------------------------------
+# ТРЕБОВАНИЕ (твое):
+# ✅ Любая картинка, которую загружает ИГРОК (png/jpg/jpeg), должна в игре быть 64x64
+#    БЕЗ ОБРЕЗКИ — только уменьшение/вписывание с сохранением пропорций.
+#
+# КАК ЭТО РЕШЕНО (без ломания твоей логики и без влияния на встроенных героев):
+# 1) При выборе файла (jump0/jump1) мы загружаем Image из исходника (png/jpg/jpeg).
+# 2) Вписываем в квадрат 64x64 (прозрачный фон), без обрезки.
+# 3) Сохраняем в user://avatars/custom_jump_up.png и custom_jump_down.png.
+# 4) GameState пути оставляем как у тебя (ничего не ломаем).
+#
+# ВАЖНО:
+# - Встроенные спрайты героев (которые ты задаёшь в инспекторе) НЕ трогаем.
+# - Меняем ТОЛЬКО то, что загрузил игрок.
+# ============================================================================
+
+@export_file("*.tscn")
+var main_menu_scene: String = "res://MainMenu.tscn"
+
+@onready var nickname_edit: LineEdit = $CenterContainer/Panel/VBoxContainer/NicknameEdit
+@onready var save_button: Button = $CenterContainer/Panel/VBoxContainer/ButtonsRow/SaveButton
+@onready var back_button: Button = $CenterContainer/Panel/VBoxContainer/ButtonsRow/BackButton
+
+@onready var hero_left_button: Button = $CenterContainer/Panel/VBoxContainer/HeroSelector/HeroLeftButton
+@onready var hero_right_button: Button = $CenterContainer/Panel/VBoxContainer/HeroSelector/HeroRightButton
+@onready var hero_preview: TextureRect = $CenterContainer/Panel/VBoxContainer/HeroSelector/HeroPreview
+@onready var hero_name_label: Label = $CenterContainer/Panel/VBoxContainer/HeroSelector/HeroNameLabel
+
+@onready var custom_avatar_check: CheckBox = $CenterContainer/Panel/VBoxContainer/CustomAvatarRow/CustomAvatarCheck
+@onready var upload_jump_up_button: Button = $CenterContainer/Panel/VBoxContainer/CustomAvatarRow/UploadJumpUpButton
+@onready var upload_jump_down_button: Button = $CenterContainer/Panel/VBoxContainer/CustomAvatarRow/UploadJumpDownButton
+
+@onready var file_dialog_jump_up: FileDialog = $FileDialogJumpUp
+@onready var file_dialog_jump_down: FileDialog = $FileDialogJumpDown
+
+@onready var warn_dialog: AcceptDialog = $WarnDialog
+
+const HEROES: Array = [
+	{"id": "default", "name": "Runner AYO", "preview_png": "res://heroes/hero_default.png"},
+	{"id": "monster", "name": "Monster",    "preview_png": "res://heroes/hero_monster.png"},
+	{"id": "red",     "name": "Red",        "preview_png": "res://heroes/hero_red.png"},
+	{"id": "blue", "name": "Blue",   	 	"preview_png": "res://heroes/hero_blue.png"},
+	{"id": "orange", "name": "Orange",  	"preview_png": "res://heroes/hero_orange.png"}
+]
+
+const AVATAR_DIR: String = "user://avatars"
+const AVATAR_UP_PNG: String = "user://avatars/custom_jump_up.png"
+const AVATAR_DOWN_PNG: String = "user://avatars/custom_jump_down.png"
+
+# Целевой размер пользовательских аватарок (то, что загрузил игрок)
+const AVATAR_TARGET_SIZE_PX: int = 64
+
+var _hero_index: int = 0
+
+func _ready() -> void:
+	# --- nickname ---
+	if nickname_edit:
+		nickname_edit.text = GameState.get_nickname()
+		nickname_edit.grab_focus()
+
+	# --- buttons ---
+	if save_button and not save_button.pressed.is_connected(_on_save_pressed):
+		save_button.pressed.connect(_on_save_pressed)
+
+	if back_button and not back_button.pressed.is_connected(_on_back_pressed):
+		back_button.pressed.connect(_on_back_pressed)
+
+	# --- heroes ---
+	if hero_left_button and not hero_left_button.pressed.is_connected(_on_hero_left_pressed):
+		hero_left_button.pressed.connect(_on_hero_left_pressed)
+
+	if hero_right_button and not hero_right_button.pressed.is_connected(_on_hero_right_pressed):
+		hero_right_button.pressed.connect(_on_hero_right_pressed)
+
+	var saved_id: String = str(GameState.get_selected_hero_id())
+	_hero_index = _find_hero_index_by_id(saved_id)
+	_apply_hero_to_ui()
+
+	# --- custom avatar ---
+	if custom_avatar_check:
+		custom_avatar_check.button_pressed = bool(GameState.get_use_custom_avatar())
+		if not custom_avatar_check.toggled.is_connected(_on_custom_avatar_toggled):
+			custom_avatar_check.toggled.connect(_on_custom_avatar_toggled)
+
+	if upload_jump_up_button and not upload_jump_up_button.pressed.is_connected(_on_upload_jump_up_pressed):
+		upload_jump_up_button.pressed.connect(_on_upload_jump_up_pressed)
+
+	if upload_jump_down_button and not upload_jump_down_button.pressed.is_connected(_on_upload_jump_down_pressed):
+		upload_jump_down_button.pressed.connect(_on_upload_jump_down_pressed)
+
+	# dialogs signals
+	if file_dialog_jump_up and not file_dialog_jump_up.file_selected.is_connected(_on_jump_up_file_selected):
+		file_dialog_jump_up.file_selected.connect(_on_jump_up_file_selected)
+
+	if file_dialog_jump_down and not file_dialog_jump_down.file_selected.is_connected(_on_jump_down_file_selected):
+		file_dialog_jump_down.file_selected.connect(_on_jump_down_file_selected)
+
+	# Desktop: native dialog (Windows/macOS/Linux)
+	# Примечание: на Android/iOS может быть не fully-native без плагина — это нормально.
+	if file_dialog_jump_up:
+		file_dialog_jump_up.use_native_dialog = true
+	if file_dialog_jump_down:
+		file_dialog_jump_down.use_native_dialog = true
+
+	_update_custom_avatar_buttons_state()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_on_back_pressed()
+
+# ---------------- HERO SELECTOR ----------------
+
+func _find_hero_index_by_id(id: String) -> int:
+	var clean_id: String = id.strip_edges()
+	if clean_id == "":
+		return 0
+	for i in range(HEROES.size()):
+		var h = HEROES[i]
+		if typeof(h) == TYPE_DICTIONARY and str(h.get("id", "")) == clean_id:
+			return int(i)
+	return 0
+
+func _apply_hero_to_ui() -> void:
+	if HEROES.is_empty():
+		return
+
+	if _hero_index < 0:
+		_hero_index = HEROES.size() - 1
+	if _hero_index >= HEROES.size():
+		_hero_index = 0
+
+	var hero = HEROES[_hero_index]
+	if typeof(hero) != TYPE_DICTIONARY:
+		return
+
+	var hero_display_name: String = str(hero.get("name", "Hero"))
+	if hero_name_label:
+		hero_name_label.text = hero_display_name
+
+	var preview_path: String = str(hero.get("preview_png", ""))
+	if hero_preview:
+		if preview_path != "" and ResourceLoader.exists(preview_path):
+			var res := ResourceLoader.load(preview_path, "", ResourceLoader.CACHE_MODE_REPLACE)
+			if res is Texture2D:
+				hero_preview.texture = res
+
+func _save_current_hero_to_gamestate() -> void:
+	if HEROES.is_empty():
+		return
+	var hero = HEROES[_hero_index]
+	if typeof(hero) != TYPE_DICTIONARY:
+		return
+
+	var hero_id: String = str(hero.get("id", "default")).strip_edges()
+	if hero_id == "":
+		hero_id = "default"
+
+	GameState.set_selected_hero_id(hero_id)
+
+func _on_hero_left_pressed() -> void:
+	_hero_index -= 1
+	if _hero_index < 0:
+		_hero_index = HEROES.size() - 1
+	_apply_hero_to_ui()
+	_save_current_hero_to_gamestate()
+
+func _on_hero_right_pressed() -> void:
+	_hero_index += 1
+	if _hero_index >= HEROES.size():
+		_hero_index = 0
+	_apply_hero_to_ui()
+	_save_current_hero_to_gamestate()
+
+# ---------------- CUSTOM AVATAR ----------------
+
+func _on_custom_avatar_toggled(pressed: bool) -> void:
+	GameState.set_use_custom_avatar(pressed)
+	_update_custom_avatar_buttons_state()
+
+func _update_custom_avatar_buttons_state() -> void:
+	var enabled := custom_avatar_check != null and custom_avatar_check.button_pressed
+
+	if upload_jump_up_button:
+		upload_jump_up_button.disabled = not enabled
+	if upload_jump_down_button:
+		upload_jump_down_button.disabled = not enabled
+
+func _on_upload_jump_up_pressed() -> void:
+	if file_dialog_jump_up:
+		file_dialog_jump_up.popup_centered_ratio(0.85)
+
+func _on_upload_jump_down_pressed() -> void:
+	if file_dialog_jump_down:
+		file_dialog_jump_down.popup_centered_ratio(0.85)
+
+func _ensure_user_avatar_dir() -> void:
+	# Создаём user://avatars если его нет
+	if not DirAccess.dir_exists_absolute(AVATAR_DIR):
+		var mk_err: int = DirAccess.make_dir_recursive_absolute(AVATAR_DIR)
+		if mk_err != OK:
+			push_warning("Profile.gd: не удалось создать папку: " + AVATAR_DIR + " err=" + str(mk_err))
+
+func _import_image_as_png_to_user(source_path: String, target_user_png_path: String) -> bool:
+	# Ключевая логика:
+	# 1) грузим картинку (png/jpg/jpeg)
+	# 2) вписываем в квадрат 64x64 без обрезки
+	# 3) сохраняем как PNG в user://avatars/...
+	_ensure_user_avatar_dir()
+
+	var img: Image = Image.new()
+	var err_load: int = img.load(source_path)
+	if err_load != OK:
+		push_warning("Profile.gd: не удалось загрузить изображение: " + source_path + " err=" + str(err_load))
+		return false
+
+	# Приводим к RGBA8 (для корректной работы с прозрачностью/ресайзом)
+	if img.get_format() != Image.FORMAT_RGBA8:
+		img.convert(Image.FORMAT_RGBA8)
+
+	# Вписываем в 64x64 (прозрачные поля по бокам/сверху если нужно)
+	var fitted: Image = _fit_image_into_square(img, AVATAR_TARGET_SIZE_PX)
+
+	# Сохраняем уже НОРМАЛЬНЫЙ PNG (и всегда 64x64)
+	var err_save: int = fitted.save_png(target_user_png_path)
+	if err_save != OK:
+		push_warning("Profile.gd: не удалось сохранить PNG в: " + target_user_png_path + " err=" + str(err_save))
+		return false
+
+	return true
+
+func _on_jump_up_file_selected(path: String) -> void:
+	var ok := _import_image_as_png_to_user(path, AVATAR_UP_PNG)
+	if ok:
+		GameState.set_custom_avatar_paths(AVATAR_UP_PNG, GameState.get_custom_avatar_down_path())
+		print("✅ Saved custom jump(0) as 64x64: ", AVATAR_UP_PNG)
+	else:
+		_show_warn("Не удалось загрузить jump(0). Попробуй PNG/JPG/JPEG без повреждений.")
+
+func _on_jump_down_file_selected(path: String) -> void:
+	var ok := _import_image_as_png_to_user(path, AVATAR_DOWN_PNG)
+	if ok:
+		GameState.set_custom_avatar_paths(GameState.get_custom_avatar_up_path(), AVATAR_DOWN_PNG)
+		print("✅ Saved custom jump(1) as 64x64: ", AVATAR_DOWN_PNG)
+	else:
+		_show_warn("Не удалось загрузить jump(1). Попробуй PNG/JPG/JPEG без повреждений.")
+
+# ---------------- SAVE / BACK ----------------
+
+func _on_save_pressed() -> void:
+	var nick := ""
+	if nickname_edit:
+		nick = nickname_edit.text.strip_edges()
+
+	if nick == "":
+		_show_warn("Нужно заполнить никнейм!")
+		return
+
+	GameState.set_nickname(nick)
+	_save_current_hero_to_gamestate()
+
+	# если пользователь включил кастом-аватар — проверим что файлы существуют
+	if GameState.get_use_custom_avatar():
+		var up_ok := FileAccess.file_exists(GameState.get_custom_avatar_up_path())
+		var dn_ok := FileAccess.file_exists(GameState.get_custom_avatar_down_path())
+		if not up_ok or not dn_ok:
+			_show_warn("Кастом-аватар включён, но jump(0) или jump(1) не загружены.")
+			return
+
+	_on_back_pressed()
+
+func _on_back_pressed() -> void:
+	var err := get_tree().change_scene_to_file(main_menu_scene)
+	if err != OK:
+		push_error("Profile.gd: не удалось вернуться в меню: " + main_menu_scene)
+
+func _show_warn(text: String) -> void:
+	if warn_dialog:
+		warn_dialog.dialog_text = text
+		warn_dialog.popup_centered()
+	else:
+		push_warning("WARN: " + text)
+
+# ---------------- IMAGE HELPERS ----------------
+
+func _fit_image_into_square(src: Image, target_size: int) -> Image:
+	# Вписываем изображение в квадрат target_size x target_size БЕЗ ОБРЕЗКИ.
+	# - сохраняем пропорции
+	# - добавляем прозрачные поля где нужно
+	# - итог всегда ровно target_size x target_size
+	var src_w: int = src.get_width()
+	var src_h: int = src.get_height()
+
+	if src_w <= 0 or src_h <= 0:
+		return src
+
+	var dst: Image = Image.create(target_size, target_size, false, Image.FORMAT_RGBA8)
+	dst.fill(Color(0, 0, 0, 0))
+
+	# Работаем с копией, чтобы не портить исходный Image
+	var resized: Image = src.duplicate()
+	if resized.get_format() != Image.FORMAT_RGBA8:
+		resized.convert(Image.FORMAT_RGBA8)
+
+	# Масштаб "вписать"
+	var scale: float = minf(float(target_size) / float(src_w), float(target_size) / float(src_h))
+
+	# Даже если картинка маленькая — всё равно приведём к предсказуемому размеру (64x64)
+	var new_w: int = maxi(1, int(round(float(src_w) * scale)))
+	var new_h: int = maxi(1, int(round(float(src_h) * scale)))
+
+	resized.resize(new_w, new_h, Image.INTERPOLATE_LANCZOS)
+
+	# Центрируем
+	var x: int = int((target_size - new_w) / 2)
+	var y: int = int((target_size - new_h) / 2)
+
+	dst.blit_rect(resized, Rect2i(0, 0, new_w, new_h), Vector2i(x, y))
+	return dst
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\Profile.tscn ---
+
+[gd_scene load_steps=2 format=3 uid="uid://dg133jef00bhu"]
+
+[ext_resource type="Script" uid="uid://ce7583hntybfd" path="res://Profile.gd" id="1_profile"]
+
+[node name="Profile" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_profile")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="Panel" parent="CenterContainer"]
+custom_minimum_size = Vector2(900, 620)
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Profile"
+
+[node name="NicknameEdit" type="LineEdit" parent="CenterContainer/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+placeholder_text = "Введите никнейм"
+
+[node name="HeroSelector" type="HBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="HeroLeftButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+layout_mode = 2
+text = "<"
+
+[node name="HeroPreview" type="TextureRect" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+custom_minimum_size = Vector2(110, 110)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HeroRightButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+layout_mode = 2
+text = ">"
+
+[node name="HeroNameLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+layout_mode = 2
+text = "Runner AYO"
+
+[node name="CustomAvatarRow" type="VBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CustomAvatarCheck" type="CheckBox" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
+layout_mode = 2
+text = "Свой аватар (2 фото: jump0/jump1)"
+
+[node name="UploadJumpUpButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "Загрузить jump(0)"
+
+[node name="UploadJumpDownButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "Загрузить jump(1)"
+
+[node name="ButtonsRow" type="HBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="SaveButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/ButtonsRow"]
+custom_minimum_size = Vector2(240, 64)
+layout_mode = 2
+text = "Save"
+
+[node name="BackButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/ButtonsRow"]
+custom_minimum_size = Vector2(240, 64)
+layout_mode = 2
+text = "Back"
+
+[node name="FileDialogJumpUp" type="FileDialog" parent="."]
+title = "Open a File"
+ok_button_text = "Открыть"
+dialog_hide_on_ok = true
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png ; PNG Images", "*.jpg ; JPG Images", "*.jpeg ; JPEG Images")
+
+[node name="FileDialogJumpDown" type="FileDialog" parent="."]
+title = "Open a File"
+ok_button_text = "Открыть"
+dialog_hide_on_ok = true
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png ; PNG Images", "*.jpg ; JPG Images", "*.jpeg ; JPEG Images")
+
+[node name="WarnDialog" type="AcceptDialog" parent="."]
+title = "Внимание"
+dialog_text = "..."
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\scripts\Level.gd ---
+
+extends Node2D
+# Level.gd — твой фундамент + безопасное чтение параметров Player через get()
+
+@onready var player: CharacterBody2D = $Player
+@onready var platforms_root: Node2D = $Platforms
+
+var platform_scene: PackedScene = preload("res://Platform.tscn")
+var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
+const TILE_SIZE: float = 64.0
+const PLATFORM_HEIGHT: float = 64.0
+
+const MAIN_MIN_SEGMENTS: int = 2
+const MAIN_MAX_SEGMENTS: int = 6
+
+const DECOY_MIN_SEGMENTS: int = 1
+const DECOY_MAX_SEGMENTS: int = 10
+
+const SAFE_MAIN_GAP_X: float = 220.0
+
+const MIN_EDGE_GAP: float = 32.0
+const MAX_EDGE_GAP: float = SAFE_MAIN_GAP_X
+
+const MIN_VERTICAL_GAP: float = 32.0
+const MIN_TOTAL_PLATFORMS: int = 10
+
+const PLAYER_SPEED_X: float = 350.0
+const SEGMENT_TIME_SECONDS: float = 7.0 * 60.0
+const WORLD_WIDTH: float = PLAYER_SPEED_X * SEGMENT_TIME_SECONDS
+const LEFT_WALL_X: float = 0.0
+const RIGHT_WALL_X: float = WORLD_WIDTH
+
+const DY_STEP: float = 64.0
+
+const DECOY_OFFSET_X_MIN: float = SAFE_MAIN_GAP_X * 1.6
+const DECOY_OFFSET_X_MAX: float = SAFE_MAIN_GAP_X * 2.0
+
+@export var WORLD_SCREENS: int = 20
+@export var USE_FIXED_WORLD_WIDTH: bool = false
+@export var FIXED_WORLD_WIDTH: float = 8000.0
+@export var HORIZONTAL_WORLD_MARGIN: float = 256.0
+
+const SAFE_MARGIN_X: float = 32.0
+
+@export var DIFFICULTY_PER_STEP: float = 0.0025
+@export var DIFFICULTY_START: float = 0.01
+@export var DIFFICULTY_MAX: float = 0.1
+var difficulty: float = 0.0
+
+@export var GAP_MIN_PCT_EASY: float = 0.20
+@export var GAP_MAX_PCT_EASY: float = 0.55
+@export var GAP_MIN_PCT_HARD: float = 0.45
+@export var GAP_MAX_PCT_HARD: float = 0.90
+
+@export var MIN_MAIN_EDGE_GAP_ABS: float = 100.0
+@export var MAX_MAIN_EDGE_GAP_ABS: float = 260.0
+
+var viewport_width: float = 0.0
+var viewport_height: float = 0.0
+
+var min_center_x: float = 0.0
+var max_center_x: float = 0.0
+
+var platforms: Array[Node2D] = []
+
+var last_main_pos: Vector2 = Vector2.ZERO
+var last_main_segments: int = 4
+
+var going_right: bool = true
+
+var wall_clamp_count: int = 0
+const WALL_CLAMP_THRESHOLD: int = 2
+
+@export var DEBUG_LOG: bool = true
+
+func _ready() -> void:
+	rng.randomize()
+
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	viewport_width = viewport_size.x
+	viewport_height = viewport_size.y
+	
+	print("WIDTH = ", viewport_width, " HEIGHT = ", viewport_height)
+
+	
+
+	var world_left: float = LEFT_WALL_X
+	var world_right: float = RIGHT_WALL_X
+
+	if USE_FIXED_WORLD_WIDTH:
+		world_right = world_left + max(0.0, FIXED_WORLD_WIDTH)
+	else:
+		var screens_width: float = max(1, WORLD_SCREENS) * viewport_width
+		world_right = world_left + screens_width
+
+	min_center_x = world_left + HORIZONTAL_WORLD_MARGIN
+	max_center_x = world_right - HORIZONTAL_WORLD_MARGIN
+
+	if max_center_x <= min_center_x:
+		var safe_margin_try: float = max(8.0, viewport_width * 0.1)
+		min_center_x = world_left + safe_margin_try
+		max_center_x = world_right - safe_margin_try
+		if DEBUG_LOG:
+			print("WORLD_MARGIN_ADJUSTED: used safe_margin_try=", safe_margin_try)
+
+	if DEBUG_LOG:
+		print("WORLD_BOUNDS: world_left=", world_left, " world_right=", world_right,
+			" min_center_x=", min_center_x, " max_center_x=", max_center_x,
+			" viewport_width=", viewport_width)
+
+	var start_x: float = clamp(min_center_x + 200.0, min_center_x, max_center_x)
+	var start_y: float = viewport_height - 200.0
+	if player:
+		player.global_position = Vector2(start_x, start_y)
+	else:
+		push_error("Level.gd: player node not found at $Player")
+
+	difficulty = clamp(DIFFICULTY_START, 0.0, DIFFICULTY_MAX)
+
+	for child in platforms_root.get_children():
+		child.queue_free()
+	platforms.clear()
+
+	_create_initial_platforms()
+
+func _physics_process(_delta: float) -> void:
+	# [DEBUG] Лог для проверки работы уровня.
+	# ВАЖНО: сначала проверяем is_game_over, чтобы после смерти
+	# не было бесконечного спама логов.
+	if Engine.has_singleton("GameState") and GameState.is_game_over:
+		return
+	print("[DEBUG] Level _physics_process running")
+	_update_platforms_around_player()
+
+# --- FIX: безопасно читаем export-поля Player.gd через get() ---
+func _get_player_param_float(param_name: String, fallback_value: float) -> float:
+	if player == null:
+		return fallback_value
+	var v: Variant = player.get(param_name)
+	if v == null:
+		return fallback_value
+	return float(v)
+
+func _max_horizontal_reach(start_surface_y: float, target_surface_y: float, v_jump: float, g: float, v_x: float) -> float:
+	var delta_y: float = target_surface_y - start_surface_y
+	var disc: float = v_jump * v_jump + 2.0 * g * delta_y
+	if disc < 0.0:
+		return 0.0
+	var t: float = (-v_jump + sqrt(disc)) / g
+	return abs(v_x) * t
+
+func _can_place_platform_at(pos: Vector2, segments: int) -> bool:
+	var half_new_x: float = float(segments) * TILE_SIZE * 0.5
+	for p in platforms:
+		if not p:
+			continue
+		var existing_segments: int = max(1, int(round(p.scale.x)))
+		var half_ex_x: float = float(existing_segments) * TILE_SIZE * 0.5
+		var dx: float = abs(pos.x - p.global_position.x)
+		var dy: float = abs(pos.y - p.global_position.y)
+		var min_allowed_dx: float = half_new_x + half_ex_x + MIN_EDGE_GAP
+		var min_allowed_dy: float = PLATFORM_HEIGHT + MIN_VERTICAL_GAP
+		if dx < min_allowed_dx and dy < min_allowed_dy:
+			return false
+	return true
+
+func _create_initial_platforms() -> void:
+	var start_platform_pos: Vector2 = player.global_position + Vector2(0.0, 80.0)
+	var initial_segments: int = 4
+	_spawn_main_platform_at(start_platform_pos, initial_segments)
+
+	going_right = true
+	for _i in range(MIN_TOTAL_PLATFORMS - 1):
+		_spawn_next_step()
+
+func _spawn_main_platform_at(pos: Vector2, segments: int) -> Node2D:
+	var clamped_segments: int = clamp(segments, MAIN_MIN_SEGMENTS, MAIN_MAX_SEGMENTS)
+	var adjusted_pos: Vector2 = pos
+	var attempts: int = 0
+	while attempts < 6 and not _can_place_platform_at(adjusted_pos, clamped_segments):
+		adjusted_pos.y -= PLATFORM_HEIGHT + MIN_VERTICAL_GAP
+		attempts += 1
+
+	var p: Node2D = platform_scene.instantiate()
+	platforms_root.add_child(p)
+	p.global_position = adjusted_pos
+	p.scale.x = float(clamped_segments)
+	platforms.append(p)
+
+	last_main_segments = clamped_segments
+	last_main_pos = adjusted_pos
+
+	if DEBUG_LOG:
+		print("Spawn main platform at ", adjusted_pos, " seg=", clamped_segments, " attempts=", attempts)
+	return p
+
+func _spawn_next_step() -> void:
+	difficulty = clamp(difficulty + DIFFICULTY_PER_STEP, 0.0, DIFFICULTY_MAX)
+
+	var seg_main: int = rng.randi_range(MAIN_MIN_SEGMENTS, MAIN_MAX_SEGMENTS)
+	var half_prev: float = float(last_main_segments) * TILE_SIZE * 0.5
+	var half_new: float = float(seg_main) * TILE_SIZE * 0.5
+
+	var new_y: float = last_main_pos.y - DY_STEP
+
+	var start_surface_y: float = last_main_pos.y - PLATFORM_HEIGHT * 0.5
+	var target_surface_y: float = new_y - PLATFORM_HEIGHT * 0.5
+
+	var p_jump: float = _get_player_param_float("JUMP_VELOCITY", -960.0)
+	var p_grav: float = _get_player_param_float("GRAVITY", 2600.0)
+	var p_speed: float = _get_player_param_float("MOVE_SPEED", 260.0)
+
+	var reach: float = _max_horizontal_reach(start_surface_y, target_surface_y, p_jump, p_grav, p_speed)
+	if DEBUG_LOG:
+		print("reach=", reach, " start_y=", start_surface_y, " target_y=", target_surface_y)
+
+	var max_edge_gap_physical: float = max(0.0, reach - SAFE_MARGIN_X - half_new)
+
+	var cur_min_pct: float = lerp(GAP_MIN_PCT_EASY, GAP_MIN_PCT_HARD, difficulty)
+	var cur_max_pct: float = lerp(GAP_MAX_PCT_EASY, GAP_MAX_PCT_HARD, difficulty)
+	if cur_max_pct < cur_min_pct:
+		var tmp: float = cur_min_pct
+		cur_min_pct = cur_max_pct
+		cur_max_pct = tmp
+
+	var desired_min: float = max(0.0, cur_min_pct * reach)
+	var desired_max: float = max(0.0, cur_max_pct * reach)
+
+	var edge_gap_min_from_desired: float = max(0.0, desired_min - half_new)
+	var edge_gap_max_from_desired: float = max(0.0, desired_max - half_new)
+
+	var max_allowed_gap: float = min(MAX_EDGE_GAP, max_edge_gap_physical)
+	max_allowed_gap = min(max_allowed_gap, MAX_MAIN_EDGE_GAP_ABS)
+
+	var allowed_min: float = max(edge_gap_min_from_desired, MIN_MAIN_EDGE_GAP_ABS)
+	var allowed_max: float = min(edge_gap_max_from_desired, max_allowed_gap)
+
+	var found: bool = false
+	var chosen_edge_gap: float = 0.0
+	var chosen_seg: int = seg_main
+	var attempts: int = 0
+	var max_attempts: int = 12
+
+	while not found and attempts < max_attempts:
+		half_new = float(chosen_seg) * TILE_SIZE * 0.5
+		max_edge_gap_physical = max(0.0, reach - SAFE_MARGIN_X - half_new)
+
+		edge_gap_min_from_desired = max(0.0, desired_min - half_new)
+		edge_gap_max_from_desired = max(0.0, desired_max - half_new)
+
+		max_allowed_gap = min(MAX_EDGE_GAP, max_edge_gap_physical)
+		max_allowed_gap = min(max_allowed_gap, MAX_MAIN_EDGE_GAP_ABS)
+
+		allowed_min = max(edge_gap_min_from_desired, MIN_MAIN_EDGE_GAP_ABS)
+		allowed_max = min(edge_gap_max_from_desired, max_allowed_gap)
+
+		if allowed_max < allowed_min:
+			if chosen_seg > MAIN_MIN_SEGMENTS:
+				chosen_seg -= 1
+				attempts += 1
+				continue
+			else:
+				break
+
+		var candidates: Array[float] = [(allowed_min + allowed_max) * 0.5, allowed_min, allowed_max]
+
+		for c in candidates:
+			var dir_x: float = 1.0 if going_right else -1.0
+			var tentative_x: float = last_main_pos.x + dir_x * (half_prev + half_new + c)
+			var clamped_x: float = clamp(tentative_x, min_center_x, max_center_x)
+			var candidate_pos: Vector2 = Vector2(clamped_x, new_y)
+
+			if clamped_x != tentative_x:
+				wall_clamp_count += 1
+				if DEBUG_LOG:
+					print("WALL_CLAMP candidate try#", wall_clamp_count,
+						" tentative_x=", tentative_x, " clamped_x=", clamped_x,
+						" going_right=", going_right)
+				if wall_clamp_count >= WALL_CLAMP_THRESHOLD:
+					going_right = not going_right
+					wall_clamp_count = 0
+					if DEBUG_LOG:
+						print("WALL_FLIP -> now going_right=", going_right)
+					break
+				continue
+
+			if _can_place_platform_at(candidate_pos, chosen_seg):
+				found = true
+				chosen_edge_gap = c
+				break
+
+		if not found:
+			if chosen_seg > MAIN_MIN_SEGMENTS:
+				chosen_seg -= 1
+				attempts += 1
+				continue
+			else:
+				break
+
+	if found:
+		var p: Node2D = platform_scene.instantiate()
+		platforms_root.add_child(p)
+
+		var dir_x_final: float = 1.0 if going_right else -1.0
+		var tentative_x_final: float = last_main_pos.x + dir_x_final * (half_prev + float(chosen_seg) * TILE_SIZE * 0.5 + chosen_edge_gap)
+		var clamped_x_final: float = clamp(tentative_x_final, min_center_x, max_center_x)
+
+		var final_pos: Vector2 = Vector2(clamped_x_final, new_y)
+
+		p.global_position = final_pos
+		p.scale.x = float(chosen_seg)
+		platforms.append(p)
+
+		last_main_segments = chosen_seg
+		last_main_pos = final_pos
+
+		if DEBUG_LOG:
+			print("Placed main at ", final_pos, " seg=", chosen_seg, " edge_gap=", chosen_edge_gap, " reach=", reach)
+
+		_spawn_decoys_around(p.global_position, chosen_seg)
+		return
+
+	# fallback
+	var fallback_pos: Vector2 = Vector2(clamp(last_main_pos.x, min_center_x, max_center_x), new_y)
+	var main_platform: Node2D = _spawn_main_platform_at(fallback_pos, seg_main)
+	_spawn_decoys_around(main_platform.global_position, seg_main)
+
+func _spawn_decoys_around(main_pos: Vector2, main_segments: int) -> void:
+	var num_decoys: int = rng.randi_range(2, 3)
+	if num_decoys <= 0:
+		return
+
+	for _i in range(num_decoys):
+		var seg: int = rng.randi_range(DECOY_MIN_SEGMENTS, DECOY_MAX_SEGMENTS)
+		var side: float = 1.0 if rng.randf() < 0.5 else -1.0
+		var extra_offset: float = rng.randf_range(DECOY_OFFSET_X_MIN, DECOY_OFFSET_X_MAX)
+
+		var half_main: float = float(main_segments) * TILE_SIZE * 0.5
+		var half_decoy: float = float(seg) * TILE_SIZE * 0.5
+
+		var decoy_center_x: float = main_pos.x + side * (half_main + half_decoy + extra_offset)
+		decoy_center_x = clamp(decoy_center_x, min_center_x, max_center_x)
+
+		var offset_y: float = rng.randf_range(-2.0 * PLATFORM_HEIGHT, 2.0 * PLATFORM_HEIGHT)
+		var decoy_pos: Vector2 = Vector2(decoy_center_x, main_pos.y + offset_y)
+
+		if not _can_place_platform_at(decoy_pos, seg):
+			continue
+
+		var decoy: Node2D = platform_scene.instantiate()
+		platforms_root.add_child(decoy)
+		decoy.global_position = decoy_pos
+		decoy.scale.x = float(seg)
+		platforms.append(decoy)
+
+func _update_platforms_around_player() -> void:
+	var player_y: float = player.global_position.y
+
+	var remove_below: float = player_y + viewport_height
+	for p in platforms.duplicate():
+		if p.global_position.y > remove_below:
+			platforms.erase(p)
+			p.queue_free()
+
+	var upper_limit: float = player_y - viewport_height
+	while platforms.size() < MIN_TOTAL_PLATFORMS or last_main_pos.y > upper_limit:
+		_spawn_next_step()
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\scripts\Platform.gd ---
+
+extends StaticBody2D
+# Platform.gd — УЛУЧШЕННАЯ ГЕНЕРАЦИЯ МОНЕТ (как у тебя)
+
+@export var size: Vector2 = Vector2(64, 64)
+@export var coin_spawn_chance: float = 0.8
+@export var coin_height_offset: float = 80.0
+
+@onready var collision_shape: CollisionShape2D = $CollisionShape2D
+
+var coin_scene: PackedScene
+var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
+func _ready() -> void:
+	rng.randomize()
+
+	coin_scene = preload("res://Coin.tscn")
+
+	if collision_shape != null:
+		var rect_shape := RectangleShape2D.new()
+		rect_shape.size = size
+		collision_shape.shape = rect_shape
+		collision_shape.one_way_collision = true
+		collision_shape.one_way_collision_margin = 10.0
+
+	# Платформа на слое 1
+	set_collision_layer_value(1, true)
+	for i in range(2, 33):
+		set_collision_layer_value(i, false)
+
+	if coin_scene != null and coin_spawn_chance > 0.0:
+		if rng.randf() < coin_spawn_chance:
+			await get_tree().create_timer(0.1).timeout
+			_spawn_coin_above()
+
+	queue_redraw()
+
+func _spawn_coin_above() -> void:
+	if coin_scene == null:
+		return
+
+	var coin := coin_scene.instantiate()
+
+	var root = get_tree().current_scene
+	if root:
+		root.add_child(coin)
+
+		var platform_center := global_position
+		var coin_pos := platform_center + Vector2(0.0, -coin_height_offset)
+		coin.global_position = coin_pos
+
+		print("✅ Platform spawned coin at: ", coin_pos)
+
+func _draw() -> void:
+	var rect := Rect2(-size * 0.5, size)
+	draw_rect(rect, Color(0.1, 0.9, 0.2, 1.0))
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\scripts\Player.gd ---
+
+extends CharacterBody2D
+# ============================================================================
+# Player.gd — Улучшенная логика смерти: падение на 2 экрана от последней платформы
+# ----------------------------------------------------------------------------
+# - Смерть наступает, если игрок упал на 2 экрана ниже последней безопасной позиции
+# - Резерв: абсолютный предел FALL_LIMIT_Y_ABSOLUTE
+# - Защита от ложных срабатываний: условие должно держаться FALL_DEATH_HOLD_SECONDS
+# - DEBUG вывод можно отключить
+# ============================================================================
+
+@export var GRAVITY: float = 2000.0
+@export var MOVE_SPEED: float = 350.0
+@export var JUMP_VELOCITY: float = -960.0
+@export var DEFAULT_MOVE_DIR: float = 1.0
+
+@export var JUMP_COOLDOWN: float = 0.08
+@export var USE_PIXEL_SNAP: bool = true
+
+# Камера / абсолютные параметры
+@export var DEATH_SCREENS: float = 2.0  # Количество экранов ниже последней безопасной позиции для смерти
+@export var FALL_LIMIT_Y_ABSOLUTE: float = 15000.0
+
+# Сколько секунд условие должно держаться, прежде чем вызвать _die()
+@export var FALL_DEATH_HOLD_SECONDS: float = 0.5
+
+# Включить/выключить подробный лог
+@export var DEBUG: bool = true
+
+@export_file("*.tscn") var main_menu_scene: String = "res://MainMenu.tscn"
+
+# Отдельная сцена для экрана Game Over.
+@export_file("*.tscn") var game_over_scene: String = "res://GameOver.tscn"
+
+# ----------------------------------------------------------------------------
+# Ресурсы героев (настраиваются в инспекторе)
+# ----------------------------------------------------------------------------
+@export var frames_default: SpriteFrames
+@export var frames_monster: SpriteFrames
+@export var frames_red: SpriteFrames
+@export var frames_blue: SpriteFrames
+@export var frames_orange: SpriteFrames
+
+var move_dir: float = 0.0
+var jump_timer: float = 0.0
+var _was_touching_floor: bool = false
+
+# Кастом-аватар
+var _custom_tex_up: Texture2D = null
+var _custom_tex_down: Texture2D = null
+var _using_custom_avatar: bool = false
+const CUSTOM_AVATAR_TARGET_SIZE_PX: int = 128
+
+# Таймеры для "удержания" условия смерти
+var _fall_death_timer: float = 0.0
+
+# Последняя безопасная позиция Y (где стоял на платформе)
+var last_safe_y: float = 0.0
+
+@onready var cam: Camera2D = $Camera2D
+@onready var anim: AnimatedSprite2D = $AnimatedSprite2D
+@onready var custom_sprite: Sprite2D = $CustomAvatarSprite
+
+func _ready() -> void:
+	if DEBUG:
+		print("PLAYER READY")
+	# Коллизии: игрок = слой 1, реагируем на платформы (1) и монеты (2)
+	set_collision_layer_value(1, true)
+	set_collision_mask_value(1, true)
+	set_collision_mask_value(2, true)
+	for i in range(3, 33):
+		set_collision_mask_value(i, false)
+
+	if abs(DEFAULT_MOVE_DIR) < 0.001:
+		DEFAULT_MOVE_DIR = 1.0
+	move_dir = DEFAULT_MOVE_DIR
+
+	_was_touching_floor = is_on_floor()
+	
+	# ИНИЦИАЛИЗИРУЕМ ПОСЛЕДНЮЮ БЕЗОПАСНУЮ ПОЗИЦИЮ
+	last_safe_y = global_position.y
+	if DEBUG:
+		print("🎯 Начальная безопасная позиция: ", last_safe_y)
+
+	# ----------------------------------------------------------------------------
+	# ИНИЦИАЛИЗАЦИЯ МАКСИМАЛЬНОЙ ВЫСОТЫ ДЛЯ CUBEVIEW
+	# ----------------------------------------------------------------------------
+	# В CubeView нам нужно знать, какую максимальную высоту (минимальное Y)
+	# достигал игрок за забег. Здесь мы инициализируем поле GameState.max_height_reached
+	# начальной высотой игрока в момент старта забега.
+	# Далее это значение будет уменьшаться по мере «подъёма» игрока вверх.
+	if Engine.has_singleton("GameState"):
+		GameState.max_height_reached = global_position.y
+
+	if cam:
+		cam.make_current()
+
+	_apply_visual_mode()
+
+func _apply_visual_mode() -> void:
+	_using_custom_avatar = bool(GameState.get_use_custom_avatar())
+
+	if _using_custom_avatar:
+		var ok: bool = _load_custom_avatar_textures()
+		if ok:
+			if custom_sprite:
+				custom_sprite.visible = true
+			if anim:
+				anim.visible = false
+			if DEBUG:
+				print("✅ Custom avatar enabled")
+			return
+		else:
+			_using_custom_avatar = false
+			GameState.set_use_custom_avatar(false)
+			if DEBUG:
+				print("⚠ Custom avatar enabled but images missing -> fallback")
+
+	if custom_sprite:
+		custom_sprite.visible = false
+	if anim:
+		anim.visible = true
+
+	var hero_id: String = str(GameState.get_selected_hero_id()).strip_edges()
+	if hero_id == "":
+		hero_id = "default"
+
+	var target_frames: SpriteFrames = null
+	match hero_id:
+		"monster": target_frames = frames_monster
+		"red":     target_frames = frames_red
+		"blue":    target_frames = frames_blue
+		"orange":  target_frames = frames_orange
+		_:         target_frames = frames_default
+
+	if target_frames:
+		anim.sprite_frames = target_frames
+
+	if anim and anim.sprite_frames != null and anim.sprite_frames.has_animation("JUMP"):
+		anim.stop()
+		anim.animation = "JUMP"
+		anim.frame = 0
+
+func _load_custom_avatar_textures() -> bool:
+	_custom_tex_up = null
+	_custom_tex_down = null
+
+	var up_path: String = str(GameState.get_custom_avatar_up_path()).strip_edges()
+	var down_path: String = str(GameState.get_custom_avatar_down_path()).strip_edges()
+
+	if up_path == "":
+		up_path = "user://custom_jump_up.png"
+	if down_path == "":
+		down_path = "user://custom_jump_down.png"
+
+	if not FileAccess.file_exists(up_path) or not FileAccess.file_exists(down_path):
+		return false
+
+	var img_up: Image = Image.new()
+	if img_up.load(up_path) != OK:
+		return false
+	var img_down: Image = Image.new()
+	if img_down.load(down_path) != OK:
+		return false
+
+	if img_up.get_format() != Image.FORMAT_RGBA8:
+		img_up.convert(Image.FORMAT_RGBA8)
+	if img_down.get_format() != Image.FORMAT_RGBA8:
+		img_down.convert(Image.FORMAT_RGBA8)
+
+	var fitted_up: Image = _fit_image_into_square(img_up, CUSTOM_AVATAR_TARGET_SIZE_PX)
+	var fitted_down: Image = _fit_image_into_square(img_down, CUSTOM_AVATAR_TARGET_SIZE_PX)
+
+	var up_tex: ImageTexture = ImageTexture.new()
+	var down_tex: ImageTexture = ImageTexture.new()
+	up_tex.set_image(fitted_up)
+	down_tex.set_image(fitted_down)
+
+	_custom_tex_up = up_tex
+	_custom_tex_down = down_tex
+
+	if custom_sprite:
+		custom_sprite.texture = _custom_tex_up
+
+	return true
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			var center: float = get_viewport_rect().size.x * 0.5
+			move_dir = -1.0 if event.position.x < center else 1.0
+	elif event is InputEventScreenTouch and event.pressed:
+		var center: float = get_viewport_rect().size.x * 0.5
+		move_dir = -1.0 if event.position.x < center else 1.0
+
+func _physics_process(delta: float) -> void:
+	# ВАЖНО: сначала проверяем флаг конца игры, чтобы после смерти
+	# не было бесконечного спама логов от игрока.
+	if Engine.has_singleton("GameState") and GameState.is_game_over:
+		return
+	print("[DEBUG] Player _physics_process running")
+
+	velocity.y += GRAVITY * delta
+
+	var key_dir: float = 0.0
+	if Input.is_action_pressed("move_left"):
+		key_dir -= 1.0
+	if Input.is_action_pressed("move_right"):
+		key_dir += 1.0
+	if key_dir != 0.0:
+		move_dir = key_dir
+
+	velocity.x = move_dir * MOVE_SPEED
+	move_and_slide()
+
+	if USE_PIXEL_SNAP:
+		global_position = global_position.round()
+
+	# ----------------------------------------------------------------------------
+	# ОБНОВЛЕНИЕ МАКСИМАЛЬНОЙ ВЫСОТЫ ДЛЯ CUBEVIEW
+	# ----------------------------------------------------------------------------
+	# В системе координат Godot ось Y растёт вниз.
+	# Это значит:
+	# - чем МЕНЬШЕ значение global_position.y, тем ВЫШЕ находится игрок.
+	# Мы хотим запомнить минимальное значение Y за весь забег.
+	# В CubeView это значение будет использоваться как высота-гейт:
+	# линия, выше которой сегменты нельзя покупать.
+	if Engine.has_singleton("GameState") and not GameState.is_game_over:
+		if GameState.max_height_reached == 0.0:
+			# Если по какой-то причине ещё не инициализировано (например, старый сейв),
+			# установим текущее положение как стартовую высоту.
+			GameState.max_height_reached = global_position.y
+		else:
+			if global_position.y < GameState.max_height_reached:
+				GameState.max_height_reached = global_position.y
+
+	jump_timer = max(0.0, jump_timer - delta)
+
+	var touching_floor_now: bool = _check_floor_collision()
+	
+	# ОБНОВЛЯЕМ ПОСЛЕДНЮЮ БЕЗОПАСНУЮ ПОЗИЦИЮ ПРИ КАСАНИИ ПЛАТФОРМЫ
+	if touching_floor_now:
+		last_safe_y = global_position.y
+		if DEBUG:
+			print("✅ Обновлена безопасная позиция: ", last_safe_y)
+	
+	if touching_floor_now and not _was_touching_floor and jump_timer <= 0.0:
+		velocity.y = JUMP_VELOCITY
+		jump_timer = JUMP_COOLDOWN
+		if DEBUG:
+			print("🔄 Последний прыжок с позиции: ", last_safe_y)
+
+	_was_touching_floor = touching_floor_now
+
+	_update_jump_visual()
+
+	# Проверка смерти с удержанием порога (debounce)
+	_process_fall_death(delta)
+
+func _update_jump_visual() -> void:
+	var going_up: bool = (velocity.y < 0.0)
+
+	if anim:
+		anim.flip_h = (move_dir < 0.0)
+	if custom_sprite:
+		custom_sprite.flip_h = (move_dir < 0.0)
+
+	if _using_custom_avatar:
+		if custom_sprite and _custom_tex_up != null and _custom_tex_down != null:
+			custom_sprite.texture = _custom_tex_up if going_up else _custom_tex_down
+		return
+
+	if anim == null or anim.sprite_frames == null:
+		return
+	if not anim.sprite_frames.has_animation("JUMP"):
+		return
+
+	anim.stop()
+	anim.animation = "JUMP"
+	anim.frame = 0 if going_up else 1
+
+# ----------------------------------------------------------------------------
+# Обработка смерти с удержанием порога (debounce)
+# ----------------------------------------------------------------------------
+func _process_fall_death(delta: float) -> void:
+	if Engine.has_singleton("GameState") and GameState.is_game_over:
+		return
+
+	if cam == null:
+		# Если камеры нет — используем только абсолютный лимит
+		if global_position.y > FALL_LIMIT_Y_ABSOLUTE:
+			_fall_death_timer += delta
+		else:
+			_fall_death_timer = 0.0
+
+		if _fall_death_timer >= FALL_DEATH_HOLD_SECONDS:
+			if DEBUG:
+				print("DIE_REASON: absolute_limit held for", _fall_death_timer, "pos_y=", global_position.y)
+			_die()
+		return
+
+	# Вычисляем видимую высоту экрана с учётом зума
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var viewport_height: float = max(1.0, viewport_size.y)
+
+	var zoom_y: float = float(cam.zoom.y)
+	var visible_height: float = viewport_height * zoom_y
+
+	# 🔴 ИЗМЕНЕНИЕ: Используем last_safe_y вместо позиции камеры
+	# Смерть наступает, если игрок упал на 2 экрана ниже последней безопасной позиции
+	var death_y: float = last_safe_y + visible_height * DEATH_SCREENS
+
+	# Лог для отладки
+	if DEBUG:
+		print("DEATH_CHECK: player_y=", global_position.y,
+			" last_safe_y=", last_safe_y,
+			" visible_height=", visible_height,
+			" DEATH_SCREENS=", DEATH_SCREENS,
+			" death_y=", death_y)
+
+	# Условие: игрок ниже death_y (2 экрана от последней безопасной позиции)
+	var fall_from_safe_condition: bool = (global_position.y > death_y)
+	
+	# Условие абсолютного лимита
+	var absolute_condition: bool = (global_position.y > FALL_LIMIT_Y_ABSOLUTE)
+
+	# ----------------------------------------------------------------------------
+	# ВРЕМЕННЫЙ РЕЖИМ: МГНОВЕННАЯ СМЕРТЬ ДЛЯ ОТЛАДКИ GAME OVER → CUBEVIEW
+	# ----------------------------------------------------------------------------
+	# Сейчас нам нужно гарантированно и быстро попадать в Game Over,
+	# чтобы отладить связку:
+	#   смерть игрока -> GameState.is_game_over -> переход в меню/экран
+	#   -> последующий вход в CubeView и проверка высотного гейта.
+	#
+	# Поэтому мы ВРЕМЕННО отключаем "debounce" (удержание условия в течение
+	# FALL_DEATH_HOLD_SECONDS) и вызываем _die() сразу при выполнении
+	# одного из условий смерти.
+	#
+	# Архитектурно:
+	# - Вся логика смерти по‑прежнему сосредоточена в _process_fall_death().
+	# - Поле FALL_DEATH_HOLD_SECONDS и таймер _fall_death_timer остаются
+	#   и могут быть легко возвращены в игру — блок кода с debounce ниже
+	#   оставлен как готовый шаблон.
+	# - Остальной геймплей и стена не затронуты.
+	#
+	# Как вернуть debounce позже:
+	# 1. Закомментировать этот "мгновенный" блок.
+	# 2. Разкомментировать/включить блок ниже "DEBOUNCE‑ВЕРСИЯ".
+	#
+	# Это даёт:
+	# - Сейчас: предельно предсказуемую, мгновенную смерть для отладки.
+	# - В будущем: возможность мягко фильтровать ложные срабатывания
+	#   (например, при дрожании камеры или резких ускорениях), просто
+	#   вернув старую логику без переписывания функции.
+	if fall_from_safe_condition or absolute_condition:
+		if DEBUG:
+			if fall_from_safe_condition:
+				print("DIE_REASON_INSTANT: fall_from_safe_condition, player_y=", global_position.y,
+					" last_safe_y=", last_safe_y,
+					" death_y=", death_y)
+			if absolute_condition:
+				print("DIE_REASON_INSTANT: absolute_condition, player_y=", global_position.y,
+					" FALL_LIMIT_Y_ABSOLUTE=", FALL_LIMIT_Y_ABSOLUTE)
+		_die()
+		return
+
+	# ----------------------------------------------------------------------------
+	# DEBOUNCE‑ВЕРСИЯ (ИЗНАЧАЛЬНАЯ ЛОГИКА С УДЕРЖАНИЕМ УСЛОВИЯ)
+	# ----------------------------------------------------------------------------
+	# Оставлена как готовый шаблон на будущее — сейчас НЕ используется,
+	# потому что выше стоит мгновенный возврат.
+	# ----------------------------------------------------------------------------
+
+	# Прежний вариант:
+	# # Если хоть одно условие истинно — увеличиваем таймер удержания
+	# if fall_from_safe_condition or absolute_condition:
+	# 	_fall_death_timer += delta
+	# 	if DEBUG:
+	# 		if fall_from_safe_condition:
+	# 			print("FALL_TIMER: fall_from_safe_condition true, timer=", _fall_death_timer,
+	# 				  " (fallen: ", global_position.y - last_safe_y, " pixels)")
+	# 		if absolute_condition:
+	# 			print("FALL_TIMER: absolute_condition true, timer=", _fall_death_timer)
+	# else:
+	# 	# Сбрасываем таймер при возврате в безопасную зону
+	# 	if _fall_death_timer > 0.0 and DEBUG:
+	# 		print("FALL_TIMER: reset (player returned above threshold) timer was=", _fall_death_timer)
+	# 	_fall_death_timer = 0.0
+	#
+	# # Если условие держалось достаточно долго — умираем
+	# if _fall_death_timer >= FALL_DEATH_HOLD_SECONDS:
+	# 	if DEBUG:
+	# 		print("DIE_REASON: held threshold for", _fall_death_timer,
+	# 			  " player_y=", global_position.y,
+	# 			  " (fallen ", global_position.y - last_safe_y, " pixels from last safe position)")
+	# 	_die()
+
+# ----------------------------------------------------------------------------
+# Смерть / смена сцены
+# ----------------------------------------------------------------------------
+func _die() -> void:
+	if Engine.has_singleton("GameState"):
+		if GameState.is_game_over:
+			return
+		GameState.is_game_over = true
+		# [DEBUG] Явно логируем факт вызова _die и актуальное значение флага is_game_over.
+		print("[DEBUG] Player _die() called, is_game_over =", GameState.is_game_over)
+
+	# В редакторе — перезагрузим текущую сцену для удобства,
+	# чтобы не прыгать по полноэкранному Game Over при тестах.
+	if Engine.is_editor_hint():
+		get_tree().reload_current_scene()
+		return
+	
+	# Регистрируем результат забега ОДИН раз, до перехода на GameOver.
+	GameState.register_run_finished()
+	
+	# ----------------------------------------------------------------------------
+	# Переход на экран Game Over
+	# ----------------------------------------------------------------------------
+	# ВАЖНО:
+	# - Мы больше НЕ перезапускаем Level.tscn напрямую из Player.
+	# - Мы НЕ уходим сразу в главное меню.
+	# - Вместо этого используем отдельную UI-сцену GameOver.tscn, которая:
+	#   * читает данные из GameState (очки, высоту и т.д.),
+	#   * даёт кнопки: "View Cube", "Restart Run", "Main Menu".
+	# - Логика стены и сегментов НЕ ЗАТРАГИВАЕТСЯ, т.к. они существуют
+	#   только в Level / CubeView, а Game Over — чистый UI.
+	# ----------------------------------------------------------------------------
+	var target_scene: String = game_over_scene
+	if target_scene == "" or target_scene == null:
+		# Фоллбек: если по какой-то причине путь к GameOver не задан,
+		# уходим в главное меню или перезагружаем текущую сцену.
+		target_scene = main_menu_scene
+	
+	if target_scene != "" and target_scene != null:
+		var err: int = get_tree().change_scene_to_file(target_scene)
+		if err != OK:
+			push_error("Player.gd: cannot load game over or main menu: " + target_scene)
+			get_tree().reload_current_scene()
+	else:
+		get_tree().reload_current_scene()
+
+func _check_floor_collision() -> bool:
+	var count: int = get_slide_collision_count()
+	if count == 0:
+		return is_on_floor()
+	for i in range(count):
+		var c = get_slide_collision(i)
+		if c and c.get_normal().y < -0.7:
+			return true
+	return false
+
+func _fit_image_into_square(src: Image, target_size: int) -> Image:
+	var src_w: int = src.get_width()
+	var src_h: int = src.get_height()
+
+	if src_w <= 0 or src_h <= 0:
+		var empty: Image = Image.create(target_size, target_size, false, Image.FORMAT_RGBA8)
+		empty.fill(Color(0,0,0,0))
+		return empty
+
+	var dst: Image = Image.create(target_size, target_size, false, Image.FORMAT_RGBA8)
+	dst.fill(Color(0, 0, 0, 0))
+
+	var resized: Image = src.duplicate()
+	if resized.get_format() != Image.FORMAT_RGBA8:
+		resized.convert(Image.FORMAT_RGBA8)
+
+	var scale: float = min(float(target_size) / float(src_w), float(target_size) / float(src_h))
+	var new_w: int = max(1, int(round(float(src_w) * scale)))
+	var new_h: int = max(1, int(round(float(src_h) * scale)))
+
+	resized.resize(new_w, new_h, Image.INTERPOLATE_LANCZOS)
+
+	var x: int = int((target_size - new_w) / 2)
+	var y: int = int((target_size - new_h) / 2)
+
+	dst.blit_rect(resized, Rect2i(0, 0, new_w, new_h), Vector2i(x, y))
+	return dst
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\wall\data\WallData.gd ---
+
+extends Node
+class_name WallData
+# ============================================================================
+# WallData.gd
+# Хранилище данных стены (локально, без онлайна)
+# ============================================================================
+# - хранит сегменты
+# - знает кто купил
+# - позже легко подключается к JSON / серверу
+# ============================================================================
+
+# segment_id -> { owner: String }
+var segments: Dictionary = {}
+
+# ---------------------------------------------------------------------------
+
+func has_segment(id: String) -> bool:
+	return segments.has(id)
+
+# ---------------------------------------------------------------------------
+
+func get_segment(id: String) -> Dictionary:
+	if not segments.has(id):
+		segments[id] = {
+			"owner": ""
+		}
+	return segments[id]
+
+# ---------------------------------------------------------------------------
+
+func buy_side(segment_id: String, buyer_uid: String) -> bool:
+	var seg := get_segment(segment_id)
+
+	# уже куплено
+	if str(seg.get("owner", "")) != "":
+		return false
+
+	# покупаем
+	seg["owner"] = buyer_uid
+	segments[segment_id] = seg
+	return true
+
+# ---------------------------------------------------------------------------
+
+func reset() -> void:
+	segments.clear()
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\wall\segment\WallSegment.gd ---
+
+extends Node2D
+# ============================================================================
+# WallSegment.gd
+# Один сегмент стены (48x48)
+# Визуал: Sprite2D
+# Взаимодействие: Area2D
+# Минимальная анимация: мягкое покачивание
+# ============================================================================
+
+@export var segment_id: String = ""
+
+# Режим стены: статика / "живая" стена
+const WALL_MODE_STATIC: int = 0
+const WALL_MODE_LIVING: int = 1
+@export var wall_mode: int = WALL_MODE_LIVING
+
+# Режим сегмента: хаотичный / синхронный показ
+const SEGMENT_MODE_RANDOM: int = 0
+const SEGMENT_MODE_SYNC_SHOW: int = 1
+var segment_mode: int = SEGMENT_MODE_RANDOM
+
+@onready var area: Area2D = $Area2D
+@onready var sprite: Sprite2D = $Sprite2D
+
+var wall_data: WallData = null
+var side_id: String = "front"  # Сторона мега-куба
+
+# Внутренние переменные для анимации
+var _time_accum: float = 0.0
+
+# Вертикальное "дыхание" (амплитуда ~2–3 px, период ~2 сек)
+var _breath_amplitude: float = 3.0
+var _breath_speed: float = PI  # базовая скорость
+var _breath_speed_factor: float = 1.0
+var _breath_phase: float = 0.0
+
+# Микро-вариация яркости для визуального разнообразия
+var _brightness_variation: float = 1.0
+
+# Независимый таймер цвета (для лёгкой дрожи яркости)
+var _color_time: float = 0.0
+var _color_speed: float = 0.0
+var _color_phase: float = 0.0
+
+# Базовая локальная позиция по Y (для дыхания)
+var _base_y: float = 0.0
+
+# Текущий базовый цвет сегмента
+var _base_color: Color = Color(1, 1, 1, 1)
+
+# Параметры вращения (асинхронно, с паузами)
+var _rot_time: float = 0.0
+var _rot_amp: float = 0.0
+var _rot_speed: float = 1.0
+var _rot_phase: float = 0.0
+var _rot_timer: float = 0.0
+var _rot_active: bool = false
+
+# Параметры синхронного показа (архитектура на будущее)
+var _sync_show_timer: float = 0.0
+var _sync_show_side: String = ""
+@export var sync_show_interval: float = 60.0
+
+# Флаг, чтобы один раз вывести в консоль, что анимация активна
+var _animation_logged: bool = false
+
+
+func start_sync_show(side: String, duration: float) -> void:
+	# В будущем wall.gd или другой менеджер может вызывать это
+	# для синхронного показа выбранной стороны на группе сегментов.
+	segment_mode = SEGMENT_MODE_SYNC_SHOW
+	_sync_show_side = side
+	_sync_show_timer = max(0.0, duration)
+	side_id = side
+
+
+# ---------------------------------------------------------------------------
+# ОБЯЗАТЕЛЬНЫЙ МЕТОД — его вызывает wall.gd
+# ---------------------------------------------------------------------------
+
+func setup(id: String, side: String, data: WallData) -> void:
+	segment_id = id
+	side_id = side
+	wall_data = data
+	
+	# Генерируем микро-вариацию яркости (±5-10%)
+	_brightness_variation = 0.95 + randf() * 0.1  # От 0.95 до 1.05
+
+	# Асинхронные параметры "дыхания"
+	_breath_speed_factor = randf_range(0.6, 1.4)
+	_breath_phase = randf() * TAU
+
+	# Асинхронные параметры цвета (очень медленная дрожь яркости)
+	_color_speed = randf_range(0.15, 0.4)
+	_color_phase = randf() * TAU
+
+	_rot_amp = deg_to_rad(randf_range(1.0, 4.0))   # небольшая амплитуда вращения
+	_rot_speed = randf_range(0.5, 1.5)
+	_rot_phase = randf() * TAU
+	_rot_timer = randf_range(0.5, 2.5)
+	_rot_active = randf() < 0.7  # иногда кубы могут не вращаться долго
+	
+	_update_visual_state()
+	_reset_geometry()
+
+
+func _ready() -> void:
+	# Подключаем клики
+	if area and not area.input_event.is_connected(_on_area_input):
+		area.input_event.connect(_on_area_input)
+
+	# Инициализируем микро-вариацию яркости, если не была установлена в setup()
+	if _brightness_variation == 1.0:
+		_brightness_variation = 0.95 + randf() * 0.1  # От 0.95 до 1.05
+
+	# Если параметры "дыхания" / вращения / цвета ещё не заданы из setup()
+	if _breath_speed_factor == 1.0 and _breath_phase == 0.0:
+		_breath_speed_factor = randf_range(0.6, 1.4)
+		_breath_phase = randf() * TAU
+	if _color_speed == 0.0:
+		_color_speed = randf_range(0.15, 0.4)
+		_color_phase = randf() * TAU
+	if _rot_amp == 0.0:
+		_rot_amp = deg_to_rad(randf_range(1.0, 4.0))
+		_rot_speed = randf_range(0.5, 1.5)
+		_rot_phase = randf() * TAU
+		_rot_timer = randf_range(0.5, 2.5)
+		_rot_active = randf() < 0.7
+
+	_update_visual_state()
+	_reset_geometry()
+	
+	# Случайное начальное смещение для разнообразия
+	_time_accum = randf() * TAU
+
+
+func _process(delta: float) -> void:
+	if wall_mode == WALL_MODE_STATIC:
+		return
+
+	# Остановка логики после смерти игрока / смены сцены
+	# Пытаемся использовать GameState, если там есть флаг, иначе — текущую сцену.
+	if Engine.has_singleton("GameState"):
+		var gs = GameState
+		var is_over: bool = false
+		# Если в будущем появится флаг is_game_over / is_player_alive — поддержим его.
+		if gs.get("is_game_over") != null:
+			is_over = bool(gs.get("is_game_over"))
+		if is_over:
+			set_process(false)
+			return
+	
+	var tree := get_tree()
+	if tree == null or tree.current_scene == null:
+		set_process(false)
+		return
+	
+	# Если мы уже не в Level (например, в главном меню) — останавливаемся.
+	if tree.current_scene.name != "Level":
+		set_process(false)
+		return
+
+	# Обычный хаотичный режим
+	if segment_mode == SEGMENT_MODE_RANDOM:
+		_update_minimal_animation(delta)
+		return
+
+	# Режим синхронного показа (архитектура на будущее)
+	if segment_mode == SEGMENT_MODE_SYNC_SHOW:
+		if _sync_show_timer > 0.0:
+			_sync_show_timer -= delta
+			_update_minimal_animation(delta)
+		else:
+			segment_mode = SEGMENT_MODE_RANDOM
+		return
+
+
+# ---------------------------------------------------------------------------
+
+func _on_area_input(
+	viewport: Viewport,
+	event: InputEvent,
+	shape_idx: int
+) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		_try_buy()
+
+
+func _try_buy() -> void:
+	if wall_data == null:
+		push_warning("WallSegment: wall_data == null")
+		return
+
+	if not Engine.has_singleton("GameState"):
+		push_warning("GameState singleton not found")
+		return
+
+	var buyer_uid: String = GameState.player_uid
+	var ok: bool = wall_data.buy_side(segment_id, buyer_uid)
+
+	if ok:
+		print("✅ Куплено:", segment_id)
+	else:
+		print("⛔ Уже куплено:", segment_id)
+
+	_update_visual_state()
+
+
+func _update_visual_state() -> void:
+	if sprite == null:
+		return
+
+	# Базовый бирюзовый цвет по стороне мега-куба
+	var base_color: Color = _get_side_color()
+
+	# Микро-вариация яркости (фиксированная для сегмента, НЕ по времени)
+	base_color.r *= _brightness_variation
+	base_color.g *= _brightness_variation
+	base_color.b *= _brightness_variation
+
+	# Если сегмент куплен, слегка подмешиваем зелёный (для будущего UI)
+	if wall_data != null:
+		var seg := wall_data.get_segment(segment_id)
+		if seg != null:
+			var owner := str(seg.get("owner", ""))
+			if owner != "":
+				var owned_color := Color(0.1, 0.8, 0.2)
+				base_color = base_color.lerp(owned_color, 0.3)
+
+	_base_color = base_color
+	# Немедленно применяем цвет (дальше он будет чуть "дрожать" по яркости)
+	sprite.modulate = _base_color
+
+
+func _get_side_color() -> Color:
+	# ВРЕМЕННАЯ ВИЗУАЛИЗАЦИЯ: разные оттенки бирюзового для каждой стороны
+	match side_id:
+		"front":
+			return Color(0.0, 0.8, 0.7)  # Яркий бирюзовый
+		"back":
+			return Color(0.0, 0.5, 0.5)  # Тёмно-бирюзовый
+		"left":
+			return Color(0.2, 0.7, 0.6)  # Зелёно-бирюзовый
+		"right":
+			return Color(0.1, 0.6, 0.8)  # Голубовато-бирюзовый
+		"top":
+			return Color(0.3, 0.9, 0.8)  # Светло-бирюзовый
+		"bottom":
+			return Color(0.0, 0.4, 0.6)  # Холодный сине-бирюзовый
+		_:
+			return Color(0.0, 0.8, 0.7)  # По умолчанию яркий бирюзовый
+
+
+# ---------------------------------------------------------------------------
+# Геометрия и минимальная анимация
+# ---------------------------------------------------------------------------
+
+func _reset_geometry() -> void:
+	# КРИТИЧНО: идеальный квадрат 48×48, стена к стене
+	# Запрещено: scale ≠ Vector2.ONE, rotation ≠ 0, диагональные смещения
+	if sprite == null:
+		return
+
+	# Базовая локальная позиция по Y для "дыхания"
+	sprite.position = Vector2.ZERO
+	_base_y = sprite.position.y
+	sprite.scale = Vector2.ONE
+	sprite.rotation = 0.0
+
+
+func _update_minimal_animation(delta: float) -> void:
+	# "Дыхание" и вращение одного сегмента (куба).
+	if sprite == null:
+		return
+
+	_time_accum += delta
+	if _time_accum >= TAU:
+		_time_accum = fmod(_time_accum, TAU)
+
+	# Базовая амплитуда "дыхания" по вертикали
+	var amp := _breath_amplitude
+	var speed_factor := 1.0
+
+	# Сторонозависимое движение (разные фазы/амплитуды по сторонам)
+	match side_id:
+		"front":
+			# Почти неподвижен — еле заметное движение
+			amp *= 0.3
+		"left":
+			# Чуть более заметное дыхание
+			amp *= 1.0
+		"right":
+			# Чуть более заметное дыхание
+			amp *= 1.0
+		"top":
+			# Более медленное движение
+			amp *= 0.7
+			speed_factor = 0.5
+		"back", "bottom":
+			# Слабее базового
+			amp *= 0.6
+		_:
+			pass
+
+	# DEBUG: усиленная амплитуда для наглядности (около 2–3 px)
+	var offset_y: float = sin((_time_accum * _breath_speed * _breath_speed_factor + _breath_phase) * speed_factor) * amp
+	sprite.position.y = _base_y + offset_y
+
+	# Рандомное вращение с паузами (асинхронно для каждого сегмента)
+	_rot_timer -= delta
+	if _rot_timer <= 0.0:
+		_rot_active = not _rot_active
+		if _rot_active:
+			_rot_timer = randf_range(0.6, 2.0)   # активная фаза
+		else:
+			_rot_timer = randf_range(0.8, 3.0)   # пауза (без вращения)
+
+	if _rot_active and _rot_amp > 0.0:
+		_rot_time += delta * _rot_speed
+		var rot := sin(_rot_time + _rot_phase) * _rot_amp
+		sprite.rotation = rot
+	else:
+		sprite.rotation = 0.0
+
+	# Независимое "дыхание" цвета (очень мягкая дрожь яркости, без мигания)
+	_color_time += delta
+	var t := _color_time * _color_speed + _color_phase
+	var jitter := 1.0 + 0.06 * sin(t)  # ±6% по яркости
+	var col := Color(
+		_base_color.r * jitter,
+		_base_color.g * jitter,
+		_base_color.b * jitter,
+		_base_color.a
+	)
+	sprite.modulate = col
+
+	# Консольный маркер жизни — один раз на сегмент (DEBUG)
+	if not _animation_logged:
+		_animation_logged = true
+		print("[WallSegment] animation active: ", segment_id)
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\wall\segment\WallSegment.tscn ---
+
+[gd_scene load_steps=4 format=3 uid="uid://ddaj86ldrt5dv"]
+
+[ext_resource type="Script" uid="uid://vefl2li33f3i" path="res://wall/segment/WallSegment.gd" id="1_6wo4f"]
+[ext_resource type="Texture2D" uid="uid://ctja12icu7s5l" path="res://wall/textures/wall_segment.png" id="2_16rbj"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_6wo4f"]
+size = Vector2(48, 48)
+
+[node name="WallSegment" type="Node2D"]
+script = ExtResource("1_6wo4f")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = -10
+texture = ExtResource("2_16rbj")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("RectangleShape2D_6wo4f")
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\wall\wall.gd ---
+
+extends Node2D
+# ============================================================================
+# wall.gd
+# Архитектура стены из сегментов 48x48
+# Менеджер сегментов с поддержкой виртуальной стены 720×720
+# ============================================================================
+# - работает только с Node2D / Sprite2D / Area2D
+# - создаёт ТОЛЬКО видимые сегменты
+# - сам ничего не рисует
+# ============================================================================
+# Проверено: Godot 4.x
+# ============================================================================
+
+# ЗАФИКСИРОВАННЫЕ ПАРАМЕТРЫ
+const SEGMENT_SIZE: int = 48
+const WORLD_SCREENS: int = 20
+const VIEWPORT_WIDTH: int = 1152
+const SEGMENTS_PER_SIDE: int = 720  # Виртуальная сторона мега-куба
+
+# Размеры виртуальной стены в пикселях
+const VIRTUAL_WALL_SIZE: int = SEGMENTS_PER_SIDE * SEGMENT_SIZE  # 34560 px
+
+# Размер видимой области (в сегментах) с запасом
+const VISIBLE_MARGIN: int = 2  # Дополнительные сегменты за пределами экрана
+
+# Сторона мега-куба (для визуализации и отладки)
+# Возможные значения: "front" | "back" | "left" | "right" | "top" | "bottom"
+var side_id: String = "front"
+
+@onready var segment_scene: PackedScene = preload("res://wall/segment/WallSegment.tscn")
+
+var wall_data: WallData
+
+# Кэш созданных сегментов для управления видимостью
+var active_segments: Dictionary = {}  # "x_y" -> Node2D
+
+# Для отладочного вывода (чтобы не спамить каждый кадр)
+var _last_debug_bounds: Dictionary = {}
+var _debug_print_cooldown: float = 0.0
+const DEBUG_PRINT_INTERVAL: float = 1.0  # Выводить раз в секунду
+
+
+func _ready() -> void:
+	print("🧱 Wall ready")
+	print("📐 Virtual wall size:", VIRTUAL_WALL_SIZE, "px (", SEGMENTS_PER_SIDE, "×", SEGMENTS_PER_SIDE, " segments)")
+
+	# Локальное хранилище данных стены (без онлайна).
+	wall_data = WallData.new()
+	add_child(wall_data)
+
+	# Инициализация видимых сегментов
+	_update_visible_segments()
+	
+	# Отладочный вывод при старте
+	print("[Wall] Initialized with side: ", side_id)
+
+
+func _process(delta: float) -> void:
+	# Обновляем видимые сегменты каждый кадр (можно оптимизировать через таймер)
+	_update_visible_segments()
+	
+	# Обновляем кулдаун для отладочного вывода
+	_debug_print_cooldown -= delta
+
+
+func _update_visible_segments() -> void:
+	# Получаем позицию камеры
+	var camera_pos: Vector2 = Vector2.ZERO
+	var camera: Camera2D = get_viewport().get_camera_2d()
+	if camera:
+		camera_pos = camera.global_position
+	else:
+		# Fallback: пытаемся найти через Player
+		var player: Node = get_tree().get_first_node_in_group("player")
+		if player == null:
+			# Ищем Player в Level
+			var level: Node = get_tree().get_first_node_in_group("level")
+			if level == null:
+				level = get_parent()
+			if level:
+				player = level.get_node_or_null("Player")
+		
+		if player:
+			camera = player.get_node_or_null("Camera2D")
+			if camera:
+				camera_pos = camera.global_position
+			else:
+				# Используем позицию игрока как приближение
+				camera_pos = player.global_position
+
+	# Вычисляем видимую область в мировых координатах
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var viewport_half_width: float = viewport_size.x * 0.5
+	var viewport_half_height: float = viewport_size.y * 0.5
+
+	# Границы видимой области в сегментах
+	var min_x_seg: int = int(floor((camera_pos.x - viewport_half_width - VISIBLE_MARGIN * SEGMENT_SIZE) / SEGMENT_SIZE))
+	var max_x_seg: int = int(ceil((camera_pos.x + viewport_half_width + VISIBLE_MARGIN * SEGMENT_SIZE) / SEGMENT_SIZE))
+	var min_y_seg: int = int(floor((camera_pos.y - viewport_half_height - VISIBLE_MARGIN * SEGMENT_SIZE) / SEGMENT_SIZE))
+	var max_y_seg: int = int(ceil((camera_pos.y + viewport_half_height + VISIBLE_MARGIN * SEGMENT_SIZE) / SEGMENT_SIZE))
+
+	# Ограничиваем виртуальными границами стены
+	min_x_seg = max(min_x_seg, -SEGMENTS_PER_SIDE / 2)
+	max_x_seg = min(max_x_seg, SEGMENTS_PER_SIDE / 2)
+	min_y_seg = max(min_y_seg, -SEGMENTS_PER_SIDE / 2)
+	max_y_seg = min(max_y_seg, SEGMENTS_PER_SIDE / 2)
+
+	# Удаляем сегменты вне видимой области
+	var keys_to_remove: Array = []
+	for key in active_segments:
+		var coords: Array = key.split("_")
+		if coords.size() != 2:
+			continue
+		var seg_x: int = int(coords[0])
+		var seg_y: int = int(coords[1])
+		
+		if seg_x < min_x_seg or seg_x > max_x_seg or seg_y < min_y_seg or seg_y > max_y_seg:
+			var segment: Node = active_segments[key]
+			if segment:
+				segment.queue_free()
+			keys_to_remove.append(key)
+
+	for key in keys_to_remove:
+		active_segments.erase(key)
+
+	# Создаём новые сегменты в видимой области
+	for y in range(min_y_seg, max_y_seg + 1):
+		for x in range(min_x_seg, max_x_seg + 1):
+			var key: String = "%d_%d" % [x, y]
+			if active_segments.has(key):
+				continue  # Сегмент уже существует
+
+			var segment := segment_scene.instantiate()
+			if segment == null:
+				continue
+
+			add_child(segment)
+
+			# Геометрия: идеальный квадрат 48×48, стена к стене
+			var pos := Vector2(
+				x * SEGMENT_SIZE,
+				y * SEGMENT_SIZE
+			)
+			segment.position = pos
+
+			if segment.has_method("setup"):
+				segment.setup(key, side_id, wall_data)
+			else:
+				segment.segment_id = key
+
+			active_segments[key] = segment
+
+	# Отладочный вывод (с кулдауном, чтобы не спамить)
+	if _debug_print_cooldown <= 0.0:
+		var current_bounds := {
+			"min_x": min_x_seg,
+			"max_x": max_x_seg,
+			"min_y": min_y_seg,
+			"max_y": max_y_seg
+		}
+		
+		# Выводим только если границы изменились или это первый запуск
+		if _last_debug_bounds != current_bounds or _last_debug_bounds.is_empty():
+			_print_debug_info(min_x_seg, max_x_seg, min_y_seg, max_y_seg)
+			_last_debug_bounds = current_bounds
+			_debug_print_cooldown = DEBUG_PRINT_INTERVAL
+
+
+func clear_wall() -> void:
+	for key in active_segments:
+		var segment: Node = active_segments[key]
+		if segment:
+			segment.queue_free()
+	active_segments.clear()
+
+	for child in get_children():
+		if child is WallData:
+			continue
+		child.queue_free()
+
+
+func _print_debug_info(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
+	# Отладочный вывод информации о стене
+	var segment_count: int = active_segments.size()
+	print("[Wall] Active side: ", side_id)
+	print("[Wall] Visible segments: ", segment_count)
+	if segment_count > 0:
+		print("[Wall] X: ", min_x, "..", max_x, "  Y: ", min_y, "..", max_y)
+
+
+--- FILE: D:\YandexDisk\Projects\Runner\Godot\wall\wall.tscn ---
+
+[gd_scene load_steps=2 format=3 uid="uid://dpol13adfo7g3"]
+
+[ext_resource type="Script" uid="uid://bhoujd3rj3ox8" path="res://wall/wall.gd" id="1_sef87"]
+
+[node name="Wall" type="Node2D"]
+script = ExtResource("1_sef87")
+

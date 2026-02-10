@@ -1,0 +1,73 @@
+[gd_scene load_steps=3 format=3 uid="uid://gvyvc4wckrsu"]
+
+[ext_resource type="Script" uid="uid://b706qiff7x4im" path="res://GameOver.gd" id="1"]
+[ext_resource type="Script" path="res://MobileUIScale.gd" id="2_mobile"]
+
+[node name="GameOver" type="CanvasLayer"]
+script = ExtResource("1")
+
+[node name="GameOver#MobileScale" type="Node" parent="."]
+script = ExtResource("2_mobile")
+target_node_path = NodePath("../Panel")
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 200.0
+offset_top = 120.0
+offset_right = -200.0
+offset_bottom = -120.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "GAME OVER"
+horizontal_alignment = 1
+
+[node name="HeightLabel" type="Label" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Max height (min Y): N/A"
+
+[node name="ScoreLabel" type="Label" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Score: 0"
+
+[node name="Buttons" type="HBoxContainer" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="ViewCubeButton" type="Button" parent="Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(220, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "View Cube"
+
+[node name="RestartButton" type="Button" parent="Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(220, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Restart Run"
+
+[node name="MainMenuButton" type="Button" parent="Panel/VBox/Buttons"]
+custom_minimum_size = Vector2(220, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Main Menu"

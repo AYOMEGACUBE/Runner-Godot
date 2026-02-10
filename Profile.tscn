@@ -1,0 +1,123 @@
+[gd_scene load_steps=2 format=3 uid="uid://dg133jef00bhu"]
+
+[ext_resource type="Script" uid="uid://ce7583hntybfd" path="res://Profile.gd" id="1_profile"]
+
+[node name="Profile" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_profile")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="Panel" parent="CenterContainer"]
+custom_minimum_size = Vector2(900, 620)
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Profile"
+
+[node name="NicknameEdit" type="LineEdit" parent="CenterContainer/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+placeholder_text = "Введите никнейм"
+
+[node name="HeroSelector" type="HBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="HeroLeftButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+layout_mode = 2
+text = "<"
+
+[node name="HeroPreview" type="TextureRect" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+custom_minimum_size = Vector2(110, 110)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HeroRightButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+layout_mode = 2
+text = ">"
+
+[node name="HeroNameLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
+layout_mode = 2
+text = "Runner AYO"
+
+[node name="CustomAvatarRow" type="VBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CustomAvatarCheck" type="CheckBox" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
+layout_mode = 2
+text = "Свой аватар (2 фото: jump0/jump1)"
+
+[node name="UploadJumpUpButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "Загрузить jump(0)"
+
+[node name="UploadJumpDownButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "Загрузить jump(1)"
+
+[node name="ButtonsRow" type="HBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="SaveButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/ButtonsRow"]
+custom_minimum_size = Vector2(240, 64)
+layout_mode = 2
+text = "Save"
+
+[node name="BackButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/ButtonsRow"]
+custom_minimum_size = Vector2(240, 64)
+layout_mode = 2
+text = "Back"
+
+[node name="FileDialogJumpUp" type="FileDialog" parent="."]
+title = "Open a File"
+ok_button_text = "Открыть"
+dialog_hide_on_ok = true
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png ; PNG Images", "*.jpg ; JPG Images", "*.jpeg ; JPEG Images")
+
+[node name="FileDialogJumpDown" type="FileDialog" parent="."]
+title = "Open a File"
+ok_button_text = "Открыть"
+dialog_hide_on_ok = true
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png ; PNG Images", "*.jpg ; JPG Images", "*.jpeg ; JPEG Images")
+
+[node name="WarnDialog" type="AcceptDialog" parent="."]
+title = "Внимание"
+dialog_text = "..."

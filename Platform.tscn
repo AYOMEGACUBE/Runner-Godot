@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://be75ddpx283h6"]
+
+[ext_resource type="Script" uid="uid://d3vnfw24h7bdb" path="res://scripts/Platform.gd" id="1_hyugo"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_s2m6q"]
+size = Vector2(32, 32)
+
+[node name="Platform" type="StaticBody2D"]
+constant_linear_velocity = Vector2(64, 64)
+script = ExtResource("1_hyugo")
+coin_spawn_chance = 0.3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_s2m6q")

@@ -1,0 +1,32 @@
+[gd_resource type="SpriteFrames" load_steps=5 format=3 uid="uid://keh6xhe2lv"]
+
+[ext_resource type="Texture2D" uid="uid://bmuehw3yh21j6" path="res://heroes/hero_red_frames.png" id="1"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_m5ya2"]
+atlas = ExtResource("1")
+region = Rect2(450, 0, 150, 193)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cxai8"]
+atlas = ExtResource("1")
+region = Rect2(0, 193, 150, 193)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w21vk"]
+atlas = ExtResource("1")
+region = Rect2(150, 193, 150, 193)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_m5ya2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cxai8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w21vk")
+}],
+"loop": true,
+"name": &"JUMP",
+"speed": 5.0
+}]
