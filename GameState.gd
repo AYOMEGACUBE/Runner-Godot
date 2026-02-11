@@ -32,6 +32,9 @@ var use_custom_avatar: bool = false
 var custom_avatar_up_path: String = "user://avatars/custom_jump_up.png"
 var custom_avatar_down_path: String = "user://avatars/custom_jump_down.png"
 
+# --- WALL BREATHING (дыхание мира) ---
+var wall_breathing_enabled: bool = true
+
 # --- RUN STATE ---
 var score: int = 0
 var player_name: String = ""           # имя текущего забега (берём из nickname)
@@ -123,6 +126,15 @@ func get_custom_avatar_up_path() -> String:
 func get_custom_avatar_down_path() -> String:
 	return custom_avatar_down_path
 
+# ---------------- WALL BREATHING ----------------
+
+func set_wall_breathing_enabled(v: bool) -> void:
+	wall_breathing_enabled = v
+	save_scores()
+
+func get_wall_breathing_enabled() -> bool:
+	return wall_breathing_enabled
+
 # ---------------- CHAMPIONS ----------------
 
 func register_run_finished() -> void:
@@ -185,7 +197,10 @@ func save_scores() -> void:
 		# custom avatar
 		"use_custom_avatar": use_custom_avatar,
 		"custom_avatar_up_path": custom_avatar_up_path,
-		"custom_avatar_down_path": custom_avatar_down_path
+		"custom_avatar_down_path": custom_avatar_down_path,
+
+		# wall breathing
+		"wall_breathing_enabled": wall_breathing_enabled
 	}
 
 	file.store_var(data)
@@ -240,6 +255,9 @@ func load_scores() -> void:
 	if custom_avatar_down_path == "":
 		custom_avatar_down_path = "user://avatars/custom_jump_down.png"
 
+	# wall breathing
+	wall_breathing_enabled = bool(data.get("wall_breathing_enabled", true))
+
 func _reset_to_defaults() -> void:
 	nickname = ""
 	player_uid = ""
@@ -260,6 +278,8 @@ func _reset_to_defaults() -> void:
 	use_custom_avatar = false
 	custom_avatar_up_path = "user://avatars/custom_jump_up.png"
 	custom_avatar_down_path = "user://avatars/custom_jump_down.png"
+
+	wall_breathing_enabled = true
 
 func _sort_scores_desc(a: Dictionary, b: Dictionary) -> bool:
 	var sa: int = int(a.get("score", 0))

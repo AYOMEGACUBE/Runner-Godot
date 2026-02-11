@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://ddaj86ldrt5dv"]
+[gd_scene load_steps=3 format=3 uid="uid://ddaj86ldrt5dv"]
 
 [ext_resource type="Script" uid="uid://vefl2li33f3i" path="res://wall/segment/WallSegment.gd" id="1_6wo4f"]
 [ext_resource type="Texture2D" uid="uid://ctja12icu7s5l" path="res://wall/textures/wall_segment.png" id="2_16rbj"]
@@ -17,3 +17,6 @@ texture = ExtResource("2_16rbj")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
 shape = SubResource("RectangleShape2D_6wo4f")
+
+[node name="VisibleOnScreenNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
+rect = Rect2(-24, -24, 48, 48)

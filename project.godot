@@ -19,6 +19,11 @@ config/icon="res://icon.svg"
 
 GameState="*res://GameState.gd"
 
+[display]
+
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
 [input]
 
 move_left={
@@ -37,3 +42,4 @@ move_right={
 [rendering]
 
 textures/vram_compression/import_etc2_astc=true
+2d/snap/snap_2d_transforms_to_pixel=true

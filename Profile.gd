@@ -30,6 +30,7 @@ var main_menu_scene: String = "res://MainMenu.tscn"
 @onready var hero_name_label: Label = $CenterContainer/Panel/VBoxContainer/HeroSelector/HeroNameLabel
 
 @onready var custom_avatar_check: CheckBox = $CenterContainer/Panel/VBoxContainer/CustomAvatarRow/CustomAvatarCheck
+@onready var wall_breathing_check: CheckBox = $CenterContainer/Panel/VBoxContainer/WallBreathingCheck
 @onready var upload_jump_up_button: Button = $CenterContainer/Panel/VBoxContainer/CustomAvatarRow/UploadJumpUpButton
 @onready var upload_jump_down_button: Button = $CenterContainer/Panel/VBoxContainer/CustomAvatarRow/UploadJumpDownButton
 
@@ -84,6 +85,11 @@ func _ready() -> void:
 		custom_avatar_check.button_pressed = bool(GameState.get_use_custom_avatar())
 		if not custom_avatar_check.toggled.is_connected(_on_custom_avatar_toggled):
 			custom_avatar_check.toggled.connect(_on_custom_avatar_toggled)
+
+	if wall_breathing_check:
+		wall_breathing_check.button_pressed = bool(GameState.get_wall_breathing_enabled())
+		if not wall_breathing_check.toggled.is_connected(_on_wall_breathing_toggled):
+			wall_breathing_check.toggled.connect(_on_wall_breathing_toggled)
 
 	if upload_jump_up_button and not upload_jump_up_button.pressed.is_connected(_on_upload_jump_up_pressed):
 		upload_jump_up_button.pressed.connect(_on_upload_jump_up_pressed)
@@ -180,6 +186,9 @@ func _on_custom_avatar_toggled(pressed: bool) -> void:
 	GameState.set_use_custom_avatar(pressed)
 	_update_custom_avatar_buttons_state()
 
+func _on_wall_breathing_toggled(pressed: bool) -> void:
+	GameState.set_wall_breathing_enabled(pressed)
+
 func _update_custom_avatar_buttons_state() -> void:
 	var enabled := custom_avatar_check != null and custom_avatar_check.button_pressed
 
@@ -235,7 +244,6 @@ func _on_jump_up_file_selected(path: String) -> void:
 	var ok := _import_image_as_png_to_user(path, AVATAR_UP_PNG)
 	if ok:
 		GameState.set_custom_avatar_paths(AVATAR_UP_PNG, GameState.get_custom_avatar_down_path())
-		print("✅ Saved custom jump(0) as 64x64: ", AVATAR_UP_PNG)
 	else:
 		_show_warn("Не удалось загрузить jump(0). Попробуй PNG/JPG/JPEG без повреждений.")
 
@@ -243,7 +251,6 @@ func _on_jump_down_file_selected(path: String) -> void:
 	var ok := _import_image_as_png_to_user(path, AVATAR_DOWN_PNG)
 	if ok:
 		GameState.set_custom_avatar_paths(GameState.get_custom_avatar_up_path(), AVATAR_DOWN_PNG)
-		print("✅ Saved custom jump(1) as 64x64: ", AVATAR_DOWN_PNG)
 	else:
 		_show_warn("Не удалось загрузить jump(1). Попробуй PNG/JPG/JPEG без повреждений.")
 
@@ -260,6 +267,10 @@ func _on_save_pressed() -> void:
 
 	GameState.set_nickname(nick)
 	_save_current_hero_to_gamestate()
+
+	# сохраняем переключатель «дыхание мира»
+	if wall_breathing_check:
+		GameState.set_wall_breathing_enabled(wall_breathing_check.button_pressed)
 
 	# если пользователь включил кастом-аватар — проверим что файлы существуют
 	if GameState.get_use_custom_avatar():

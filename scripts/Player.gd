@@ -62,7 +62,7 @@ var last_safe_y: float = 0.0
 
 func _ready() -> void:
 	if DEBUG:
-		print("PLAYER READY")
+		pass
 	# Коллизии: игрок = слой 1, реагируем на платформы (1) и монеты (2)
 	set_collision_layer_value(1, true)
 	set_collision_mask_value(1, true)
@@ -79,7 +79,7 @@ func _ready() -> void:
 	# ИНИЦИАЛИЗИРУЕМ ПОСЛЕДНЮЮ БЕЗОПАСНУЮ ПОЗИЦИЮ
 	last_safe_y = global_position.y
 	if DEBUG:
-		print("🎯 Начальная безопасная позиция: ", last_safe_y)
+		pass
 
 	# ----------------------------------------------------------------------------
 	# ИНИЦИАЛИЗАЦИЯ МАКСИМАЛЬНОЙ ВЫСОТЫ ДЛЯ CUBEVIEW / GameOver
@@ -107,13 +107,13 @@ func _apply_visual_mode() -> void:
 			if anim:
 				anim.visible = false
 			if DEBUG:
-				print("✅ Custom avatar enabled")
+				pass
 			return
 		else:
 			_using_custom_avatar = false
 			GameState.set_use_custom_avatar(false)
 			if DEBUG:
-				print("⚠ Custom avatar enabled but images missing -> fallback")
+				pass
 
 	if custom_sprite:
 		custom_sprite.visible = false
@@ -198,7 +198,6 @@ func _physics_process(delta: float) -> void:
 	var gs: Node = get_node_or_null("/root/GameState")
 	if gs != null and GameState.is_game_over:
 		return
-	print("[DEBUG] Player _physics_process running")
 
 	velocity.y += GRAVITY * delta
 
@@ -235,14 +234,10 @@ func _physics_process(delta: float) -> void:
 	# ОБНОВЛЯЕМ ПОСЛЕДНЮЮ БЕЗОПАСНУЮ ПОЗИЦИЮ ПРИ КАСАНИИ ПЛАТФОРМЫ
 	if touching_floor_now:
 		last_safe_y = global_position.y
-		if DEBUG:
-			print("✅ Обновлена безопасная позиция: ", last_safe_y)
 	
 	if touching_floor_now and not _was_touching_floor and jump_timer <= 0.0:
 		velocity.y = JUMP_VELOCITY
 		jump_timer = JUMP_COOLDOWN
-		if DEBUG:
-			print("🔄 Последний прыжок с позиции: ", last_safe_y)
 
 	_was_touching_floor = touching_floor_now
 
@@ -288,8 +283,6 @@ func _process_fall_death(delta: float) -> void:
 			_fall_death_timer = 0.0
 
 		if _fall_death_timer >= FALL_DEATH_HOLD_SECONDS:
-			if DEBUG:
-				print("DIE_REASON: absolute_limit held for", _fall_death_timer, "pos_y=", global_position.y)
 			_die()
 		return
 
@@ -306,11 +299,7 @@ func _process_fall_death(delta: float) -> void:
 
 	# Лог для отладки
 	if DEBUG:
-		print("DEATH_CHECK: player_y=", global_position.y,
-			" last_safe_y=", last_safe_y,
-			" visible_height=", visible_height,
-			" DEATH_SCREENS=", DEATH_SCREENS,
-			" death_y=", death_y)
+		pass
 
 	# Условие: игрок ниже death_y (2 экрана от последней безопасной позиции)
 	var fall_from_safe_condition: bool = (global_position.y > death_y)
@@ -347,14 +336,6 @@ func _process_fall_death(delta: float) -> void:
 	#   (например, при дрожании камеры или резких ускорениях), просто
 	#   вернув старую логику без переписывания функции.
 	if fall_from_safe_condition or absolute_condition:
-		if DEBUG:
-			if fall_from_safe_condition:
-				print("DIE_REASON_INSTANT: fall_from_safe_condition, player_y=", global_position.y,
-					" last_safe_y=", last_safe_y,
-					" death_y=", death_y)
-			if absolute_condition:
-				print("DIE_REASON_INSTANT: absolute_condition, player_y=", global_position.y,
-					" FALL_LIMIT_Y_ABSOLUTE=", FALL_LIMIT_Y_ABSOLUTE)
 		_die()
 		return
 
@@ -369,25 +350,12 @@ func _process_fall_death(delta: float) -> void:
 	# # Если хоть одно условие истинно — увеличиваем таймер удержания
 	# if fall_from_safe_condition or absolute_condition:
 	# 	_fall_death_timer += delta
-	# 	if DEBUG:
-	# 		if fall_from_safe_condition:
-	# 			print("FALL_TIMER: fall_from_safe_condition true, timer=", _fall_death_timer,
-	# 				  " (fallen: ", global_position.y - last_safe_y, " pixels)")
-	# 		if absolute_condition:
-	# 			print("FALL_TIMER: absolute_condition true, timer=", _fall_death_timer)
 	# else:
 	# 	# Сбрасываем таймер при возврате в безопасную зону
-	# 	if _fall_death_timer > 0.0 and DEBUG:
-	# 		print("FALL_TIMER: reset (player returned above threshold) timer was=", _fall_death_timer)
 	# 	_fall_death_timer = 0.0
 	#
 	# # Если условие держалось достаточно долго — умираем
 	# if _fall_death_timer >= FALL_DEATH_HOLD_SECONDS:
-	# 	if DEBUG:
-	# 		print("DIE_REASON: held threshold for", _fall_death_timer,
-	# 			  " player_y=", global_position.y,
-	# 			  " (fallen ", global_position.y - last_safe_y, " pixels from last safe position)")
-	# 	_die()
 
 # ----------------------------------------------------------------------------
 # Смерть / смена сцены
@@ -397,8 +365,6 @@ func _die() -> void:
 		if GameState.is_game_over:
 			return
 		GameState.is_game_over = true
-		# [DEBUG] Явно логируем факт вызова _die и актуальное значение флага is_game_over.
-		print("[DEBUG] Player _die() called, is_game_over =", GameState.is_game_over)
 
 	# В редакторе — перезагрузим текущую сцену для удобства,
 	# чтобы не прыгать по полноэкранному Game Over при тестах.

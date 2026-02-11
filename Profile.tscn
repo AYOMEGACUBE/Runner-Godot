@@ -87,6 +87,10 @@ custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
 text = "Загрузить jump(1)"
 
+[node name="WallBreathingCheck" type="CheckBox" parent="CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+text = "Дыхание мира (анимация стены)"
+
 [node name="ButtonsRow" type="HBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 16

@@ -17,6 +17,10 @@ const WORLD_SCREENS: int = 20
 const VIEWPORT_WIDTH: int = 1152
 const SEGMENTS_PER_SIDE: int = 720  # Виртуальная сторона мега-куба
 
+# Интервал обновления и минимальный сдвиг камеры
+const UPDATE_INTERVAL: float = 0.4
+const UPDATE_DISTANCE_THRESHOLD: float = 256.0
+
 # Размеры виртуальной стены в пикселях
 const VIRTUAL_WALL_SIZE: int = SEGMENTS_PER_SIDE * SEGMENT_SIZE  # 34560 px
 
@@ -39,29 +43,61 @@ var _last_debug_bounds: Dictionary = {}
 var _debug_print_cooldown: float = 0.0
 const DEBUG_PRINT_INTERVAL: float = 1.0  # Выводить раз в секунду
 
+var _update_timer: float = 0.0
+var _last_camera_position: Vector2 = Vector2.INF
+var _camera_ref: Camera2D = null
+var update_counter: int = 0
+var _debug_update_timer: float = 0.0
+
 
 func _ready() -> void:
-	print("🧱 Wall ready")
-	print("📐 Virtual wall size:", VIRTUAL_WALL_SIZE, "px (", SEGMENTS_PER_SIDE, "×", SEGMENTS_PER_SIDE, " segments)")
+	_camera_ref = get_viewport().get_camera_2d()
+	if _camera_ref:
+		_last_camera_position = _camera_ref.global_position
 
 	# Локальное хранилище данных стены (без онлайна).
 	wall_data = WallData.new()
 	add_child(wall_data)
 
-	# Инициализация видимых сегментов переносится из _ready в отложенный вызов,
-	# чтобы не блокировать кадр загрузки уровня.
 	call_deferred("_update_visible_segments")
-	
-	# Отладочный вывод при старте
-	print("[Wall] Initialized with side: ", side_id)
 
 
 func _process(delta: float) -> void:
-	# Обновляем видимые сегменты каждый кадр (можно оптимизировать через таймер)
+	_update_timer += delta
+	_debug_update_timer += delta
+
+	var camera := _camera_ref
+	if camera == null:
+		camera = get_viewport().get_camera_2d()
+		_camera_ref = camera
+		if camera == null:
+			return
+
+	var need_update: bool = false
+
+	if _update_timer >= UPDATE_INTERVAL:
+		need_update = true
+
+	if camera:
+		var cam_pos: Vector2 = camera.global_position
+		if _last_camera_position == Vector2.INF:
+			_last_camera_position = cam_pos
+		else:
+			var dist: float = cam_pos.distance_to(_last_camera_position)
+			if dist >= UPDATE_DISTANCE_THRESHOLD:
+				need_update = true
+				_last_camera_position = cam_pos
+
+	if not need_update:
+		return
+
+	_update_timer = 0.0
+	update_counter += 1
 	_update_visible_segments()
-	
-	# Обновляем кулдаун для отладочного вывода
-	_debug_print_cooldown -= delta
+
+	if _debug_update_timer >= 2.0:
+		update_counter = 0
+		_debug_update_timer = 0.0
 
 
 func _update_visible_segments() -> void:
@@ -183,7 +219,3 @@ func clear_wall() -> void:
 func _print_debug_info(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
 	# Отладочный вывод информации о стене
 	var segment_count: int = active_segments.size()
-	print("[Wall] Active side: ", side_id)
-	print("[Wall] Visible segments: ", segment_count)
-	if segment_count > 0:
-		print("[Wall] X: ", min_x, "..", max_x, "  Y: ", min_y, "..", max_y)

@@ -24,18 +24,18 @@ $outLeaf = [System.IO.Path]::GetFileName($Out)
 
 Get-ChildItem -Recurse -File -Include $exts |
   Where-Object {
-    ($_.FullName -notmatch '\\\.git\\') -and
-    ($_.FullName -notmatch '\\\.import\\') -and
-    ($_.FullName -notmatch '\\build\\') -and
-    ($_.Name -ne $outLeaf)
+	($_.FullName -notmatch '\\\.git\\') -and
+	($_.FullName -notmatch '\\\.import\\') -and
+	($_.FullName -notmatch '\\build\\') -and
+	($_.Name -ne $outLeaf)
   } |
   ForEach-Object {
-    "`n--- FILE: $($_.FullName) ---`n" | Out-File $Tmp -Append -Encoding utf8
-    if ($_.Length -gt 10MB) {
-      "[skipped: file >10MB]" | Out-File $Tmp -Append -Encoding utf8
-    } else {
-      Get-Content -Raw -Path $_.FullName | Out-File $Tmp -Append -Encoding utf8
-    }
+	"`n--- FILE: $($_.FullName) ---`n" | Out-File $Tmp -Append -Encoding utf8
+	if ($_.Length -gt 10MB) {
+	  "[skipped: file >10MB]" | Out-File $Tmp -Append -Encoding utf8
+	} else {
+	  Get-Content -Raw -Path $_.FullName | Out-File $Tmp -Append -Encoding utf8
+	}
   }
 
 Move-Item -Force $Tmp $Out
@@ -75,43 +75,43 @@ $allowedExts = @('gd','tscn','tres','res','json','cfg','shader','txt','md','ini'
 
 # --- ASCII tree printer (fixed: no inline if expressions) ---
 function SafeAsciiTree {
-    param([string]$Path, [string]$Prefix = "")
+	param([string]$Path, [string]$Prefix = "")
 
-    try {
-        $items = Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop |
-                 Sort-Object @{Expression = { -not $_.PSIsContainer }}, Name
-    } catch {
-        "[error listing $Path] $($_.Exception.Message)" | Out-File $ErrLog -Append -Encoding utf8
-        return
-    }
+	try {
+		$items = Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop |
+				 Sort-Object @{Expression = { -not $_.PSIsContainer }}, Name
+	} catch {
+		"[error listing $Path] $($_.Exception.Message)" | Out-File $ErrLog -Append -Encoding utf8
+		return
+	}
 
-    $count = $items.Count
-    for ($i = 0; $i -lt $count; $i++) {
-        $it = $items[$i]
-        $isLast = ($i -eq $count - 1)
-        if ($isLast) {
-            $connector = "└── "
-        } else {
-            $connector = "├── "
-        }
-        $line = "$Prefix$connector$($it.Name)"
-        $line | Out-File $Tmp -Append -Encoding utf8
+	$count = $items.Count
+	for ($i = 0; $i -lt $count; $i++) {
+		$it = $items[$i]
+		$isLast = ($i -eq $count - 1)
+		if ($isLast) {
+			$connector = "└── "
+		} else {
+			$connector = "├── "
+		}
+		$line = "$Prefix$connector$($it.Name)"
+		$line | Out-File $Tmp -Append -Encoding utf8
 
-        if ($it.PSIsContainer) {
-            $isReparse = ($it.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0
-            if ($isReparse -and -not $FollowReparsePoints) {
-                "[skipped reparse point] $($it.FullName)" | Out-File $ErrLog -Append -Encoding utf8
-                continue
-            }
-            # compute newPrefix with standard if/else (compatible with PS 5.1 and PS7)
-            if ($isLast) {
-                $newPrefix = $Prefix + "    "
-            } else {
-                $newPrefix = $Prefix + "│   "
-            }
-            SafeAsciiTree -Path $it.FullName -Prefix $newPrefix
-        }
-    }
+		if ($it.PSIsContainer) {
+			$isReparse = ($it.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0
+			if ($isReparse -and -not $FollowReparsePoints) {
+				"[skipped reparse point] $($it.FullName)" | Out-File $ErrLog -Append -Encoding utf8
+				continue
+			}
+			# compute newPrefix with standard if/else (compatible with PS 5.1 and PS7)
+			if ($isLast) {
+				$newPrefix = $Prefix + "    "
+			} else {
+				$newPrefix = $Prefix + "│   "
+			}
+			SafeAsciiTree -Path $it.FullName -Prefix $newPrefix
+		}
+	}
 }
 
 # --- Write ASCII tree ---
@@ -129,59 +129,59 @@ $outLeaf = [System.IO.Path]::GetFileName($OutFullPath)
 
 # Read file with long-path fallback
 function Read-File-Raw {
-    param([string]$FullPath)
-    try {
-        return Get-Content -Raw -LiteralPath $FullPath -ErrorAction Stop
-    } catch {
-        try {
-            $long = "\\?\$FullPath"
-            return Get-Content -Raw -LiteralPath $long -ErrorAction Stop
-        } catch {
-            throw $_
-        }
-    }
+	param([string]$FullPath)
+	try {
+		return Get-Content -Raw -LiteralPath $FullPath -ErrorAction Stop
+	} catch {
+		try {
+			$long = "\\?\$FullPath"
+			return Get-Content -Raw -LiteralPath $long -ErrorAction Stop
+		} catch {
+			throw $_
+		}
+	}
 }
 
 # --- Enumerate and append files ---
 try {
-    Get-ChildItem -Recurse -File -Force -ErrorAction SilentlyContinue |
-      Where-Object {
-        -not ( ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -and -not $FollowReparsePoints )
-      } |
-      ForEach-Object {
-        $full = $_.FullName
-        $ext = $_.Extension.ToLower().TrimStart('.')
-        if (-not ($allowedExts -contains $ext)) { return }
+	Get-ChildItem -Recurse -File -Force -ErrorAction SilentlyContinue |
+	  Where-Object {
+		-not ( ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -and -not $FollowReparsePoints )
+	  } |
+	  ForEach-Object {
+		$full = $_.FullName
+		$ext = $_.Extension.ToLower().TrimStart('.')
+		if (-not ($allowedExts -contains $ext)) { return }
 
-        if ($full -eq $OutFullPath -or $_.Name -eq $outLeaf) { return }
+		if ($full -eq $OutFullPath -or $_.Name -eq $outLeaf) { return }
 
-        "`n--- FILE: $full ---`n" | Out-File $Tmp -Append -Encoding utf8
+		"`n--- FILE: $full ---`n" | Out-File $Tmp -Append -Encoding utf8
 
-        try {
-            $sizeMB = [math]::Round( ($_.Length / 1MB), 2 )
-            if ($MaxFileSizeMB -gt 0 -and $sizeMB -gt $MaxFileSizeMB) {
-                "[skipped: file > $MaxFileSizeMB MB ($sizeMB MB)]" | Out-File $Tmp -Append -Encoding utf8
-                return
-            }
-            $content = Read-File-Raw -FullPath $full
-            $content | Out-File $Tmp -Append -Encoding utf8
-        } catch {
-            "[error reading file: $full] $($_.Exception.Message)" | Out-File $ErrLog -Append -Encoding utf8
-            "[skipped reading $full]" | Out-File $Tmp -Append -Encoding utf8
-        }
-      }
+		try {
+			$sizeMB = [math]::Round( ($_.Length / 1MB), 2 )
+			if ($MaxFileSizeMB -gt 0 -and $sizeMB -gt $MaxFileSizeMB) {
+				"[skipped: file > $MaxFileSizeMB MB ($sizeMB MB)]" | Out-File $Tmp -Append -Encoding utf8
+				return
+			}
+			$content = Read-File-Raw -FullPath $full
+			$content | Out-File $Tmp -Append -Encoding utf8
+		} catch {
+			"[error reading file: $full] $($_.Exception.Message)" | Out-File $ErrLog -Append -Encoding utf8
+			"[skipped reading $full]" | Out-File $Tmp -Append -Encoding utf8
+		}
+	  }
 } catch {
-    "[fatal enumeration error] $($_.Exception.Message)" | Out-File $ErrLog -Append -Encoding utf8
+	"[fatal enumeration error] $($_.Exception.Message)" | Out-File $ErrLog -Append -Encoding utf8
 }
 
 # --- Finalize ---
 try {
-    Move-Item -Force $Tmp $OutFullPath
-    Write-Host "Saved single dump file: $OutFullPath"
-    Write-Host "Errors logged to: $ErrLog"
+	Move-Item -Force $Tmp $OutFullPath
+	Write-Host "Saved single dump file: $OutFullPath"
+	Write-Host "Errors logged to: $ErrLog"
 } catch {
-    "[error moving tmp to out] $($_.Exception.Message)" | Out-File $ErrLog -Append -Encoding utf8
-    Write-Host "Failed to move temp file to final location. See $ErrLog"
+	"[error moving tmp to out] $($_.Exception.Message)" | Out-File $ErrLog -Append -Encoding utf8
+	Write-Host "Failed to move temp file to final location. See $ErrLog"
 }
 
 
@@ -215,14 +215,14 @@ $SkipDirs = @('.godot','.import','exported','__pycache__')
 
 # --- Helpers ---
 function To-ResPath {
-    param([string]$FullPath)
-    $root = (Get-Location).Path.TrimEnd('\')
+	param([string]$FullPath)
+	$root = (Get-Location).Path.TrimEnd('\')
     $rel = $FullPath
     if ($rel.StartsWith($root)) { 
         $rel = $rel.Substring($root.Length) 
     }
-    $rel = $rel.TrimStart('\','/')
-    $rel = $rel -replace '\\','/'
+	$rel = $rel.TrimStart('\','/')
+	$rel = $rel -replace '\\','/'
     return "res://$rel"
 }
 
@@ -279,10 +279,10 @@ function Parse-TscnNodesTree {
         $line = $lines[$i].Trim()
         
         # Match [node name="..." type="..." parent="..."] - FIXED regex
-        if ($line -match '^\s*\[node\s+name\s*=\s*"([^"]+)"\s+type\s*=\s*"([^"]+)"(?:\s+parent\s*=\s*"([^"]+)")?\s*\]\s*$') {
+		if ($line -match '^\s*\[node\s+name\s*=\s*"([^"]+)"\s+type\s*=\s*"([^"]+)"(?:\s+parent\s*=\s*"([^"]+)")?\s*\]\s*$') {
             $name = $matches[1]
             $type = $matches[2]
-            $parent = if ($matches[3]) { $matches[3] } else { "" }
+			$parent = if ($matches[3]) { $matches[3] } else { "" }
             
             $entries += [PSCustomObject]@{
                 Name = $name
@@ -292,11 +292,11 @@ function Parse-TscnNodesTree {
                 Children = @()
             }
         }
-        # Match [node name="..." type="..." index="..." parent="..."] - FIXED regex
-        elseif ($line -match '^\s*\[node\s+name\s*=\s*"([^"]+)"\s+type\s*=\s*"([^"]+)"\s+index\s*=\s*"([^"]+)"(?:\s+parent\s*=\s*"([^"]+)")?\s*\]\s*$') {
+		# Match [node name="..." type="..." index="..." parent="..."] - FIXED regex
+		elseif ($line -match '^\s*\[node\s+name\s*=\s*"([^"]+)"\s+type\s*=\s*"([^"]+)"\s+index\s*=\s*"([^"]+)"(?:\s+parent\s*=\s*"([^"]+)")?\s*\]\s*$') {
             $name = $matches[1]
             $type = $matches[2]
-            $parent = if ($matches[4]) { $matches[4] } else { "" }
+			$parent = if ($matches[4]) { $matches[4] } else { "" }
             
             $entries += [PSCustomObject]@{
                 Name = $name
@@ -306,15 +306,15 @@ function Parse-TscnNodesTree {
                 Children = @()
             }
         }
-        # Match [node name="..." type="..."] without parent
-        elseif ($line -match '^\s*\[node\s+name\s*=\s*"([^"]+)"\s+type\s*=\s*"([^"]+)"\s*\]\s*$') {
+		# Match [node name="..." type="..."] without parent
+		elseif ($line -match '^\s*\[node\s+name\s*=\s*"([^"]+)"\s+type\s*=\s*"([^"]+)"\s*\]\s*$') {
             $name = $matches[1]
             $type = $matches[2]
             
             $entries += [PSCustomObject]@{
                 Name = $name
                 Type = $type
-                Parent = ""
+				Parent = ""
                 LineNo = $i + 1
                 Children = @()
             }
@@ -327,9 +327,9 @@ function Parse-TscnNodesTree {
             $line = $lines[$i].Trim()
             if ($line -match '^\s*\[node') {
                 # Try to extract manually
-                $manualName = if ($line -match 'name\s*=\s*"([^"]+)"') { $matches[1] } else { "Unknown" }
-                $manualType = if ($line -match 'type\s*=\s*"([^"]+)"') { $matches[1] } else { "Node" }
-                $manualParent = if ($line -match 'parent\s*=\s*"([^"]+)"') { $matches[1] } else { "" }
+				$manualName = if ($line -match 'name\s*=\s*"([^"]+)"') { $matches[1] } else { "Unknown" }
+				$manualType = if ($line -match 'type\s*=\s*"([^"]+)"') { $matches[1] } else { "Node" }
+				$manualParent = if ($line -match 'parent\s*=\s*"([^"]+)"') { $matches[1] } else { "" }
                 
                 $entries += [PSCustomObject]@{
                     Name = $manualName
@@ -355,14 +355,14 @@ function Parse-TscnNodesTree {
     
     # Build hierarchy
     foreach ($entry in $entries) {
-        if ([string]::IsNullOrEmpty($entry.Parent) -or $entry.Parent -eq '.') {
+		if ([string]::IsNullOrEmpty($entry.Parent) -or $entry.Parent -eq '.') {
             $roots += $entry
         } elseif ($nodeMap.ContainsKey($entry.Parent)) {
             $parentNode = $nodeMap[$entry.Parent]
             $parentNode.Children += $entry
         } else {
             # Check if parent is a path
-            $pathParts = $entry.Parent -split '/'
+			$pathParts = $entry.Parent -split '/'
             if ($pathParts.Count -gt 0) {
                 $parentName = $pathParts[-1]
                 if ($nodeMap.ContainsKey($parentName)) {
@@ -399,13 +399,13 @@ function PrintFileWithMeta {
     param([System.IO.FileInfo]$File, [string]$Prefix, [bool]$IsLast)
     
     if ($IsLast) { $connector = "└── " } else { $connector = "├── " }
-    $ext = $File.Extension.ToLower().TrimStart('.')
-    $typeLabel = if ($ext -eq 'tscn') { "tscn" } elseif ($ext -eq 'gd') { "gd" } else { "other" }
+	$ext = $File.Extension.ToLower().TrimStart('.')
+	$typeLabel = if ($ext -eq 'tscn') { "tscn" } elseif ($ext -eq 'gd') { "gd" } else { "other" }
     $resPath = To-ResPath $File.FullName
     
     "$Prefix$connector$($File.Name)    ($typeLabel)" | Out-File $Tmp -Append -Encoding utf8
     
-    if ($ext -eq 'tscn') {
+	if ($ext -eq 'tscn') {
         try {
             $roots = Parse-TscnNodesTree -FullPath $File.FullName
             if ($roots.Count -eq 0) {
@@ -487,7 +487,7 @@ function ValidateSceneStructures {
     
     # Get all .tscn files
     $tscnFiles = Get-ChildItem -Recurse -File -Force -ErrorAction SilentlyContinue |
-        Where-Object { $_.Extension.ToLower().TrimStart('.') -eq 'tscn' } |
+		Where-Object { $_.Extension.ToLower().TrimStart('.') -eq 'tscn' } |
         Where-Object { -not ( ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -and -not $FollowReparsePoints ) } |
         Sort-Object FullName
     
@@ -555,7 +555,7 @@ SafeAsciiTree -Path (Get-Location).Path -Prefix ""
 # --- 2) SCENE TREES ---
 "`n=== SCENE TREES (ASCII) ===`n" | Out-File $Tmp -Append -Encoding utf8
 $tscnFiles = Get-ChildItem -Recurse -File -Force -ErrorAction SilentlyContinue |
-    Where-Object { $_.Extension.ToLower().TrimStart('.') -eq 'tscn' } |
+	Where-Object { $_.Extension.ToLower().TrimStart('.') -eq 'tscn' } |
     Where-Object { -not ( ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -and -not $FollowReparsePoints ) } |
     Sort-Object FullName
 
@@ -595,7 +595,7 @@ $outLeaf = [System.IO.Path]::GetFileName($OutFullPath)
 try {
     Get-ChildItem -Recurse -File -Force -ErrorAction SilentlyContinue |
       Where-Object { -not ( ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -and -not $FollowReparsePoints ) } |
-      Where-Object { $dumpExts -contains $_.Extension.ToLower().TrimStart('.') } |
+	  Where-Object { $dumpExts -contains $_.Extension.ToLower().TrimStart('.') } |
       Sort-Object FullName |
       ForEach-Object {
         $full = $_.FullName
@@ -641,4 +641,3 @@ Write-Host "1. Fixed .tscn parsing with robust regex patterns"
 Write-Host "2. Added self-validation section comparing project vs parsed structures"
 Write-Host "3. Fixed encoding issues with .NET file reading methods"
 Write-Host "4. All scene trees now fully parsed and verified"
-

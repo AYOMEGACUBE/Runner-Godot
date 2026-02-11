@@ -21,16 +21,15 @@ var segment_mode: int = SEGMENT_MODE_RANDOM
 
 @onready var area: Area2D = $Area2D
 @onready var sprite: Sprite2D = $Sprite2D
+@onready var visibility_notifier: VisibleOnScreenNotifier2D = $VisibleOnScreenNotifier2D
 
 var wall_data: WallData = null
 var side_id: String = "front"  # Сторона мега-куба
 
-# Внутренние переменные для анимации
+# Параметры дыхания: каждый сегмент двигается рандомно
 var _time_accum: float = 0.0
-
-# Вертикальное "дыхание" (амплитуда ~2–3 px, период ~2 сек)
-var _breath_amplitude: float = 3.0
-var _breath_speed: float = PI  # базовая скорость
+var _breath_amplitude: float = 1.2
+var _breath_speed: float = PI * 0.4
 var _breath_speed_factor: float = 1.0
 var _breath_phase: float = 0.0
 
@@ -86,7 +85,7 @@ func setup(id: String, side: String, data: WallData) -> void:
 	# Генерируем микро-вариацию яркости (±5-10%)
 	_brightness_variation = 0.95 + randf() * 0.1  # От 0.95 до 1.05
 
-	# Асинхронные параметры "дыхания"
+	# Рандомные параметры "дыхания" — каждый сегмент двигается по-своему
 	_breath_speed_factor = randf_range(0.6, 1.4)
 	_breath_phase = randf() * TAU
 
@@ -104,7 +103,24 @@ func setup(id: String, side: String, data: WallData) -> void:
 	_reset_geometry()
 
 
+var _change_timer: float = 0.0
+var _change_interval: float = 0.0
+
+
 func _ready() -> void:
+	# _process только для видимых сегментов (оптимизация)
+	if visibility_notifier:
+		if not visibility_notifier.screen_entered.is_connected(_on_screen_entered):
+			visibility_notifier.screen_entered.connect(_on_screen_entered)
+		if not visibility_notifier.screen_exited.is_connected(_on_screen_exited):
+			visibility_notifier.screen_exited.connect(_on_screen_exited)
+		set_process(visibility_notifier.is_on_screen())
+	else:
+		set_process(true)
+
+	_change_timer = 0.0
+	_change_interval = randf_range(30.0, 90.0)
+
 	# Подключаем клики
 	if area and not area.input_event.is_connected(_on_area_input):
 		area.input_event.connect(_on_area_input)
@@ -113,7 +129,7 @@ func _ready() -> void:
 	if _brightness_variation == 1.0:
 		_brightness_variation = 0.95 + randf() * 0.1  # От 0.95 до 1.05
 
-	# Если параметры "дыхания" / вращения / цвета ещё не заданы из setup()
+	# Если параметры дыхания / вращения / цвета ещё не заданы из setup()
 	if _breath_speed_factor == 1.0 and _breath_phase == 0.0:
 		_breath_speed_factor = randf_range(0.6, 1.4)
 		_breath_phase = randf() * TAU
@@ -129,53 +145,52 @@ func _ready() -> void:
 
 	_update_visual_state()
 	_reset_geometry()
-	
-	# Случайное начальное смещение для разнообразия
+
+	# Случайный старт фазы для разнообразия
 	_time_accum = randf() * TAU
+
+
+func _on_screen_entered() -> void:
+	set_process(true)
+
+
+func _on_screen_exited() -> void:
+	set_process(false)
+	if sprite:
+		sprite.position = Vector2.ZERO
 
 
 func _process(delta: float) -> void:
 	if wall_mode == WALL_MODE_STATIC:
 		return
 
-	# Остановка логики после смерти игрока / смены сцены
-	# Пытаемся использовать GameState, если там есть флаг, иначе — текущую сцену.
-	if Engine.has_singleton("GameState"):
-		var gs = GameState
-		var is_over: bool = false
-		# Если в будущем появится флаг is_game_over / is_player_alive — поддержим его.
-		if gs.get("is_game_over") != null:
-			is_over = bool(gs.get("is_game_over"))
-		if is_over:
-			set_process(false)
-			return
-	
-	var tree := get_tree()
-	if tree == null or tree.current_scene == null:
-		set_process(false)
-		return
-	
-	# Если мы уже не в Level (например, в главном меню) — останавливаемся.
-	if tree.current_scene.name != "Level":
-		set_process(false)
+	# Проверка настройки: если выключено — стена статична
+	if not GameState.wall_breathing_enabled:
+		if sprite:
+			sprite.position = Vector2.ZERO
 		return
 
-	# Обычный хаотичный режим
-	if segment_mode == SEGMENT_MODE_RANDOM:
-		_update_minimal_animation(delta)
+	# Дыхание каждый кадр — каждый сегмент двигается рандомно (дыхание мира)
+	_update_minimal_animation(delta)
+
+	_change_timer += delta
+	if _change_interval <= 0.0:
+		_change_interval = randf_range(30.0, 90.0)
+
+	if _change_timer >= _change_interval:
+		_change_timer = 0.0
+		_change_interval = randf_range(30.0, 90.0)
+		change_side_randomly()
+
+
+func change_side_randomly() -> void:
+	# Лёгкая смена оттенка для видимого "мигания" без тяжёлых вычислений
+	if sprite == null:
 		return
+	# Немного меняем коэффициент яркости и пересчитываем цвет
+	_brightness_variation = lerp(0.8, 1.2, randf())
+	_update_visual_state()
 
-	# Режим синхронного показа (архитектура на будущее)
-	if segment_mode == SEGMENT_MODE_SYNC_SHOW:
-		if _sync_show_timer > 0.0:
-			_sync_show_timer -= delta
-			_update_minimal_animation(delta)
-		else:
-			segment_mode = SEGMENT_MODE_RANDOM
-		return
-
-
-# ---------------------------------------------------------------------------
 
 func _on_area_input(
 	viewport: Viewport,
@@ -197,12 +212,6 @@ func _try_buy() -> void:
 
 	var buyer_uid: String = GameState.player_uid
 	var ok: bool = wall_data.buy_side(segment_id, buyer_uid)
-
-	if ok:
-		print("✅ Куплено:", segment_id)
-	else:
-		print("⛔ Уже куплено:", segment_id)
-
 	_update_visual_state()
 
 
@@ -261,7 +270,7 @@ func _reset_geometry() -> void:
 	if sprite == null:
 		return
 
-	# Базовая локальная позиция по Y для "дыхания"
+	# Базовая локальная позиция для "дыхания"
 	sprite.position = Vector2.ZERO
 	_base_y = sprite.position.y
 	sprite.scale = Vector2.ONE
@@ -269,7 +278,7 @@ func _reset_geometry() -> void:
 
 
 func _update_minimal_animation(delta: float) -> void:
-	# "Дыхание" и вращение одного сегмента (куба).
+	# Каждый сегмент двигается рандомно — дыхание мира
 	if sprite == null:
 		return
 
@@ -277,65 +286,9 @@ func _update_minimal_animation(delta: float) -> void:
 	if _time_accum >= TAU:
 		_time_accum = fmod(_time_accum, TAU)
 
-	# Базовая амплитуда "дыхания" по вертикали
-	var amp := _breath_amplitude
-	var speed_factor := 1.0
+	var phase: float = _time_accum * _breath_speed * _breath_speed_factor + _breath_phase
+	var amp: float = _breath_amplitude
 
-	# Сторонозависимое движение (разные фазы/амплитуды по сторонам)
-	match side_id:
-		"front":
-			# Почти неподвижен — еле заметное движение
-			amp *= 0.3
-		"left":
-			# Чуть более заметное дыхание
-			amp *= 1.0
-		"right":
-			# Чуть более заметное дыхание
-			amp *= 1.0
-		"top":
-			# Более медленное движение
-			amp *= 0.7
-			speed_factor = 0.5
-		"back", "bottom":
-			# Слабее базового
-			amp *= 0.6
-		_:
-			pass
-
-	# DEBUG: усиленная амплитуда для наглядности (около 2–3 px)
-	var offset_y: float = sin((_time_accum * _breath_speed * _breath_speed_factor + _breath_phase) * speed_factor) * amp
-	sprite.position.y = _base_y + offset_y
-
-	# Рандомное вращение с паузами (асинхронно для каждого сегмента)
-	_rot_timer -= delta
-	if _rot_timer <= 0.0:
-		_rot_active = not _rot_active
-		if _rot_active:
-			_rot_timer = randf_range(0.6, 2.0)   # активная фаза
-		else:
-			_rot_timer = randf_range(0.8, 3.0)   # пауза (без вращения)
-
-	if _rot_active and _rot_amp > 0.0:
-		_rot_time += delta * _rot_speed
-		var rot := sin(_rot_time + _rot_phase) * _rot_amp
-		sprite.rotation = rot
-	else:
-		sprite.rotation = 0.0
-
-	# Независимое "дыхание" цвета (очень мягкая дрожь яркости, без мигания)
-	_color_time += delta
-	var t := _color_time * _color_speed + _color_phase
-	var jitter := 1.0 + 0.06 * sin(t)  # ±6% по яркости
-	var col := Color(
-		_base_color.r * jitter,
-		_base_color.g * jitter,
-		_base_color.b * jitter,
-		_base_color.a
-	)
-	sprite.modulate = col
-
-	# Консольный маркер жизни — один раз на сегмент (DEBUG)
-	if not _animation_logged:
-		_animation_logged = true
-		print("[WallSegment] animation active: ", segment_id)
-
+	var offset_y: float = sin(phase) * amp
+	var offset_x: float = cos(phase) * (amp * 0.5)
+	sprite.position = Vector2(offset_x, _base_y + offset_y)

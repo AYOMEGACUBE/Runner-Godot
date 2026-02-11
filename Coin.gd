@@ -7,7 +7,6 @@ extends Area2D
 @onready var collision: CollisionShape2D = $CollisionShape2D
 
 func _ready() -> void:
-	print("✅ Coin spawned at: ", global_position)
 	
 	# ВАЖНО: Включаем мониторинг
 	monitoring = true
@@ -35,18 +34,16 @@ func _ready() -> void:
 	if not body_entered.is_connected(_on_body_entered):
 		body_entered.connect(_on_body_entered)
 		
-	print("✅ Coin setup complete - Layer: 2, Mask: 1")
+	
 	queue_redraw()
 
 func _on_body_entered(body: Node) -> void:
-	print("🎯 Coin: body entered - ", body.name)
 	
 	if body is CharacterBody2D and body.name == "Player":
-		print("💰 Coin collected! Adding ", value, " points")
+		
 		
 		# Добавляем очки
 		GameState.add_coin(value)
-		print("📊 New score: ", GameState.score)
 		
 		# Исчезаем
 		queue_free()

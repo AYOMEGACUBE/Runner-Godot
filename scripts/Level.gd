@@ -80,10 +80,6 @@ func _ready() -> void:
 	viewport_width = viewport_size.x
 	viewport_height = viewport_size.y
 	
-	print("WIDTH = ", viewport_width, " HEIGHT = ", viewport_height)
-
-	
-
 	var world_left: float = LEFT_WALL_X
 	var world_right: float = RIGHT_WALL_X
 
@@ -100,13 +96,6 @@ func _ready() -> void:
 		var safe_margin_try: float = max(8.0, viewport_width * 0.1)
 		min_center_x = world_left + safe_margin_try
 		max_center_x = world_right - safe_margin_try
-		if DEBUG_LOG:
-			print("WORLD_MARGIN_ADJUSTED: used safe_margin_try=", safe_margin_try)
-
-	if DEBUG_LOG:
-		print("WORLD_BOUNDS: world_left=", world_left, " world_right=", world_right,
-			" min_center_x=", min_center_x, " max_center_x=", max_center_x,
-			" viewport_width=", viewport_width)
 
 	var start_x: float = clamp(min_center_x + 200.0, min_center_x, max_center_x)
 	var start_y: float = viewport_height - 200.0
@@ -124,12 +113,10 @@ func _ready() -> void:
 	_create_initial_platforms()
 
 func _physics_process(_delta: float) -> void:
-	# [DEBUG] Лог для проверки работы уровня.
 	# ВАЖНО: сначала проверяем is_game_over, чтобы после смерти
-	# не было бесконечного спама логов.
+	# не было лишних обновлений.
 	if Engine.has_singleton("GameState") and GameState.is_game_over:
 		return
-	print("[DEBUG] Level _physics_process running")
 	_update_platforms_around_player()
 
 # --- FIX: безопасно читаем export-поля Player.gd через get() ---
@@ -190,8 +177,6 @@ func _spawn_main_platform_at(pos: Vector2, segments: int) -> Node2D:
 	last_main_segments = clamped_segments
 	last_main_pos = adjusted_pos
 
-	if DEBUG_LOG:
-		print("Spawn main platform at ", adjusted_pos, " seg=", clamped_segments, " attempts=", attempts)
 	return p
 
 func _spawn_next_step() -> void:
@@ -211,8 +196,6 @@ func _spawn_next_step() -> void:
 	var p_speed: float = _get_player_param_float("MOVE_SPEED", 260.0)
 
 	var reach: float = _max_horizontal_reach(start_surface_y, target_surface_y, p_jump, p_grav, p_speed)
-	if DEBUG_LOG:
-		print("reach=", reach, " start_y=", start_surface_y, " target_y=", target_surface_y)
 
 	var max_edge_gap_physical: float = max(0.0, reach - SAFE_MARGIN_X - half_new)
 
@@ -272,15 +255,9 @@ func _spawn_next_step() -> void:
 
 			if clamped_x != tentative_x:
 				wall_clamp_count += 1
-				if DEBUG_LOG:
-					print("WALL_CLAMP candidate try#", wall_clamp_count,
-						" tentative_x=", tentative_x, " clamped_x=", clamped_x,
-						" going_right=", going_right)
 				if wall_clamp_count >= WALL_CLAMP_THRESHOLD:
 					going_right = not going_right
 					wall_clamp_count = 0
-					if DEBUG_LOG:
-						print("WALL_FLIP -> now going_right=", going_right)
 					break
 				continue
 
@@ -314,8 +291,6 @@ func _spawn_next_step() -> void:
 		last_main_segments = chosen_seg
 		last_main_pos = final_pos
 
-		if DEBUG_LOG:
-			print("Placed main at ", final_pos, " seg=", chosen_seg, " edge_gap=", chosen_edge_gap, " reach=", reach)
 
 		_spawn_decoys_around(p.global_position, chosen_seg)
 		return

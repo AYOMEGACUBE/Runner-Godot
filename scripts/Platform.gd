@@ -48,8 +48,6 @@ func _spawn_coin_above() -> void:
 		var coin_pos := platform_center + Vector2(0.0, -coin_height_offset)
 		coin.global_position = coin_pos
 
-		print("✅ Platform spawned coin at: ", coin_pos)
-
 func _draw() -> void:
 	var rect := Rect2(-size * 0.5, size)
 	draw_rect(rect, Color(0.1, 0.9, 0.2, 1.0))
