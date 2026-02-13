@@ -11,7 +11,7 @@ class_name WallRenderer
 const SEGMENT_SIZE: int = 48
 const SEGMENTS_PER_SIDE: int = 3200  # Должно соответствовать wall.gd
 
-@onready var multimesh_instance: MultiMeshInstance2D = $MultiMeshInstance2D
+var multimesh_instance: MultiMeshInstance2D = null  # Создаётся в _ready()
 
 var wall_data: WallData = null
 var side_id: String = "front"
@@ -39,6 +39,15 @@ var _segment_sides: Array[String] = []  # Текущая сторона для �
 var _side_change_timers: Array[float] = []  # Таймеры до следующей смены стороны
 var _side_change_intervals: Array[float] = []  # Интервалы смены для каждого сегмента
 const SIDES: Array[String] = ["front", "back", "left", "right", "top", "bottom"]
+
+# Отображение изображений поверх MultiMesh
+var _images_layer: Node2D = null                  # Отдельный слой для спрайтов
+var _segment_sprites: Dictionary = {}             # segment_id -> Sprite2D
+var _sprite_pool: Array[Sprite2D] = []            # пул переиспользуемых спрайтов
+var _segment_index: Dictionary = {}               # segment_id -> индекс в массивах
+
+# Подсветка выбранного сегмента
+var _highlighted_segment_id: String = ""
 
 func _ready() -> void:
 	if multimesh_instance == null:
@@ -81,6 +90,12 @@ func _ready() -> void:
 	
 	multimesh_instance.multimesh = _multimesh
 
+	# Слой для спрайтов с изображениями сегментов
+	_images_layer = Node2D.new()
+	_images_layer.name = "ImagesLayer"
+	_images_layer.z_index = -9  # Чуть выше самой стены, но ниже платформ/монет
+	add_child(_images_layer)
+
 func setup(data: WallData, side: String, purchases_enabled: bool = false) -> void:
 	wall_data = data
 	side_id = side
@@ -120,6 +135,7 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 	_segment_sides.clear()
 	_side_change_timers.clear()
 	_side_change_intervals.clear()
+	_segment_index.clear()
 	
 	_transforms.resize(total_segments)
 	_segment_ids.resize(total_segments)
@@ -161,7 +177,7 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			var face_data: Dictionary = wall_data.get_face_data(segment_id, current_side)
 			
 			# Цвет сегмента по текущей стороне (визуализация смены сторон)
-			var color: Color = _get_segment_color_by_side(current_side, face_data)
+			var color: Color = _get_segment_color_by_side(current_side, face_data, segment_id)
 			
 			# Базовый трансформ (без дыхания)
 			var transform: Transform2D = Transform2D.IDENTITY
@@ -169,6 +185,7 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			
 			_transforms[idx] = transform
 			_segment_ids[idx] = segment_id
+			_segment_index[segment_id] = idx
 			
 			# Генерируем РАНДОМНЫЕ параметры дыхания для каждого сегмента
 			_breathing_params[idx] = {
@@ -185,6 +202,9 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			_multimesh.set_instance_color(idx, color)
 			
 			idx += 1
+
+	# Обновляем спрайты с изображениями для видимых сегментов
+	_update_image_sprites()
 
 func _process(delta: float) -> void:
 	# Обрабатываем смену сторон сегментов (независимо для каждого)
@@ -221,6 +241,14 @@ func _process(delta: float) -> void:
 		final_transform.origin += random_offset
 		
 		_multimesh.set_instance_transform_2d(i, final_transform)
+
+		# Обновляем позицию спрайта, если у сегмента есть изображение
+		if i < _segment_ids.size():
+			var seg_id := _segment_ids[i]
+			if _segment_sprites.has(seg_id):
+				var sprite: Sprite2D = _segment_sprites[seg_id]
+				if sprite:
+					sprite.position = final_transform.origin
 
 func _process_side_changes(delta: float) -> void:
 	# Обрабатываем смену сторон для каждого сегмента независимо
@@ -261,7 +289,7 @@ func _process_side_changes(delta: float) -> void:
 			
 			# Обновляем цвет сегмента по новой стороне
 			var face_data: Dictionary = wall_data.get_face_data(segment_id, new_side)
-			var color: Color = _get_segment_color_by_side(new_side, face_data)
+			var color: Color = _get_segment_color_by_side(new_side, face_data, segment_id)
 			_multimesh.set_instance_color(i, color)
 
 # Обновление конкретного сегмента после покупки
@@ -271,10 +299,14 @@ func update_segment(segment_id: String) -> void:
 	
 	# Находим индекс сегмента в массиве
 	var idx: int = -1
-	for i in range(_segment_ids.size()):
-		if _segment_ids[i] == segment_id:
-			idx = i
-			break
+	if _segment_index.has(segment_id):
+		idx = int(_segment_index[segment_id])
+	else:
+		for i in range(_segment_ids.size()):
+			if _segment_ids[i] == segment_id:
+				idx = i
+				_segment_index[segment_id] = i
+				break
 	
 	if idx < 0 or idx >= _multimesh.instance_count:
 		return
@@ -282,10 +314,13 @@ func update_segment(segment_id: String) -> void:
 	# Обновляем цвет сегмента по текущей стороне сегмента
 	var current_side: String = _segment_sides[idx] if idx < _segment_sides.size() else side_id
 	var face_data: Dictionary = wall_data.get_face_data(segment_id, current_side)
-	var color: Color = _get_segment_color_by_side(current_side, face_data)
+	var color: Color = _get_segment_color_by_side(current_side, face_data, segment_id)
 	_multimesh.set_instance_color(idx, color)
 
-func _get_segment_color_by_side(segment_side: String, face_data: Dictionary) -> Color:
+	# Обновляем (или создаём) спрайт изображения для этого сегмента
+	_update_single_image_sprite(segment_id, idx, current_side)
+
+func _get_segment_color_by_side(segment_side: String, face_data: Dictionary, segment_id: String = "") -> Color:
 	# Базовый цвет по стороне сегмента (не по side_id стены!)
 	var base_color: Color = _get_side_color(segment_side)
 	
@@ -295,7 +330,35 @@ func _get_segment_color_by_side(segment_side: String, face_data: Dictionary) -> 
 		var owned_color: Color = Color(0.1, 0.8, 0.2)
 		base_color = base_color.lerp(owned_color, 0.3)
 	
+	# Подсветка выбранного сегмента (яркий белый оттенок)
+	if segment_id != "" and segment_id == _highlighted_segment_id:
+		var highlight_color: Color = Color(1.0, 1.0, 1.0, 0.8)
+		base_color = base_color.lerp(highlight_color, 0.5)
+	
 	return base_color
+
+func set_highlighted_segment(segment_id: String) -> void:
+	"""Устанавливает подсветку для указанного сегмента."""
+	if _highlighted_segment_id == segment_id:
+		return  # Уже подсвечен
+	
+	var old_id: String = _highlighted_segment_id
+	_highlighted_segment_id = segment_id
+	
+	# Обновляем визуал старого и нового сегмента
+	if old_id != "":
+		update_segment(old_id)
+	if segment_id != "":
+		update_segment(segment_id)
+
+func clear_highlight() -> void:
+	"""Убирает подсветку с текущего сегмента."""
+	if _highlighted_segment_id == "":
+		return
+	
+	var old_id: String = _highlighted_segment_id
+	_highlighted_segment_id = ""
+	update_segment(old_id)
 
 func _get_side_color(segment_side: String) -> Color:
 	# ВРЕМЕННАЯ ВИЗУАЛИЗАЦИЯ: разные оттенки бирюзового для каждой стороны
@@ -315,17 +378,26 @@ func _get_side_color(segment_side: String) -> Color:
 		_:
 			return Color(0.0, 0.8, 0.7)  # По умолчанию яркий бирюзовый
 
+# ---------------------------------------------------------------------------
+# Обработка клика по координатам (для CubeView)
+# ---------------------------------------------------------------------------
+
 # Обработка клика по координатам (для CubeView)
 func handle_click(global_pos: Vector2) -> Dictionary:
 	if not allow_purchases or wall_data == null:
 		return {}
 	
+	# Преобразуем глобальные координаты в локальные относительно WallRenderer
 	var local_pos: Vector2 = to_local(global_pos)
 	
-	# Вычисляем координаты сегмента
-	var seg_x: int = int(floor(local_pos.x / SEGMENT_SIZE))
-	var seg_y: int = int(floor(local_pos.y / SEGMENT_SIZE))
+	# Вычисляем координаты сегмента (сегменты центрированы относительно (0,0))
+	var seg_x: int = int(floor((local_pos.x + SEGMENT_SIZE * 0.5) / SEGMENT_SIZE))
+	var seg_y: int = int(floor((local_pos.y + SEGMENT_SIZE * 0.5) / SEGMENT_SIZE))
 	var segment_id: String = "%d_%d" % [seg_x, seg_y]
+	
+	# Проверяем, существует ли сегмент в видимой области
+	if not _segment_index.has(segment_id):
+		return {}
 	
 	# Проверяем высотный гейт
 	var seg_height: float = wall_data.get_segment_height(segment_id)
@@ -341,3 +413,95 @@ func handle_click(global_pos: Vector2) -> Dictionary:
 		"price": wall_data.get_segment_price(segment_id),
 		"height": seg_height
 	}
+
+# ---------------------------------------------------------------------------
+# Изображения сегментов (Sprite2D поверх MultiMesh)
+# ---------------------------------------------------------------------------
+
+func _get_or_create_sprite(segment_id: String) -> Sprite2D:
+	if _segment_sprites.has(segment_id):
+		var existing: Sprite2D = _segment_sprites[segment_id]
+		if existing:
+			existing.visible = true
+			return existing
+
+	var sprite: Sprite2D = null
+	if _sprite_pool.size() > 0:
+		sprite = _sprite_pool.pop_back()
+	else:
+		sprite = Sprite2D.new()
+		sprite.centered = true
+		sprite.name = "SegSprite_" + segment_id
+		_images_layer.add_child(sprite)
+	
+	_segment_sprites[segment_id] = sprite
+	sprite.visible = true
+	return sprite
+
+func _release_sprite(segment_id: String) -> void:
+	if not _segment_sprites.has(segment_id):
+		return
+	var sprite: Sprite2D = _segment_sprites[segment_id]
+	_segment_sprites.erase(segment_id)
+	if sprite:
+		sprite.visible = false
+		_sprite_pool.append(sprite)
+
+func _update_image_sprites() -> void:
+	if wall_data == null:
+		return
+
+	# Множество видимых сегментов
+	var visible_ids: Dictionary = {}
+	for seg_id in _segment_ids:
+		visible_ids[seg_id] = true
+
+	# Убираем спрайты, которые вышли из видимости
+	for seg_id in _segment_sprites.keys():
+		if not visible_ids.has(seg_id):
+			_release_sprite(seg_id)
+
+	# Обновляем / создаём спрайты для видимых сегментов с изображениями
+	for i in range(_segment_ids.size()):
+		var seg_id: String = _segment_ids[i]
+		if i >= _segment_sides.size():
+			continue
+		var current_side: String = _segment_sides[i]
+		var img_path: String = wall_data.get_face_image_path(seg_id, current_side)
+		if img_path == "":
+			# Если изображение было, но больше не нужно
+			if _segment_sprites.has(seg_id):
+				_release_sprite(seg_id)
+			continue
+
+		_update_single_image_sprite(seg_id, i, current_side)
+
+func _update_single_image_sprite(segment_id: String, idx: int, segment_side: String) -> void:
+	if wall_data == null:
+		return
+	if idx < 0 or idx >= _segment_ids.size():
+		return
+
+	var img_path: String = wall_data.get_face_image_path(segment_id, segment_side)
+	if img_path == "":
+		# Нет изображения для этой стороны
+		if _segment_sprites.has(segment_id):
+			_release_sprite(segment_id)
+		return
+
+	var tex: Texture2D = load(img_path) as Texture2D
+	if tex == null:
+		push_warning("WallRenderer: не удалось загрузить текстуру: " + img_path)
+		return
+
+	var sprite: Sprite2D = _get_or_create_sprite(segment_id)
+	sprite.texture = tex
+
+	# Устанавливаем позицию по текущему трансформу (с учётом дыхания)
+	var current_transform: Transform2D
+	if GameState.wall_breathing_enabled and idx < _multimesh.instance_count:
+		current_transform = _multimesh.get_instance_transform_2d(idx)
+	else:
+		current_transform = _transforms[idx]
+
+	sprite.position = current_transform.origin

@@ -36,3 +36,41 @@ text = "Cube View"
 [node name="BackButton" type="Button" parent="UILayer/Panel/VBoxContainer"]
 layout_mode = 2
 text = "Back to Menu"
+
+[node name="MinimapPanel" type="Panel" parent="UILayer"]
+offset_left = -200.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 200.0
+anchor_left = 1.0
+anchor_right = 1.0
+
+[node name="MinimapLabel" type="Label" parent="UILayer/MinimapPanel"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -20.0
+offset_right = -8.0
+offset_bottom = -4.0
+text = "Мини-карта"
+horizontal_alignment = 1
+
+[node name="MinimapViewport" type="SubViewport" parent="UILayer/MinimapPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -24.0
+size = Vector2i(176, 152)
+transparent_bg = true
+
+[node name="MinimapCamera" type="Camera2D" parent="UILayer/MinimapPanel/MinimapViewport"]
+limit_left = -76800
+limit_top = -76800
+limit_right = 76800
+limit_bottom = 76800

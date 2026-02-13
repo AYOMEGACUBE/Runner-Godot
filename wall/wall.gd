@@ -60,6 +60,10 @@ func _ready() -> void:
 	# Стена на заднем плане
 	z_index = -10
 	
+	# Берём активную сторону из GameState (если есть)
+	if Engine.has_singleton("GameState") and GameState.has_method("get_active_wall_side"):
+		side_id = GameState.get_active_wall_side()
+	
 	_camera_ref = get_viewport().get_camera_2d()
 	if _camera_ref:
 		_last_camera_position = _camera_ref.global_position
@@ -67,6 +71,8 @@ func _ready() -> void:
 	# Локальное хранилище данных стены (без онлайна).
 	wall_data = WallData.new()
 	add_child(wall_data)
+	# Загружаем сохранённые данные (если есть)
+	wall_data.load_from_file()
 
 	# Создаём оптимизированный рендерер
 	wall_renderer = WallRenderer.new()
@@ -150,6 +156,12 @@ func _update_visible_segments() -> void:
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	var viewport_half_width: float = viewport_size.x * 0.5
 	var viewport_half_height: float = viewport_size.y * 0.5
+	
+	# Учитываем зум камеры: при отдалении камера видит большую область,
+	# значит нужно подгружать больше сегментов стены.
+	if camera:
+		viewport_half_width *= camera.zoom.x
+		viewport_half_height *= camera.zoom.y
 
 	# Границы видимой области в сегментах
 	var min_x_seg: int = int(floor((camera_pos.x - viewport_half_width - VISIBLE_MARGIN * SEGMENT_SIZE) / SEGMENT_SIZE))
@@ -211,3 +223,12 @@ func handle_click(global_pos: Vector2) -> Dictionary:
 func update_segment_visual(segment_id: String) -> void:
 	if wall_renderer:
 		wall_renderer.update_segment(segment_id)
+
+# Подсветка сегмента (для CubeView)
+func set_highlighted_segment(segment_id: String) -> void:
+	if wall_renderer:
+		wall_renderer.set_highlighted_segment(segment_id)
+
+func clear_highlight() -> void:
+	if wall_renderer:
+		wall_renderer.clear_highlight()

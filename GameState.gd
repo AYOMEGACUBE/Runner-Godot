@@ -35,6 +35,14 @@ var custom_avatar_down_path: String = "user://avatars/custom_jump_down.png"
 # --- WALL BREATHING (дыхание мира) ---
 var wall_breathing_enabled: bool = true
 
+# --- WALL SIDES PROGRESSION (открытие сторон мегакуба) ---
+# Порядок сторон фиксируем по ТЗ
+const WALL_SIDES: Array[String] = ["front", "back", "left", "right", "top", "bottom"]
+# Открытые стороны (по умолчанию только front)
+var unlocked_sides: Array[String] = ["front"]
+# Текущая активная сторона для CubeView
+var active_wall_side: String = "front"
+
 # --- DEBUG / DEV ---
 var disable_wall: bool = false
 
@@ -137,6 +145,39 @@ func set_wall_breathing_enabled(v: bool) -> void:
 
 func get_wall_breathing_enabled() -> bool:
 	return wall_breathing_enabled
+
+# --- WALL SIDES (API) ---
+
+func get_active_wall_side() -> String:
+	if active_wall_side in WALL_SIDES:
+		return active_wall_side
+	return "front"
+
+func set_active_wall_side(side: String) -> void:
+	if not (side in WALL_SIDES):
+		return
+	active_wall_side = side
+	if not (side in unlocked_sides):
+		unlocked_sides.append(side)
+	save_scores()
+
+func get_unlocked_wall_sides() -> Array[String]:
+	return unlocked_sides.duplicate()
+
+func unlock_next_wall_side() -> void:
+	# Находит следующую сторону в WALL_SIDES и добавляет её в unlocked_sides
+	var current := get_active_wall_side()
+	var idx := WALL_SIDES.find(current)
+	if idx == -1:
+		idx = 0
+	var next_idx := idx + 1
+	if next_idx >= WALL_SIDES.size():
+		return
+	var next_side: String = WALL_SIDES[next_idx]
+	if not (next_side in unlocked_sides):
+		unlocked_sides.append(next_side)
+	active_wall_side = next_side
+	save_scores()
 
 # ---------------- CHAMPIONS ----------------
 

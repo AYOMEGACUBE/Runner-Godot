@@ -1,0 +1,90 @@
+[gd_scene load_steps=2 format=3 uid="uid://purchase_dialog_tscn"]
+
+[ext_resource type="Script" path="res://PurchaseDialog.gd" id="1_purchase"]
+
+[node name="PurchaseDialog" type="AcceptDialog"]
+initial_position = 2
+dialog_text = "Покупка сегмента стены"
+script = ExtResource("1_purchase")
+
+[node name="VBoxContainer" type="VBoxContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+
+[node name="PriceLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Цена: 0 coin"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Статус: Свободен"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="SideContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="SideLabel" type="Label" parent="VBoxContainer/SideContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Сторона:"
+
+[node name="SideOptionButton" type="OptionButton" parent="VBoxContainer/SideContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ImageContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="ImageLabel" type="Label" parent="VBoxContainer/ImageContainer"]
+layout_mode = 2
+text = "Изображение (опционально):"
+
+[node name="ImagePathLabel" type="Label" parent="VBoxContainer/ImageContainer"]
+layout_mode = 2
+text = "Изображение не выбрано"
+autowrap_mode = 2
+
+[node name="LoadImageButton" type="Button" parent="VBoxContainer/ImageContainer"]
+layout_mode = 2
+text = "Выбрать изображение"
+
+[node name="LinkContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="LinkLabel" type="Label" parent="VBoxContainer/LinkContainer"]
+layout_mode = 2
+text = "Ссылка (опционально, формат: http:// или https://):"
+
+[node name="LinkLineEdit" type="LineEdit" parent="VBoxContainer/LinkContainer"]
+layout_mode = 2
+placeholder_text = "https://example.com"
+
+[node name="ButtonsContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 4
+alignment = 1
+
+[node name="CancelButton" type="Button" parent="VBoxContainer/ButtonsContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Отмена"
+
+[node name="PurchaseButton" type="Button" parent="VBoxContainer/ButtonsContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Купить"
+
+[node name="FileDialog" type="FileDialog" parent="."]
+initial_position = 2
+file_mode = 0
+access = 2

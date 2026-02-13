@@ -30,7 +30,7 @@ const WORLD_WIDTH: float = PLAYER_SPEED_X * SEGMENT_TIME_SECONDS
 const LEFT_WALL_X: float = 0.0
 const RIGHT_WALL_X: float = WORLD_WIDTH
 
-const DY_STEP: float = 64.0
+const DY_STEP: float = 10.0  # Изменено с 64.0 на 10.0 для угла подъёма ~5% вместо ~30%
 
 const DECOY_OFFSET_X_MIN: float = SAFE_MAIN_GAP_X * 1.6
 const DECOY_OFFSET_X_MAX: float = SAFE_MAIN_GAP_X * 2.0
@@ -172,6 +172,20 @@ func _spawn_main_platform_at(pos: Vector2, segments: int) -> Node2D:
 	platforms_root.add_child(p)
 	p.global_position = adjusted_pos
 	p.scale.x = float(clamped_segments)
+	
+	# Определяем, должна ли платформа быть обваливающейся.
+	# Базовый шанс: 30%, увеличивается до 60% на высоте.
+	var player_y: float = player.global_position.y if player else 0.0
+	var platform_y: float = adjusted_pos.y
+	var height_factor: float = abs(platform_y - player_y) / 5000.0  # Нормализуем по высоте
+	height_factor = clamp(height_factor, 0.0, 1.0)
+	var crumbling_chance: float = lerp(0.3, 0.6, height_factor)
+	
+	if rng.randf() < crumbling_chance:
+		# Все платформы создаются из Platform.tscn, где есть свойство is_crumbling.
+		# Поэтому можем безопасно установить его напрямую.
+		p.set("is_crumbling", true)
+	
 	platforms.append(p)
 
 	last_main_segments = clamped_segments
@@ -286,6 +300,17 @@ func _spawn_next_step() -> void:
 
 		p.global_position = final_pos
 		p.scale.x = float(chosen_seg)
+		
+		# Определяем, должна ли платформа быть обваливающейся
+		var player_y2: float = player.global_position.y if player else 0.0
+		var platform_y2: float = final_pos.y
+		var height_factor2: float = abs(platform_y2 - player_y2) / 5000.0
+		height_factor2 = clamp(height_factor2, 0.0, 1.0)
+		var crumbling_chance2: float = lerp(0.3, 0.6, height_factor2)
+		
+		if rng.randf() < crumbling_chance2:
+			p.set("is_crumbling", true)
+		
 		platforms.append(p)
 
 		last_main_segments = chosen_seg
@@ -326,17 +351,52 @@ func _spawn_decoys_around(main_pos: Vector2, main_segments: int) -> void:
 		platforms_root.add_child(decoy)
 		decoy.global_position = decoy_pos
 		decoy.scale.x = float(seg)
+		
+		# Определяем, должна ли платформа быть обваливающейся (те же правила)
+		var player_y3: float = player.global_position.y if player else 0.0
+		var platform_y3: float = decoy_pos.y
+		var height_factor3: float = abs(platform_y3 - player_y3) / 5000.0
+		height_factor3 = clamp(height_factor3, 0.0, 1.0)
+		var crumbling_chance3: float = lerp(0.3, 0.6, height_factor3)
+		
+		if rng.randf() < crumbling_chance3:
+			decoy.set("is_crumbling", true)
+		
 		platforms.append(decoy)
 
 func _update_platforms_around_player() -> void:
 	var player_y: float = player.global_position.y
 
 	var remove_below: float = player_y + viewport_height
-	for p in platforms.duplicate():
+	# Используем обратный порядок итерации для безопасного удаления
+	var platforms_to_remove: Array[Node2D] = []
+	for p in platforms:
+		# Проверяем, что объект всё ещё валиден перед доступом к свойствам
+		if not is_instance_valid(p):
+			platforms_to_remove.append(p)
+			continue
+		
+		# Проверяем, не освобождён ли объект
+		if p.is_queued_for_deletion():
+			platforms_to_remove.append(p)
+			continue
+		
+		# Проверяем позицию платформы
 		if p.global_position.y > remove_below:
+			platforms_to_remove.append(p)
+	
+	# Удаляем платформы из массива и освобождаем их
+	for p in platforms_to_remove:
+		if platforms.has(p):
 			platforms.erase(p)
+		if is_instance_valid(p) and not p.is_queued_for_deletion():
 			p.queue_free()
 
 	var upper_limit: float = player_y - viewport_height
 	while platforms.size() < MIN_TOTAL_PLATFORMS or last_main_pos.y > upper_limit:
 		_spawn_next_step()
+
+func _remove_platform(platform: Node2D) -> void:
+	"""Вспомогательная функция для безопасного удаления платформы из массива."""
+	if platforms.has(platform):
+		platforms.erase(platform)
