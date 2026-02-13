@@ -1,2 +1,8 @@
 # Godot 4+ specific ignores
 .godot/
+
+# Build templates and compiled files (too large for GitHub)
+android/build/templates/
+*.apk
+*.zip
+*.exe
