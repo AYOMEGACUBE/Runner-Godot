@@ -43,18 +43,15 @@ var wall_instance: Node2D = null
 ## а с y <= gate_y — ВЫШЕ линии (клики игнорируются).
 var gate_y: float = 0.0
 
+## Флаг разрешения покупок (включается в _ready)
+var allow_purchases: bool = true
+
 
 func _ready() -> void:
 	# ------------------------------------------------------------
 	# 1. Инстанс существующей сцены стены.
 	# ------------------------------------------------------------
-	# Мы намеренно НЕ создаём новую реализацию стены.
-	# Вместо этого:
-	# - загружаем wall.tscn
-	# - инстанцируем её один раз
-	# - добавляем как ребёнка CubeView
-	# Вся логика генерации сегментов, вращения и «дыхания» остаётся в wall.gd
-	# и WallSegment.gd; CubeView лишь задаёт окружение.
+	# Загружаем wall.tscn и включаем покупки (allow_purchases = true)
 	# ------------------------------------------------------------
 	if wall_scene_path == "":
 		push_error("CubeView.gd: wall_scene_path is empty")
@@ -71,6 +68,11 @@ func _ready() -> void:
 				add_child(wall_instance)
 				# Для наглядности центрируем стену около (0,0) CubeView.
 				wall_instance.position = Vector2.ZERO
+				
+				# ВКЛЮЧАЕМ покупки для CubeView
+				wall_instance.allow_purchases = true
+				# Также обновляем рендерер если он уже создан
+				call_deferred("_enable_purchases_in_renderer")
 		else:
 			push_error("CubeView.gd: cannot load wall scene as PackedScene: " + wall_scene_path)
 
@@ -126,72 +128,90 @@ func _ready() -> void:
 		gate_line.position.y = gate_y
 
 	# ------------------------------------------------------------
-	# 5. Ограничиваем клики по сегментам в зависимости от высоты.
+	# 5. Подключаем обработку кликов для покупки сегментов.
 	# ------------------------------------------------------------
-	# ВАЖНО:
-	# - Мы НЕ меняем WallSegment.gd и НЕ вмешиваемся в его логику.
-	# - Вместо этого работаем только со свойствами Area2D:
-	#   * для сегментов ВЫШЕ гейта выключаем input_pickable,
-	#     так что их Area2D не будет получать события ввода.
-	#   * для сегментов НИЖЕ гейта включаем input_pickable.
-	# - Рандомные повороты, дыхание и т.п. по-прежнему работают, так как
-	#   _process в WallSegment не зависит от input_pickable.
+	# Теперь клики обрабатываются через handle_click() в wall.gd,
+	# который использует координаты вместо Area2D на каждый сегмент.
+	# Высотный гейт проверяется внутри handle_click()
 	# ------------------------------------------------------------
-	_apply_height_gate_to_segments()
+	_enable_purchases_in_renderer()
 
-
-func _apply_height_gate_to_segments() -> void:
-	# Если стена не загружена — нечего ограничивать.
+func _enable_purchases_in_renderer() -> void:
 	if wall_instance == null:
 		return
+	wall_instance.allow_purchases = true
+	# Ищем рендерер среди всех детей (может быть создан позже)
+	for child in wall_instance.get_children():
+		if child is WallRenderer:
+			child.allow_purchases = true
 
-	# Обходим всех потомков wall_instance в глубину (ручной стек).
-	# Ищем ноды, которые выглядят как наши сегменты:
-	# - называются "WallSegment"
-	# - имеют ребёнка "Area2D" типа Area2D.
-	var stack: Array[Node] = [wall_instance]
 
-	while stack.size() > 0:
-		var current: Node = stack.pop_back()
+func _input(event: InputEvent) -> void:
+	# Обработка кликов для покупки сегментов
+	if not allow_purchases:
+		return
+	
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if wall_instance == null:
+			return
+		
+		# Получаем данные сегмента по координатам клика
+		var click_data: Dictionary = wall_instance.handle_click(event.global_position)
+		if click_data.is_empty():
+			return
+		
+		# Проверяем высотный гейт (в Godot Y меньше = выше)
+		var seg_height: float = float(click_data.get("height", 0.0))
+		if seg_height < gate_y:
+			return  # Сегмент выше достигнутой высоты
+		
+		# Покупаем сегмент
+		_try_purchase_segment(click_data)
+	
+	elif event is InputEventScreenTouch and event.pressed:
+		if wall_instance == null:
+			return
+		
+		# Обработка тача на мобильных устройствах
+		# Преобразуем экранные координаты в мировые
+		var viewport: Viewport = get_viewport()
+		var global_touch_pos: Vector2 = viewport.get_global_mouse_position()
+		var click_data: Dictionary = wall_instance.handle_click(global_touch_pos)
+		if click_data.is_empty():
+			return
+		
+		var seg_height: float = float(click_data.get("height", 0.0))
+		if seg_height < gate_y:
+			return
+		
+		_try_purchase_segment(click_data)
 
-		# get_children() возвращает Array<Node> (в Godot 4 с типами),
-		# но мы всё равно явно объявляем тип локальной переменной,
-		# чтобы компилятор не выводил её как Variant.
-		for child in current.get_children():
-			var child_node: Node = child
-			stack.push_back(child_node)
-
-		# Проверяем только ноды-сегменты по имени.
-		if current.name == "WallSegment" and current.has_node("Area2D"):
-			# Забираем ребёнка "Area2D" и явно кастуем к Area2D.
-			var area_node: Node = current.get_node("Area2D")
-			var area: Area2D = area_node as Area2D
-			if area == null:
-				continue
-
-			# Нам нужна глобальная позиция сегмента, поэтому кастуем к Node2D.
-			var segment_2d: Node2D = current as Node2D
-			if segment_2d == null:
-				continue
-
-			var seg_global_y: float = segment_2d.global_position.y
-
-			# В системе координат Godot Y растёт вниз:
-			# - МЕНЬШЕ y → ВЫШЕ на экране
-			# - БОЛЬШЕ y → НИЖЕ на экране
-			#
-			# Условие задачи:
-			# - сегменты НИЖЕ линии (y > gate_y) кликабельны
-			# - сегменты ВЫШЕ линии (y <= gate_y) игнорируют клики
-			var clickable: bool = seg_global_y > gate_y
-
-			# Мы меняем только input_pickable и monitoring,
-			# не трогая саму логику WallSegment.
-			area.input_pickable = clickable
-			area.monitoring = clickable
-
-			# Для наглядности можно было бы логировать состояние,
-			# но по условиям задания новый debug вывод не добавляем.
+func _try_purchase_segment(click_data: Dictionary) -> void:
+	var segment_id: String = str(click_data.get("segment_id", ""))
+	var side: String = str(click_data.get("side", "front"))
+	var price: int = int(click_data.get("price", 0))
+	
+	if segment_id == "" or wall_instance == null:
+		return
+	
+	# Получаем wall_data из wall_instance
+	var wall_data: WallData = null
+	if wall_instance.has_node("WallData"):
+		wall_data = wall_instance.get_node("WallData") as WallData
+	
+	if wall_data == null:
+		return
+	
+	# Покупаем сторону сегмента
+	var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
+	var success: bool = wall_data.buy_side(segment_id, side, buyer_uid, price)
+	
+	if success:
+		# Обновляем визуал через wall_instance
+		wall_instance.update_segment_visual(segment_id)
+		
+		# Можно добавить визуальную обратную связь (анимация, звук и т.д.)
+		# print("Purchased segment: ", segment_id, " side: ", side)
 
 
 func _on_back_button_pressed() -> void:

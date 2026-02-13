@@ -44,6 +44,9 @@ var _color_phase: float = 0.0
 # Базовая локальная позиция по Y (для дыхания)
 var _base_y: float = 0.0
 
+# Базовая Y позиция узла сегмента (для централизованного дыхания в wall.gd)
+var base_position_y: float = 0.0
+
 # Текущий базовый цвет сегмента
 var _base_color: Color = Color(1, 1, 1, 1)
 
@@ -77,10 +80,16 @@ func start_sync_show(side: String, duration: float) -> void:
 # ОБЯЗАТЕЛЬНЫЙ МЕТОД — его вызывает wall.gd
 # ---------------------------------------------------------------------------
 
-func setup(id: String, side: String, data: WallData) -> void:
+func setup(id: String, side: String, data: WallData, allow_purchases_flag: bool = false) -> void:
 	segment_id = id
 	side_id = side
 	wall_data = data
+	base_position_y = position.y
+	
+	# Отключаем/включаем покупки в зависимости от флага
+	if area:
+		area.input_pickable = allow_purchases_flag
+		area.monitoring = allow_purchases_flag
 	
 	# Генерируем микро-вариацию яркости (±5-10%)
 	_brightness_variation = 0.95 + randf() * 0.1  # От 0.95 до 1.05
@@ -239,6 +248,10 @@ func _update_visual_state() -> void:
 	_base_color = base_color
 	# Немедленно применяем цвет (дальше он будет чуть "дрожать" по яркости)
 	sprite.modulate = _base_color
+
+
+func get_base_position_y() -> float:
+	return base_position_y
 
 
 func _get_side_color() -> Color:

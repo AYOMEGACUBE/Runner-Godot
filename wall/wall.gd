@@ -1,12 +1,11 @@
 extends Node2D
 # ============================================================================
 # wall.gd
-# Архитектура стены из сегментов 48x48
-# Менеджер сегментов с поддержкой виртуальной стены 720×720
+# Оптимизированная архитектура стены на основе MultiMesh
 # ============================================================================
-# - работает только с Node2D / Sprite2D / Area2D
-# - создаёт ТОЛЬКО видимые сегменты
-# - сам ничего не рисует
+# - Использует WallRenderer (MultiMeshInstance2D) вместо тысяч нод
+# - Данные хранятся в WallData
+# - Клики обрабатываются по координатам (без Area2D на каждый сегмент)
 # ============================================================================
 # Проверено: Godot 4.x
 # ============================================================================
@@ -15,14 +14,20 @@ extends Node2D
 const SEGMENT_SIZE: int = 48
 const WORLD_SCREENS: int = 20
 const VIEWPORT_WIDTH: int = 1152
-const SEGMENTS_PER_SIDE: int = 720  # Виртуальная сторона мега-куба
 
-# Интервал обновления и минимальный сдвиг камеры
-const UPDATE_INTERVAL: float = 0.4
-const UPDATE_DISTANCE_THRESHOLD: float = 256.0
+# Размер стороны мега-куба должен покрывать весь мир
+# Мир может быть: WORLD_WIDTH = PLAYER_SPEED_X * SEGMENT_TIME_SECONDS = 350 * 420 = 147,000 px
+# Или: WORLD_SCREENS * VIEWPORT_WIDTH = 20 * 1152 = 23,040 px
+# Берём максимум и добавляем запас: 147,000 / 48 ≈ 3,063 сегмента
+# Округляем до 3,200 для удобства (64 * 50)
+const SEGMENTS_PER_SIDE: int = 3200  # Виртуальная сторона мега-куба (было 720)
+
+# Интервал обновления и минимальный сдвиг камеры (оптимизировано для производительности)
+const UPDATE_INTERVAL: float = 0.8  # Увеличено с 0.4 для уменьшения частоты апдейтов
+const UPDATE_DISTANCE_THRESHOLD: float = 400.0  # Увеличено с 256.0 для более редких обновлений
 
 # Размеры виртуальной стены в пикселях
-const VIRTUAL_WALL_SIZE: int = SEGMENTS_PER_SIDE * SEGMENT_SIZE  # 34560 px
+const VIRTUAL_WALL_SIZE: int = SEGMENTS_PER_SIDE * SEGMENT_SIZE  # 153,600 px (было 34,560 px)
 
 # Размер видимой области (в сегментах) с запасом
 const VISIBLE_MARGIN: int = 2  # Дополнительные сегменты за пределами экрана
@@ -31,12 +36,13 @@ const VISIBLE_MARGIN: int = 2  # Дополнительные сегменты �
 # Возможные значения: "front" | "back" | "left" | "right" | "top" | "bottom"
 var side_id: String = "front"
 
-@onready var segment_scene: PackedScene = preload("res://wall/segment/WallSegment.tscn")
+# Флаг разрешения покупок сегментов (только для CubeView, не для Level)
+var allow_purchases: bool = false
+
+# Новый рендерер на основе MultiMesh
+var wall_renderer: WallRenderer = null
 
 var wall_data: WallData
-
-# Кэш созданных сегментов для управления видимостью
-var active_segments: Dictionary = {}  # "x_y" -> Node2D
 
 # Для отладочного вывода (чтобы не спамить каждый кадр)
 var _last_debug_bounds: Dictionary = {}
@@ -51,6 +57,9 @@ var _debug_update_timer: float = 0.0
 
 
 func _ready() -> void:
+	# Стена на заднем плане
+	z_index = -10
+	
 	_camera_ref = get_viewport().get_camera_2d()
 	if _camera_ref:
 		_last_camera_position = _camera_ref.global_position
@@ -59,10 +68,19 @@ func _ready() -> void:
 	wall_data = WallData.new()
 	add_child(wall_data)
 
+	# Создаём оптимизированный рендерер
+	wall_renderer = WallRenderer.new()
+	add_child(wall_renderer)
+	wall_renderer.setup(wall_data, side_id, allow_purchases)
+
 	call_deferred("_update_visible_segments")
 
 
 func _process(delta: float) -> void:
+	if GameState.disable_wall:
+		clear_wall()
+		return
+
 	_update_timer += delta
 	_debug_update_timer += delta
 
@@ -101,6 +119,9 @@ func _process(delta: float) -> void:
 
 
 func _update_visible_segments() -> void:
+	if wall_renderer == null:
+		return
+	
 	# Получаем позицию камеры
 	var camera_pos: Vector2 = Vector2.ZERO
 	var camera: Camera2D = get_viewport().get_camera_2d()
@@ -142,50 +163,8 @@ func _update_visible_segments() -> void:
 	min_y_seg = max(min_y_seg, -SEGMENTS_PER_SIDE / 2)
 	max_y_seg = min(max_y_seg, SEGMENTS_PER_SIDE / 2)
 
-	# Удаляем сегменты вне видимой области
-	var keys_to_remove: Array = []
-	for key in active_segments:
-		var coords: Array = key.split("_")
-		if coords.size() != 2:
-			continue
-		var seg_x: int = int(coords[0])
-		var seg_y: int = int(coords[1])
-		
-		if seg_x < min_x_seg or seg_x > max_x_seg or seg_y < min_y_seg or seg_y > max_y_seg:
-			var segment: Node = active_segments[key]
-			if segment:
-				segment.queue_free()
-			keys_to_remove.append(key)
-
-	for key in keys_to_remove:
-		active_segments.erase(key)
-
-	# Создаём новые сегменты в видимой области
-	for y in range(min_y_seg, max_y_seg + 1):
-		for x in range(min_x_seg, max_x_seg + 1):
-			var key: String = "%d_%d" % [x, y]
-			if active_segments.has(key):
-				continue  # Сегмент уже существует
-
-			var segment := segment_scene.instantiate()
-			if segment == null:
-				continue
-
-			add_child(segment)
-
-			# Геометрия: идеальный квадрат 48×48, стена к стене
-			var pos := Vector2(
-				x * SEGMENT_SIZE,
-				y * SEGMENT_SIZE
-			)
-			segment.position = pos
-
-			if segment.has_method("setup"):
-				segment.setup(key, side_id, wall_data)
-			else:
-				segment.segment_id = key
-
-			active_segments[key] = segment
+	# Обновляем рендерер (вместо создания/удаления нод)
+	wall_renderer.update_visible_area(min_x_seg, max_x_seg, min_y_seg, max_y_seg)
 
 	# Отладочный вывод (с кулдауном, чтобы не спамить)
 	if _debug_print_cooldown <= 0.0:
@@ -204,18 +183,31 @@ func _update_visible_segments() -> void:
 
 
 func clear_wall() -> void:
-	for key in active_segments:
-		var segment: Node = active_segments[key]
-		if segment:
-			segment.queue_free()
-	active_segments.clear()
-
+	# Очищаем рендерер
+	if wall_renderer:
+		wall_renderer.update_visible_area(0, 0, 0, 0)
+	
+	# Очищаем старые ноды (если остались)
 	for child in get_children():
-		if child is WallData:
+		if child is WallData or child is WallRenderer:
 			continue
 		child.queue_free()
 
 
 func _print_debug_info(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
 	# Отладочный вывод информации о стене
-	var segment_count: int = active_segments.size()
+	var width: int = max_x - min_x + 1
+	var height: int = max_y - min_y + 1
+	var segment_count: int = width * height
+	# print("Wall: visible segments: %d (%d x %d)" % [segment_count, width, height])
+
+# Обработка клика по координатам (для CubeView)
+func handle_click(global_pos: Vector2) -> Dictionary:
+	if wall_renderer == null:
+		return {}
+	return wall_renderer.handle_click(global_pos)
+
+# Обновление конкретного сегмента после покупки
+func update_segment_visual(segment_id: String) -> void:
+	if wall_renderer:
+		wall_renderer.update_segment(segment_id)

@@ -7,6 +7,8 @@ extends Area2D
 @onready var collision: CollisionShape2D = $CollisionShape2D
 
 func _ready() -> void:
+	# Монета на переднем плане (z_index > стены)
+	z_index = 1
 	
 	# ВАЖНО: Включаем мониторинг
 	monitoring = true

@@ -35,6 +35,9 @@ var custom_avatar_down_path: String = "user://avatars/custom_jump_down.png"
 # --- WALL BREATHING (дыхание мира) ---
 var wall_breathing_enabled: bool = true
 
+# --- DEBUG / DEV ---
+var disable_wall: bool = false
+
 # --- RUN STATE ---
 var score: int = 0
 var player_name: String = ""           # имя текущего забега (берём из nickname)

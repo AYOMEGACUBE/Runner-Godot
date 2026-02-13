@@ -12,6 +12,9 @@ var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 func _ready() -> void:
 	rng.randomize()
+	
+	# Платформа на переднем плане (z_index > стены)
+	z_index = 0
 
 	coin_scene = preload("res://Coin.tscn")
 
