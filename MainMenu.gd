@@ -1,6 +1,13 @@
 extends Control
 # ============================================================================
 # MainMenu.gd — ГЛАВНЫЙ ЭКРАН (без настроек аватара)
+
+func _log(message: String) -> void:
+	var logger: Node = get_node_or_null("/root/Logger")
+	if logger != null and logger.has_method("log"):
+		logger.call("log", message)
+	else:
+		print(message)
 # ----------------------------------------------------------------------------
 # Требования:
 # - Play НЕ работает без nickname
@@ -40,6 +47,7 @@ const HERO_PREVIEWS := {
 }
 
 func _ready() -> void:
+	_log("[MAINMENU] _ready")
 	if play_button and not play_button.pressed.is_connected(_on_play_pressed):
 		play_button.pressed.connect(_on_play_pressed)
 
@@ -89,14 +97,18 @@ func _refresh_ui() -> void:
 			avatar_preview.texture = res
 
 func _on_profile_pressed() -> void:
+	_log("[MAINMENU] profile pressed, scene=%s" % profile_scene)
 	var err := get_tree().change_scene_to_file(profile_scene)
 	if err != OK:
 		push_error("MainMenu.gd: не удалось открыть Profile: " + profile_scene)
+		_log("[MAINMENU] ERROR - scene change failed: %s" % profile_scene)
 
 func _on_champions_pressed() -> void:
+	_log("[MAINMENU] champions pressed, scene=%s" % champions_scene)
 	var err := get_tree().change_scene_to_file(champions_scene)
 	if err != OK:
 		push_error("MainMenu.gd: не удалось открыть Champions: " + champions_scene)
+		_log("[MAINMENU] ERROR - scene change failed: %s" % champions_scene)
 
 
 func _on_cubeview_pressed() -> void:
@@ -110,22 +122,27 @@ func _on_cubeview_pressed() -> void:
 	# ВАЖНО: логика стены и сегментов внутри CubeView остаётся той же,
 	# что и в Level — мы лишь меняем окружение.
 	# ----------------------------------------------------------------------------
+	_log("[MAINMENU] cubeview pressed, scene=%s" % cube_view_scene)
 	var err := get_tree().change_scene_to_file(cube_view_scene)
 	if err != OK:
 		push_error("MainMenu.gd: не удалось открыть CubeView: " + cube_view_scene)
+		_log("[MAINMENU] ERROR - scene change failed: %s" % cube_view_scene)
 
 func _on_play_pressed() -> void:
 	# Запрет старта без nickname
 	if not GameState.has_valid_nickname():
+		_log("[MAINMENU] play pressed - NO NICKNAME")
 		_show_warn("Сначала нужно указать никнейм (Profile).")
 		return
 
 	# старт забега
+	_log("[MAINMENU] play pressed, starting new run")
 	GameState.start_new_run()
 
 	var err := get_tree().change_scene_to_file(game_scene)
 	if err != OK:
 		push_error("MainMenu.gd: не удалось загрузить сцену игры: " + game_scene)
+		_log("[MAINMENU] ERROR - scene change failed: %s" % game_scene)
 
 func _show_warn(text: String) -> void:
 	if warn_dialog:

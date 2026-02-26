@@ -18,6 +18,8 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameState="*res://GameState.gd"
+Logger="*res://scripts/Logger.gd"
+SideManager="*res://scripts/branding/SideManager.gd"
 
 [display]
 
@@ -42,4 +44,3 @@ move_right={
 [rendering]
 
 textures/vram_compression/import_etc2_astc=true
-2d/snap/snap_2d_transforms_to_pixel=true

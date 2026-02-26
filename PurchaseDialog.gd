@@ -11,6 +11,7 @@ extends AcceptDialog
 # ============================================================================
 
 signal purchase_confirmed(segment_id: String, side: String, image_path: String, link: String)
+signal preview_requested()
 
 var segment_id: String = ""
 var segment_price: int = 0
@@ -25,7 +26,7 @@ var load_image_button: Button = null
 var link_line_edit: LineEdit = null
 var purchase_button: Button = null
 var cancel_button: Button = null
-var file_dialog: FileDialog = null
+var preview_button: Button = null
 
 var selected_image_path: String = ""
 var wall_data: WallData = null
@@ -45,7 +46,7 @@ func _init_ui_elements() -> void:
 	link_line_edit = get_node_or_null("VBoxContainer/LinkContainer/LinkLineEdit")
 	purchase_button = get_node_or_null("VBoxContainer/ButtonsContainer/PurchaseButton")
 	cancel_button = get_node_or_null("VBoxContainer/ButtonsContainer/CancelButton")
-	file_dialog = get_node_or_null("FileDialog")
+	preview_button = get_node_or_null("VBoxContainer/ImageContainer/PreviewButton")
 	
 	# Заполняем список сторон
 	if side_option:
@@ -57,22 +58,14 @@ func _init_ui_elements() -> void:
 	if load_image_button:
 		if not load_image_button.pressed.is_connected(_on_load_image_pressed):
 			load_image_button.pressed.connect(_on_load_image_pressed)
+	if preview_button:
+		preview_button.pressed.connect(_on_preview_pressed)
 	if purchase_button:
 		if not purchase_button.pressed.is_connected(_on_purchase_pressed):
 			purchase_button.pressed.connect(_on_purchase_pressed)
 	if cancel_button:
 		if not cancel_button.pressed.is_connected(_on_cancel_pressed):
 			cancel_button.pressed.connect(_on_cancel_pressed)
-	if file_dialog:
-		if not file_dialog.file_selected.is_connected(_on_file_selected):
-			file_dialog.file_selected.connect(_on_file_selected)
-	
-	# Настройка FileDialog
-	if file_dialog:
-		file_dialog.add_filter("*.png", "PNG Images")
-		file_dialog.add_filter("*.jpg", "JPG Images")
-		file_dialog.add_filter("*.jpeg", "JPEG Images")
-		file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 
 func setup(seg_id: String, price: int, data: WallData = null) -> void:
 	"""
@@ -125,17 +118,54 @@ func setup(seg_id: String, price: int, data: WallData = null) -> void:
 	# Выбираем первую сторону по умолчанию
 	if side_option:
 		side_option.selected = 0
+	
+	# Убеждаемся, что Preview кнопка активна (можно предпросмотреть сегмент даже без изображения)
+	if preview_button:
+		preview_button.disabled = false
+
+func _on_preview_pressed() -> void:
+	if segment_id == "":
+		print("PurchaseDialog: segment_id пуст, предпросмотр невозможен")
+		return
+	print("PurchaseDialog: нажата кнопка Предпросмотр для сегмента ", segment_id)
+	emit_signal("preview_requested")
 
 func _on_load_image_pressed() -> void:
-	if file_dialog:
-		file_dialog.popup_centered(Vector2(800, 600))
+	"""Открывает нативный системный диалог для выбора изображения."""
+	var filters: PackedStringArray = PackedStringArray(["*.png", "*.jpg", "*.jpeg", "*.webp"])
+	
+	# Используем нативный системный диалог с callback
+	DisplayServer.file_dialog_show(
+		"Выберите изображение",  # title
+		"",  # current_dir (пусто = текущая директория)
+		"",  # filename (пусто = без предустановленного имени)
+		false,  # show_hidden
+		DisplayServer.FILE_DIALOG_MODE_OPEN_FILE,  # mode
+		filters,  # filters
+		_on_file_dialog_result  # callback функция
+	)
+
+func _on_file_dialog_result(status: bool, selected_paths: PackedStringArray, selected_filter_index: int) -> void:
+	"""Обрабатывает результат нативного диалога выбора файла."""
+	if status and selected_paths.size() > 0:
+		_on_file_selected(selected_paths[0])
 
 func _on_file_selected(path: String) -> void:
 	selected_image_path = path
+	print("PurchaseDialog: Файл выбран: ", path)
+	# Убеждаемся, что label найден (может быть не инициализирован)
+	if image_path_label == null:
+		image_path_label = get_node_or_null("VBoxContainer/ImageContainer/ImagePathLabel")
+		if image_path_label == null:
+			print("PurchaseDialog: WARNING - ImagePathLabel не найден!")
+	
 	if image_path_label:
-		# Показываем только имя файла
+		# Показываем только имя файла для наглядности
 		var file_name = path.get_file()
 		image_path_label.text = "Изображение: " + file_name
+		print("PurchaseDialog: Label обновлён: ", image_path_label.text)
+	else:
+		print("PurchaseDialog: ERROR - image_path_label == null после попытки найти")
 
 func _on_purchase_pressed() -> void:
 	if segment_id.is_empty():

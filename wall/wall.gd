@@ -30,7 +30,10 @@ const UPDATE_DISTANCE_THRESHOLD: float = 400.0  # Увеличено с 256.0 д
 const VIRTUAL_WALL_SIZE: int = SEGMENTS_PER_SIDE * SEGMENT_SIZE  # 153,600 px (было 34,560 px)
 
 # Размер видимой области (в сегментах) с запасом
-const VISIBLE_MARGIN: int = 2  # Дополнительные сегменты за пределами экрана
+# В игровом режиме (Level): 1 экран во все стороны
+# В режиме просмотра (CubeView): минимальный запас
+const VISIBLE_MARGIN_GAME: float = 1.0  # В игровом режиме: 1 экран во все стороны (в единицах viewport_half)
+const VISIBLE_MARGIN_VIEW: int = 2  # В режиме просмотра: 2 сегмента за пределами экрана
 
 # Сторона мега-куба (для визуализации и отладки)
 # Возможные значения: "front" | "back" | "left" | "right" | "top" | "bottom"
@@ -44,7 +47,7 @@ var wall_renderer: WallRenderer = null
 
 var wall_data: WallData
 
-# Для отладочного вывода (чтобы не спамить каждый кадр)
+# Для отладочного вывода (чтобы не спамить каждый кадр)oid/debug.keystore
 var _last_debug_bounds: Dictionary = {}
 var _debug_print_cooldown: float = 0.0
 const DEBUG_PRINT_INTERVAL: float = 1.0  # Выводить раз в секунду
@@ -57,32 +60,37 @@ var _debug_update_timer: float = 0.0
 
 
 func _ready() -> void:
+	_log("[WALL] _ready side_id=%s allow_purchases=%s" % [side_id, allow_purchases])
 	# Стена на заднем плане
 	z_index = -10
 	
 	# Берём активную сторону из GameState (если есть)
 	if Engine.has_singleton("GameState") and GameState.has_method("get_active_wall_side"):
 		side_id = GameState.get_active_wall_side()
+		_log("[WALL] active side from GameState: %s" % side_id)
 	
 	_camera_ref = get_viewport().get_camera_2d()
 	if _camera_ref:
 		_last_camera_position = _camera_ref.global_position
+		_log("[WALL] camera found at pos=%s" % _last_camera_position)
 
 	# Локальное хранилище данных стены (без онлайна).
 	wall_data = WallData.new()
 	add_child(wall_data)
 	# Загружаем сохранённые данные (если есть)
 	wall_data.load_from_file()
+	_log("[WALL] wall_data loaded, segments=%d" % wall_data.segments.size())
 
 	# Создаём оптимизированный рендерер
 	wall_renderer = WallRenderer.new()
 	add_child(wall_renderer)
 	wall_renderer.setup(wall_data, side_id, allow_purchases)
+	_log("[WALL] renderer setup complete")
 
 	call_deferred("_update_visible_segments")
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if GameState.disable_wall:
 		clear_wall()
 		return
@@ -117,6 +125,7 @@ func _process(delta: float) -> void:
 
 	_update_timer = 0.0
 	update_counter += 1
+	_log("[WALL] update triggered counter=%d camera_pos=%s" % [update_counter, camera.global_position if camera else "null"])
 	_update_visible_segments()
 
 	if _debug_update_timer >= 2.0:
@@ -157,17 +166,34 @@ func _update_visible_segments() -> void:
 	var viewport_half_width: float = viewport_size.x * 0.5
 	var viewport_half_height: float = viewport_size.y * 0.5
 	
-	# Учитываем зум камеры: при отдалении камера видит большую область,
-	# значит нужно подгружать больше сегментов стены.
+	# Учитываем зум камеры: при ОТДАЛЕНИИ (zoom < 1) камера видит
+	# БОЛЬШУЮ область мира, а при ПРИБЛИЖЕНИИ (zoom > 1) — меньшую.
+	# Видимый размер в мировых координатах = viewport_size / zoom.
 	if camera:
-		viewport_half_width *= camera.zoom.x
-		viewport_half_height *= camera.zoom.y
+		if camera.zoom.x != 0.0:
+			viewport_half_width /= camera.zoom.x
+		if camera.zoom.y != 0.0:
+			viewport_half_height /= camera.zoom.y
 
+	# Определяем запас в зависимости от режима (игра или просмотр)
+	# В игровом режиме (allow_purchases = false) загружаем 1 экран во все стороны
+	# В режиме просмотра (allow_purchases = true) минимальный запас
+	var margin_x: float
+	var margin_y: float
+	if allow_purchases:
+		# Режим просмотра (CubeView) - минимальный запас
+		margin_x = VISIBLE_MARGIN_VIEW * SEGMENT_SIZE
+		margin_y = VISIBLE_MARGIN_VIEW * SEGMENT_SIZE
+	else:
+		# Игровой режим (Level) - 1 экран во все стороны
+		margin_x = viewport_half_width * VISIBLE_MARGIN_GAME
+		margin_y = viewport_half_height * VISIBLE_MARGIN_GAME
+	
 	# Границы видимой области в сегментах
-	var min_x_seg: int = int(floor((camera_pos.x - viewport_half_width - VISIBLE_MARGIN * SEGMENT_SIZE) / SEGMENT_SIZE))
-	var max_x_seg: int = int(ceil((camera_pos.x + viewport_half_width + VISIBLE_MARGIN * SEGMENT_SIZE) / SEGMENT_SIZE))
-	var min_y_seg: int = int(floor((camera_pos.y - viewport_half_height - VISIBLE_MARGIN * SEGMENT_SIZE) / SEGMENT_SIZE))
-	var max_y_seg: int = int(ceil((camera_pos.y + viewport_half_height + VISIBLE_MARGIN * SEGMENT_SIZE) / SEGMENT_SIZE))
+	var min_x_seg: int = int(floor((camera_pos.x - viewport_half_width - margin_x) / SEGMENT_SIZE))
+	var max_x_seg: int = int(ceil((camera_pos.x + viewport_half_width + margin_x) / SEGMENT_SIZE))
+	var min_y_seg: int = int(floor((camera_pos.y - viewport_half_height - margin_y) / SEGMENT_SIZE))
+	var max_y_seg: int = int(ceil((camera_pos.y + viewport_half_height + margin_y) / SEGMENT_SIZE))
 
 	# Ограничиваем виртуальными границами стены
 	min_x_seg = max(min_x_seg, -SEGMENTS_PER_SIDE / 2)
@@ -176,6 +202,8 @@ func _update_visible_segments() -> void:
 	max_y_seg = min(max_y_seg, SEGMENTS_PER_SIDE / 2)
 
 	# Обновляем рендерер (вместо создания/удаления нод)
+	var visible_count: int = (max_x_seg - min_x_seg + 1) * (max_y_seg - min_y_seg + 1)
+	_log("[WALL] update_visible_segments bounds=[%d,%d]x[%d,%d] visible=%d" % [min_x_seg, max_x_seg, min_y_seg, max_y_seg, visible_count])
 	wall_renderer.update_visible_area(min_x_seg, max_x_seg, min_y_seg, max_y_seg)
 
 	# Отладочный вывод (с кулдауном, чтобы не спамить)
@@ -216,8 +244,12 @@ func _print_debug_info(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
 # Обработка клика по координатам (для CubeView)
 func handle_click(global_pos: Vector2) -> Dictionary:
 	if wall_renderer == null:
+		_log("[WALL] handle_click FAILED - renderer is null")
 		return {}
-	return wall_renderer.handle_click(global_pos)
+	var result: Dictionary = wall_renderer.handle_click(global_pos)
+	if not result.is_empty():
+		_log("[WALL] handle_click pos=%s segment_id=%s" % [global_pos, result.get("segment_id", "unknown")])
+	return result
 
 # Обновление конкретного сегмента после покупки
 func update_segment_visual(segment_id: String) -> void:
@@ -229,6 +261,33 @@ func set_highlighted_segment(segment_id: String) -> void:
 	if wall_renderer:
 		wall_renderer.set_highlighted_segment(segment_id)
 
+func set_highlighted_segments(segment_ids: Array) -> void:
+	if wall_renderer:
+		wall_renderer.set_highlighted_segments(segment_ids)
+
 func clear_highlight() -> void:
 	if wall_renderer:
 		wall_renderer.clear_highlight()
+
+## Остановить смену сторон сегментов во время покупки
+func set_pause_side_switching(pause: bool) -> void:
+	if wall_renderer:
+		wall_renderer.pause_side_switching = pause
+
+## Затемнять чужие сегменты во время предпросмотра
+func set_dim_other_segments(enabled: bool) -> void:
+	if wall_renderer:
+		wall_renderer.set_dim_other_segments(enabled)
+
+## Установить временные пути изображений для предпросмотра (segment_id -> path). В режиме предпросмотра выбранные сегменты отображают эти картинки.
+func set_preview_image_paths(paths: Dictionary) -> void:
+	if wall_renderer:
+		wall_renderer.set_preview_image_paths(paths)
+
+
+func _log(message: String) -> void:
+	var logger: Node = get_node_or_null("/root/Logger")
+	if logger != null and logger.has_method("log"):
+		logger.call("log", message)
+	else:
+		print(message)

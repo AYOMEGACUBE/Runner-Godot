@@ -18,7 +18,7 @@ default_color = Color(1, 0, 0, 0.7)
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 260.0
-offset_bottom = 140.0
+offset_bottom = 200.0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="UILayer/Panel"]
 layout_mode = 0
@@ -37,13 +37,95 @@ text = "Cube View"
 layout_mode = 2
 text = "Back to Menu"
 
+[node name="PurchaseSegmentButton" type="Button" parent="UILayer/Panel/VBoxContainer"]
+layout_mode = 2
+text = "Купить сегмент"
+
+[node name="SelectionOverlay" type="Panel" parent="UILayer"]
+visible = false
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -160.0
+offset_right = 150.0
+offset_bottom = -16.0
+grow_horizontal = 2
+
+[node name="VBox" type="VBoxContainer" parent="UILayer/SelectionOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="HintLabel" type="Label" parent="UILayer/SelectionOverlay/VBox"]
+layout_mode = 2
+text = "Выберите сегмент на карте"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="NextButton" type="Button" parent="UILayer/SelectionOverlay/VBox"]
+layout_mode = 2
+disabled = true
+text = "Далее"
+
+[node name="CancelSelectionButton" type="Button" parent="UILayer/SelectionOverlay/VBox"]
+layout_mode = 2
+text = "Отмена"
+
+[node name="BulkSelectionOverlay" type="Panel" parent="UILayer"]
+visible = false
+offset_left = 16.0
+offset_top = 210.0
+offset_right = 260.0
+offset_bottom = 354.0
+grow_horizontal = 0
+
+[node name="VBox" type="VBoxContainer" parent="UILayer/BulkSelectionOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="HintLabel" type="Label" parent="UILayer/BulkSelectionOverlay/VBox"]
+layout_mode = 2
+text = "Кликните на стене для выбора начальной позиции"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="OKButton" type="Button" parent="UILayer/BulkSelectionOverlay/VBox"]
+layout_mode = 2
+disabled = true
+text = "OK"
+
+[node name="CancelButton" type="Button" parent="UILayer/BulkSelectionOverlay/VBox"]
+layout_mode = 2
+text = "Отмена"
+
 [node name="MinimapPanel" type="Panel" parent="UILayer"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
 offset_left = -200.0
 offset_top = 16.0
 offset_right = -16.0
 offset_bottom = 200.0
-anchor_left = 1.0
-anchor_right = 1.0
 
 [node name="MinimapLabel" type="Label" parent="UILayer/MinimapPanel"]
 layout_mode = 1
@@ -54,20 +136,13 @@ offset_left = 8.0
 offset_top = -20.0
 offset_right = -8.0
 offset_bottom = -4.0
+grow_vertical = 0
 text = "Мини-карта"
 horizontal_alignment = 1
 
 [node name="MinimapViewport" type="SubViewport" parent="UILayer/MinimapPanel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -24.0
-size = Vector2i(176, 152)
 transparent_bg = true
+size = Vector2i(176, 152)
 
 [node name="MinimapCamera" type="Camera2D" parent="UILayer/MinimapPanel/MinimapViewport"]
 limit_left = -76800

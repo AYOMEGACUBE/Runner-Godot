@@ -1,0 +1,113 @@
+[gd_scene load_steps=2 format=3 uid="uid://bulk_image_upload_dialog"]
+
+[ext_resource type="Script" path="res://BulkImageUploadDialog.gd" id="1_bulk_img"]
+
+[node name="BulkImageUploadDialog" type="AcceptDialog"]
+initial_position = 2
+size = Vector2i(600, 700)
+dialog_text = "Загрузка изображений"
+script = ExtResource("1_bulk_img")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Выберите изображения для сегментов"
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="ModeContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="ModeLabel" type="Label" parent="VBoxContainer/ModeContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Режим:"
+vertical_alignment = 1
+
+[node name="SingleImageButton" type="Button" parent="VBoxContainer/ModeContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Одна картинка для всех одинаковая"
+
+[node name="UnifiedImageButton" type="Button" parent="VBoxContainer/ModeContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Одна картинка для всех (единая)"
+
+[node name="SeparateImagesButton" type="Button" parent="VBoxContainer/ModeContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Отдельные картинки"
+
+[node name="SingleImageContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+visible = false
+theme_override_constants/separation = 8
+
+[node name="SingleImageLabel" type="Label" parent="VBoxContainer/SingleImageContainer"]
+layout_mode = 2
+text = "Изображение не выбрано"
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="SingleImageLoadButton" type="Button" parent="VBoxContainer/SingleImageContainer"]
+layout_mode = 2
+text = "Выбрать изображение"
+
+[node name="SeparateImagesContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+visible = false
+theme_override_constants/separation = 8
+
+[node name="SeparateImagesLabel" type="Label" parent="VBoxContainer/SeparateImagesContainer"]
+layout_mode = 2
+text = "Выберите изображение для каждого сегмента:"
+horizontal_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/SeparateImagesContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="ImageList" type="VBoxContainer" parent="VBoxContainer/SeparateImagesContainer/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="ButtonsContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 4
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="CancelButton" type="Button" parent="VBoxContainer/ButtonsContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Отмена"
+
+[node name="ConfirmButton" type="Button" parent="VBoxContainer/ButtonsContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+disabled = true
+text = "Подтвердить"

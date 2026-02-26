@@ -56,7 +56,17 @@ autowrap_mode = 2
 
 [node name="LoadImageButton" type="Button" parent="VBoxContainer/ImageContainer"]
 layout_mode = 2
-text = "Выбрать изображение"
+text = "Загрузить"
+
+[node name="PreviewHintLabel" type="Label" parent="VBoxContainer/ImageContainer"]
+layout_mode = 2
+text = "Сначала загрузите изображение (при необходимости), затем нажмите Предпросмотр — посмотреть сегмент на карте."
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="PreviewButton" type="Button" parent="VBoxContainer/ImageContainer"]
+layout_mode = 2
+text = "Предпросмотр"
 
 [node name="LinkContainer" type="VBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
@@ -83,8 +93,3 @@ text = "Отмена"
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Купить"
-
-[node name="FileDialog" type="FileDialog" parent="."]
-initial_position = 2
-file_mode = 0
-access = 2

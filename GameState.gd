@@ -1,6 +1,13 @@
 extends Node
 # ============================================================================
 # GameState.gd — Autoload Singleton
+
+func _log(message: String) -> void:
+	var logger: Node = get_node_or_null("/root/Logger")
+	if logger != null and logger.has_method("log"):
+		logger.call("log", message)
+	else:
+		print(message)
 # ----------------------------------------------------------------------------
 # Хранит:
 # - рекорды/таблицу чемпионов
@@ -95,13 +102,22 @@ func start_new_run() -> void:
 	is_game_over = false
 	# Сбрасываем высоту; реальное начальное значение задаётся в Player._ready()
 	max_height_reached = 0.0
+	_log("[GAMESTATE] start_new_run player_name=%s" % player_name)
+	# Для игрового забега по умолчанию отключаем \"дыхание\" стены,
+	# чтобы убрать визуальное дрожание фона.
+	wall_breathing_enabled = false
 	# last_run_* НЕ сбрасываем: GameOver показывает последний завершённый забег.
 	# При первом запуске они уже 0. При следующей смерти Player._die() их перезапишет.
 
 func add_coin(value: int = 1) -> void:
+	var old_score: int = score
+	var old_best: int = best_score
 	score += value
 	if score > best_score:
 		best_score = score
+		_log("[GAMESTATE] add_coin value=%d score=%d->%d NEW_BEST=%d" % [value, old_score, score, best_score])
+	else:
+		_log("[GAMESTATE] add_coin value=%d score=%d->%d best=%d" % [value, old_score, score, best_score])
 
 # ---------------- HERO ----------------
 
@@ -165,7 +181,7 @@ func get_unlocked_wall_sides() -> Array[String]:
 	return unlocked_sides.duplicate()
 
 func unlock_next_wall_side() -> void:
-	# Находит следующую сторону в WALL_SIDES и добавляет её в unlocked_sides
+	# Находит следующую сторону в WALL_SIDES и добавляет её в unlocked_sides 
 	var current := get_active_wall_side()
 	var idx := WALL_SIDES.find(current)
 	if idx == -1:
@@ -188,6 +204,7 @@ func register_run_finished() -> void:
 	last_run_score = score
 	last_run_max_height = max_height_reached
 	has_finished_run = true
+	_log("[GAMESTATE] register_run_finished score=%d height=%.1f" % [score, max_height_reached])
 
 	var player_n := player_name.strip_edges()
 	if player_n == "":
@@ -205,6 +222,7 @@ func register_run_finished() -> void:
 	if champions.size() > MAX_CHAMPIONS:
 		champions.resize(MAX_CHAMPIONS)
 
+	_log("[GAMESTATE] added to champions: name=%s score=%d total_champions=%d" % [player_n, score, champions.size()])
 	save_scores()
 
 func get_champions() -> Array:
@@ -222,7 +240,9 @@ func save_scores() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		push_error("GameState: не удалось открыть файл для записи: " + SAVE_PATH)
+		_log("[GAMESTATE] save_scores FAILED")
 		return
+	_log("[GAMESTATE] save_scores SUCCESS")
 
 	var data := {
 		# profile
@@ -251,14 +271,17 @@ func save_scores() -> void:
 
 func load_scores() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):
+		_log("[GAMESTATE] load_scores - file not found, using defaults")
 		_reset_to_defaults()
 		return
 
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null:
 		push_error("GameState: не удалось открыть файл для чтения: " + SAVE_PATH)
+		_log("[GAMESTATE] load_scores FAILED, using defaults")
 		_reset_to_defaults()
 		return
+	_log("[GAMESTATE] load_scores SUCCESS")
 
 	var data = file.get_var()
 	if typeof(data) != TYPE_DICTIONARY:

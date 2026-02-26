@@ -2,6 +2,13 @@ extends CanvasLayer
 
 # ============================================================================
 # GameOver.gd — UI‑экран завершения забега
+
+func _log(message: String) -> void:
+	var logger: Node = get_node_or_null("/root/Logger")
+	if logger != null and logger.has_method("log"):
+		logger.call("log", message)
+	else:
+		print(message)
 # ----------------------------------------------------------------------------
 # ОБЯЗАННОСТИ:
 # - Показать результаты прошедшего забега:
@@ -38,6 +45,7 @@ var cube_view_scene: String = "res://CubeView.tscn"
 
 
 func _ready() -> void:
+	_log("[GAMEOVER] _ready")
 	# Подключаем сигналы кнопок один раз при входе на экран.
 	if button_view_cube != null and not button_view_cube.pressed.is_connected(_on_view_cube_pressed):
 		button_view_cube.pressed.connect(_on_view_cube_pressed)
@@ -91,6 +99,7 @@ func _update_stats_labels() -> void:
 	# height_val останется 0. Это честный fallback.
 	if label_height != null:
 		label_height.text = "Height: " + str(int(abs(height_val)))
+	_log("[GAMEOVER] stats updated: score=%d height=%.1f" % [score_val, height_val])
 
 
 func _on_view_cube_pressed() -> void:
@@ -100,14 +109,17 @@ func _on_view_cube_pressed() -> void:
 	# - GameState.is_game_over остаётся true; CubeView сам решит, как это использовать
 	#   (обычно ему всё равно, он просто читает max_height_reached).
 	var target: String = cube_view_scene
+	_log("[GAMEOVER] view_cube pressed, target=%s" % target)
 	if target == "" or target == null:
 		# Если по какой‑то причине путь не задан, логируем ошибку и остаёмся на экране.
 		push_error("GameOver.gd: cube_view_scene is not set")
+		_log("[GAMEOVER] ERROR - cube_view_scene not set")
 		return
 
 	var err: int = get_tree().change_scene_to_file(target)
 	if err != OK:
 		push_error("GameOver.gd: cannot load CubeView scene: " + target)
+		_log("[GAMEOVER] ERROR - scene change failed: %s" % target)
 
 
 func _on_restart_pressed() -> void:
@@ -115,9 +127,11 @@ func _on_restart_pressed() -> void:
 	# - сбрасываем GameState (start_new_run)
 	# - is_game_over внутри start_new_run устанавливается в false
 	# - загружаем Level.tscn
+	_log("[GAMEOVER] restart pressed")
 	var gs_node: Node = get_node_or_null("/root/GameState")
 	if gs_node == null:
 		push_error("GameOver.gd: GameState node not found in scene tree, cannot restart run")
+		_log("[GAMEOVER] ERROR - GameState not found")
 	else:
 		# В Godot 4 автозагрузки находятся как /root/GameState, а не через Engine.has_singleton.
 		# Поэтому безопасно обращаемся к глобальному GameState и сбрасываем состояние забега.
@@ -126,22 +140,29 @@ func _on_restart_pressed() -> void:
 	var target: String = level_scene
 	if target == "" or target == null:
 		push_error("GameOver.gd: level_scene is not set")
+		_log("[GAMEOVER] ERROR - level_scene not set")
 		return
 
+	_log("[GAMEOVER] changing scene to: %s" % target)
 	var err: int = get_tree().change_scene_to_file(target)
 	if err != OK:
 		push_error("GameOver.gd: cannot load level scene: " + target)
+		_log("[GAMEOVER] ERROR - scene change failed: %s" % target)
 
 
 func _on_main_menu_pressed() -> void:
 	# Возврат в главное меню:
 	# - ТЕКУЩИЙ забег остаётся завершённым (is_game_over = true).
 	# - На следующем старте Play кнопка сама вызовет start_new_run().
+	_log("[GAMEOVER] main_menu pressed")
 	var target: String = main_menu_scene
 	if target == "" or target == null:
 		push_error("GameOver.gd: main_menu_scene is not set")
+		_log("[GAMEOVER] ERROR - main_menu_scene not set")
 		return
 
+	_log("[GAMEOVER] changing scene to: %s" % target)
 	var err: int = get_tree().change_scene_to_file(target)
 	if err != OK:
 		push_error("GameOver.gd: cannot load main menu: " + target)
+		_log("[GAMEOVER] ERROR - scene change failed: %s" % target)

@@ -1,6 +1,6 @@
 [gd_scene load_steps=12 format=3 uid="uid://dqjhrv658k7px"]
 
-[ext_resource type="Script" uid="uid://b1f0nnjwe1y4n" path="res://scripts/Level.gd" id="1_dp35j"]
+[ext_resource type="Script" uid="uid://dxqe2jj8fpgu4" path="res://scripts/Level.gd" id="1_dp35j"]
 [ext_resource type="Script" uid="uid://d2qhqiwwdgihd" path="res://scripts/Player.gd" id="2_hc4jq"]
 [ext_resource type="SpriteFrames" uid="uid://c0nyy5461gg26" path="res://heroes/hero_default_jump_frames.tres" id="3_default_frames"]
 [ext_resource type="Script" uid="uid://yfnnihpjke51" path="res://HUD.gd" id="4_kqdme"]

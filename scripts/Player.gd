@@ -8,6 +8,13 @@ extends CharacterBody2D
 # - DEBUG вывод можно отключить
 # ============================================================================
 
+func _log(message: String) -> void:
+	var logger: Node = get_node_or_null("/root/Logger")
+	if logger != null and logger.has_method("log"):
+		logger.call("log", message)
+	else:
+		print(message)
+
 @export var GRAVITY: float = 2000.0
 @export var MOVE_SPEED: float = 350.0
 @export var JUMP_VELOCITY: float = -960.0
@@ -90,6 +97,8 @@ func _ready() -> void:
 	var gs: Node = get_node_or_null("/root/GameState")
 	if gs != null:
 		GameState.max_height_reached = global_position.y
+		if DEBUG:
+			_log("[PLAYER_READY] initialized max_height_reached=%.1f" % global_position.y)
 
 	if cam:
 		cam.make_current()
@@ -199,6 +208,7 @@ func _physics_process(delta: float) -> void:
 	if gs != null and GameState.is_game_over:
 		return
 
+	var old_velocity: Vector2 = velocity
 	velocity.y += GRAVITY * delta
 
 	var key_dir: float = 0.0
@@ -211,6 +221,9 @@ func _physics_process(delta: float) -> void:
 
 	velocity.x = move_dir * MOVE_SPEED
 	move_and_slide()
+	
+	if DEBUG and (old_velocity - velocity).length() > 10.0:
+		_log("[PLAYER_PHYSICS] pos=%s velocity=%s move_dir=%.1f" % [global_position, velocity, move_dir])
 
 	if USE_PIXEL_SNAP:
 		global_position = global_position.round()
@@ -233,11 +246,16 @@ func _physics_process(delta: float) -> void:
 	
 	# ОБНОВЛЯЕМ ПОСЛЕДНЮЮ БЕЗОПАСНУЮ ПОЗИЦИЮ ПРИ КАСАНИИ ПЛАТФОРМЫ
 	if touching_floor_now:
+		var old_safe_y: float = last_safe_y
 		last_safe_y = global_position.y
+		if DEBUG and abs(old_safe_y - last_safe_y) > 1.0:
+			_log("[PLAYER_LANDED] pos=%s last_safe_y=%.1f->%.1f" % [global_position, old_safe_y, last_safe_y])
 	
 	if touching_floor_now and not _was_touching_floor and jump_timer <= 0.0:
 		velocity.y = JUMP_VELOCITY
 		jump_timer = JUMP_COOLDOWN
+		if DEBUG:
+			_log("[PLAYER_JUMP] pos=%s jump_velocity=%.1f" % [global_position, JUMP_VELOCITY])
 
 	_was_touching_floor = touching_floor_now
 
@@ -272,7 +290,8 @@ func _update_jump_visual() -> void:
 # Обработка смерти с удержанием порога (debounce)
 # ----------------------------------------------------------------------------
 func _process_fall_death(delta: float) -> void:
-	if Engine.has_singleton("GameState") and GameState.is_game_over:
+	var gs_over: Node = get_node_or_null("/root/GameState")
+	if gs_over != null and GameState.is_game_over:
 		return
 
 	if cam == null:
@@ -306,6 +325,9 @@ func _process_fall_death(delta: float) -> void:
 	
 	# Условие абсолютного лимита
 	var absolute_condition: bool = (global_position.y > FALL_LIMIT_Y_ABSOLUTE)
+	
+	if DEBUG and (fall_from_safe_condition or absolute_condition):
+		_log("[PLAYER_DEATH_CHECK] pos_y=%.1f death_y=%.1f last_safe_y=%.1f fall_from_safe=%s absolute=%s" % [global_position.y, death_y, last_safe_y, fall_from_safe_condition, absolute_condition])
 
 	# ----------------------------------------------------------------------------
 	# ВРЕМЕННЫЙ РЕЖИМ: МГНОВЕННАЯ СМЕРТЬ ДЛЯ ОТЛАДКИ GAME OVER → CUBEVIEW
@@ -361,10 +383,18 @@ func _process_fall_death(delta: float) -> void:
 # Смерть / смена сцены
 # ----------------------------------------------------------------------------
 func _die() -> void:
-	if Engine.has_singleton("GameState"):
+	var gs_root: Node = get_node_or_null("/root/GameState")
+	if gs_root != null:
 		if GameState.is_game_over:
+			if DEBUG:
+				_log("[PLAYER_DIE] already game_over, ignoring")
 			return
 		GameState.is_game_over = true
+		if DEBUG:
+			_log("[PLAYER_DIE] pos=%s last_safe_y=%.1f max_height=%.1f score=%d" % [global_position, last_safe_y, GameState.max_height_reached, GameState.score])
+
+	# На всякий случай останавливаем физику до смены сцены.
+	set_physics_process(false)
 
 	# В редакторе — перезагрузим текущую сцену для удобства,
 	# чтобы не прыгать по полноэкранному Game Over при тестах.
@@ -382,9 +412,13 @@ func _die() -> void:
 		GameState.last_run_score = GameState.score
 		GameState.last_run_max_height = GameState.max_height_reached
 		GameState.has_finished_run = true
+		if DEBUG:
+			_log("[PLAYER_DIE] saved run data: score=%d height=%.1f" % [GameState.last_run_score, GameState.last_run_max_height])
 
 	# Регистрируем результат забега ОДИН раз, до перехода на GameOver.
 	GameState.register_run_finished()
+	if DEBUG:
+		_log("[PLAYER_DIE] registered run finished")
 	
 	# ----------------------------------------------------------------------------
 	# Переход на экран Game Over
@@ -405,11 +439,17 @@ func _die() -> void:
 		target_scene = main_menu_scene
 	
 	if target_scene != "" and target_scene != null:
+		if DEBUG:
+			_log("[PLAYER_DIE] changing scene to: %s" % target_scene)
 		var err: int = get_tree().change_scene_to_file(target_scene)
 		if err != OK:
 			push_error("Player.gd: cannot load game over or main menu: " + target_scene)
+			if DEBUG:
+				_log("[PLAYER_DIE] scene change failed, reloading current scene")
 			get_tree().reload_current_scene()
 	else:
+		if DEBUG:
+			_log("[PLAYER_DIE] no target scene, reloading current")
 		get_tree().reload_current_scene()
 
 func _check_floor_collision() -> bool:

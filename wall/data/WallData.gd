@@ -61,6 +61,8 @@ func get_segment(id: String) -> Dictionary:
 		segments[id] = {
 			"height": seg_y,
 			"price": price,
+			"group_id": "",
+			"corporate_mode": false,
 			"faces": {
 				"front": { "owner": "", "image_id": "", "image_path": "", "link": "" },
 				"back": { "owner": "", "image_id": "", "image_path": "", "link": "" },
@@ -148,6 +150,15 @@ func buy_side(segment_id: String, side: String, buyer_uid: String, coin_cost: in
 	if auto_save_enabled:
 		save_to_file()
 	
+	return true
+
+func set_segment_corporate_info(segment_id: String, group_id: String, corporate_mode: bool) -> bool:
+	var seg := get_segment(segment_id)
+	seg["group_id"] = group_id
+	seg["corporate_mode"] = corporate_mode
+	segments[segment_id] = seg
+	if auto_save_enabled:
+		save_to_file()
 	return true
 
 # ---------------------------------------------------------------------------
