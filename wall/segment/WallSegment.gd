@@ -1,4 +1,6 @@
 extends Node2D
+# Класс сегмента стены, используется в разных сценах
+class_name WallSegment
 # ============================================================================
 # WallSegment.gd
 # Один сегмент стены (48x48)
@@ -219,8 +221,13 @@ func _try_buy() -> void:
 		push_warning("GameState singleton not found")
 		return
 
-	var buyer_uid: String = GameState.player_uid
-	var ok: bool = wall_data.buy_side(segment_id, buyer_uid)
+	var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
+	# Цена сегмента берётся из WallData с учётом высоты
+	var price: int = 0
+	if wall_data != null and segment_id != "":
+		price = wall_data.get_segment_price(segment_id)
+	# Покупаем текущую сторону сегмента
+	var ok: bool = wall_data.buy_side(segment_id, side_id, buyer_uid, price)
 	_update_visual_state()
 
 

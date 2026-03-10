@@ -46,8 +46,16 @@ var _segment_sprites: Dictionary = {}             # segment_id -> Sprite2D
 var _sprite_pool: Array[Sprite2D] = []            # пул переиспользуемых спрайтов
 var _segment_index: Dictionary = {}               # segment_id -> индекс в массивах
 
-# Подсветка выбранного сегмента
-var _highlighted_segment_id: String = ""
+# Подсветка выбранных сегментов
+var _highlighted_segment_ids: Array[String] = []
+## Остановить смену сторон во время покупки
+var pause_side_switching: bool = false
+## Затемнять чужие сегменты во время предпросмотра
+var dim_other_segments: bool = false
+## Временные пути изображений для предпросмотра (segment_id -> path). В режиме предпросмотра отображаются вместо данных из WallData.
+var _preview_image_paths: Dictionary = {}
+var _texture_cache: Dictionary = {}  # image_path -> Texture2D
+@export var DEBUG_LOG: bool = false
 
 func _ready() -> void:
 	if multimesh_instance == null:
@@ -251,6 +259,8 @@ func _process(delta: float) -> void:
 					sprite.position = final_transform.origin
 
 func _process_side_changes(delta: float) -> void:
+	if pause_side_switching:
+		return
 	# Обрабатываем смену сторон для каждого сегмента независимо
 	for i in range(_multimesh.instance_count):
 		if i >= _side_change_timers.size() or i >= _segment_sides.size():
@@ -326,39 +336,85 @@ func _get_segment_color_by_side(segment_side: String, face_data: Dictionary, seg
 	
 	# Если куплено, подмешиваем зелёный
 	var owner: String = str(face_data.get("owner", ""))
-	if owner != "":
+	var is_owned: bool = owner != ""
+	if is_owned:
 		var owned_color: Color = Color(0.1, 0.8, 0.2)
 		base_color = base_color.lerp(owned_color, 0.3)
 	
-	# Подсветка выбранного сегмента (яркий белый оттенок)
-	if segment_id != "" and segment_id == _highlighted_segment_id:
+	# Затемнение чужих сегментов во время предпросмотра
+	if dim_other_segments and segment_id != "":
+		var is_highlighted: bool = segment_id in _highlighted_segment_ids
+		var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
+		var is_my_segment: bool = owner == buyer_uid
+		
+		# Если это не выделенный сегмент и не мой — затемняем
+		if not is_highlighted and not is_my_segment:
+			base_color = base_color.darkened(0.6)  # Затемняем на 60%
+			base_color.a *= 0.4  # Уменьшаем прозрачность
+	
+	# Подсветка выбранных сегментов (яркий белый оттенок)
+	if segment_id != "" and segment_id in _highlighted_segment_ids:
 		var highlight_color: Color = Color(1.0, 1.0, 1.0, 0.8)
 		base_color = base_color.lerp(highlight_color, 0.5)
 	
 	return base_color
 
 func set_highlighted_segment(segment_id: String) -> void:
-	"""Устанавливает подсветку для указанного сегмента."""
-	if _highlighted_segment_id == segment_id:
-		return  # Уже подсвечен
-	
-	var old_id: String = _highlighted_segment_id
-	_highlighted_segment_id = segment_id
-	
-	# Обновляем визуал старого и нового сегмента
-	if old_id != "":
-		update_segment(old_id)
-	if segment_id != "":
-		update_segment(segment_id)
+	"""Устанавливает подсветку для одного сегмента."""
+	set_highlighted_segments([segment_id] if segment_id != "" else [])
+
+func set_highlighted_segments(segment_ids: Array) -> void:
+	"""Устанавливает подсветку для нескольких сегментов."""
+	var new_ids: Array[String] = []
+	for id_val in segment_ids:
+		var s: String = str(id_val)
+		if s != "" and s not in new_ids:
+			new_ids.append(s)
+	var old_ids: Array[String] = _highlighted_segment_ids.duplicate()
+	_highlighted_segment_ids = new_ids
+	for sid in old_ids:
+		if sid not in new_ids:
+			update_segment(sid)
+	for sid in new_ids:
+		update_segment(sid)
 
 func clear_highlight() -> void:
-	"""Убирает подсветку с текущего сегмента."""
-	if _highlighted_segment_id == "":
+	"""Убирает подсветку со всех сегментов."""
+	if _highlighted_segment_ids.is_empty() and _preview_image_paths.is_empty():
 		return
-	
-	var old_id: String = _highlighted_segment_id
-	_highlighted_segment_id = ""
-	update_segment(old_id)
+	var old_ids: Array[String] = _highlighted_segment_ids.duplicate()
+	_highlighted_segment_ids.clear()
+	_preview_image_paths.clear()
+	for sid in old_ids:
+		update_segment(sid)
+	_update_image_sprites()
+
+func set_dim_other_segments(enabled: bool) -> void:
+	"""Включает/выключает затемнение чужих сегментов во время предпросмотра."""
+	if dim_other_segments == enabled:
+		return
+	dim_other_segments = enabled
+	# Обновляем все видимые сегменты
+	for i in range(_multimesh.instance_count):
+		if i < _segment_ids.size():
+			update_segment(_segment_ids[i])
+
+func set_preview_image_paths(paths: Dictionary) -> void:
+	"""Устанавливает временные пути изображений для предпросмотра (segment_id -> path). В режиме предпросмотра эти изображения отображаются на выбранных сегментах."""
+	if DEBUG_LOG:
+		print("WallRenderer: set_preview_image_paths вызван с ", paths.size(), " путями")
+	_preview_image_paths.clear()
+	for k in paths:
+		var v: String = str(paths[k])
+		if v != "":
+			_preview_image_paths[str(k)] = v
+			if DEBUG_LOG:
+				print("WallRenderer: Добавлен preview путь для сегмента ", k, ": ", v)
+	# Обновляем спрайты для всех видимых сегментов (не только подсвеченных, чтобы показать preview на всех нужных)
+	_update_image_sprites()
+	# Также обновляем подсвеченные сегменты для гарантии
+	for sid in _highlighted_segment_ids:
+		update_segment(sid)
 
 func _get_side_color(segment_side: String) -> Color:
 	# ВРЕМЕННАЯ ВИЗУАЛИЗАЦИЯ: разные оттенки бирюзового для каждой стороны
@@ -448,7 +504,8 @@ func _release_sprite(segment_id: String) -> void:
 		_sprite_pool.append(sprite)
 
 func _update_image_sprites() -> void:
-	if wall_data == null:
+	# Обновляем спрайты даже без wall_data, если есть preview-изображения
+	if wall_data == null and _preview_image_paths.is_empty():
 		return
 
 	# Множество видимых сегментов
@@ -461,13 +518,17 @@ func _update_image_sprites() -> void:
 		if not visible_ids.has(seg_id):
 			_release_sprite(seg_id)
 
-	# Обновляем / создаём спрайты для видимых сегментов с изображениями
+	# Обновляем / создаём спрайты для видимых сегментов с изображениями (из WallData или из предпросмотра)
 	for i in range(_segment_ids.size()):
 		var seg_id: String = _segment_ids[i]
 		if i >= _segment_sides.size():
 			continue
 		var current_side: String = _segment_sides[i]
-		var img_path: String = wall_data.get_face_image_path(seg_id, current_side)
+		var img_path: String = ""
+		if _preview_image_paths.has(seg_id) and _preview_image_paths[seg_id] != "":
+			img_path = _preview_image_paths[seg_id]
+		elif wall_data != null:
+			img_path = wall_data.get_face_image_path(seg_id, current_side)
 		if img_path == "":
 			# Если изображение было, но больше не нужно
 			if _segment_sprites.has(seg_id):
@@ -476,20 +537,84 @@ func _update_image_sprites() -> void:
 
 		_update_single_image_sprite(seg_id, i, current_side)
 
+func _load_texture_from_path(img_path: String) -> Texture2D:
+	"""Загружает текстуру из пути. Поддерживает res://, user:// и абсолютные пути (из нативного диалога). Все изображения автоматически сжимаются до 48x48 пикселей."""
+	if img_path.is_empty():
+		return null
+	
+	# Избегаем повторной загрузки/ресайза одного и того же пути каждый кадр.
+	if _texture_cache.has(img_path):
+		var cached: Texture2D = _texture_cache[img_path]
+		if cached != null:
+			return cached
+	
+	const TARGET_SIZE: int = 48
+	var img: Image = Image.new()
+	var err: Error
+	
+	# Загружаем изображение в зависимости от типа пути
+	if img_path.begins_with("res://") or img_path.begins_with("user://"):
+		# Ресурсные пути Godot - пробуем загрузить как Image напрямую
+		err = img.load(img_path)
+		# Если не получилось, пробуем через load() как ресурс
+		if err != OK:
+			var resource = load(img_path)
+			if resource is Texture2D:
+				var tex: Texture2D = resource as Texture2D
+				# Пытаемся получить Image из текстуры
+				if tex is ImageTexture:
+					img = (tex as ImageTexture).get_image()
+				else:
+					# Для других типов текстур используем загруженный ресурс как есть
+					return tex
+			elif resource is Image:
+				img = resource as Image
+			else:
+				push_warning("WallRenderer: не удалось загрузить изображение: " + img_path)
+				return null
+	else:
+		# Абсолютный путь (Windows: C:\... или Unix: /...)
+		err = img.load(img_path)
+		if err != OK:
+			push_warning("WallRenderer: не удалось загрузить изображение: " + img_path + " (ошибка: " + str(err) + ")")
+			return null
+	
+	if img.is_empty():
+		push_warning("WallRenderer: изображение пустое: " + img_path)
+		return null
+	
+	# Сжимаем до 48x48 пикселей (если размер отличается)
+	var src_w: int = img.get_width()
+	var src_h: int = img.get_height()
+	if src_w != TARGET_SIZE or src_h != TARGET_SIZE:
+		img.resize(TARGET_SIZE, TARGET_SIZE, Image.INTERPOLATE_LANCZOS)
+		if DEBUG_LOG:
+			print("WallRenderer: Изображение сжато до 48x48: ", img_path, " (было: ", src_w, "x", src_h, ")")
+	
+	var tex: ImageTexture = ImageTexture.create_from_image(img)
+	_texture_cache[img_path] = tex
+	return tex
+
 func _update_single_image_sprite(segment_id: String, idx: int, segment_side: String) -> void:
-	if wall_data == null:
-		return
 	if idx < 0 or idx >= _segment_ids.size():
 		return
 
-	var img_path: String = wall_data.get_face_image_path(segment_id, segment_side)
+	# В режиме предпросмотра для подсвеченных сегментов используем загруженные картинки (одна для всех или по сегментам)
+	var img_path: String = ""
+	if _preview_image_paths.has(segment_id) and _preview_image_paths[segment_id] != "":
+		img_path = _preview_image_paths[segment_id]
+	elif wall_data != null:
+		img_path = wall_data.get_face_image_path(segment_id, segment_side)
+
 	if img_path == "":
 		# Нет изображения для этой стороны
 		if _segment_sprites.has(segment_id):
 			_release_sprite(segment_id)
 		return
 
-	var tex: Texture2D = load(img_path) as Texture2D
+	# Загружаем текстуру: load() работает только с res:// и user://;
+	# нативный диалог возвращает абсолютный путь — используем Image.load_from_file()
+	var tex: Texture2D = _load_texture_from_path(img_path)
 	if tex == null:
 		push_warning("WallRenderer: не удалось загрузить текстуру: " + img_path)
 		return

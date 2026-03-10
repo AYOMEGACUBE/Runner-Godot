@@ -11,7 +11,7 @@ var wall_data: WallData = null
 var origin_col: int = 0
 var origin_row: int = 0
 
-var _segments: Array[WallSegment] = []
+var _segments: Array = []
 var _cell_x: PackedInt32Array = PackedInt32Array()
 var _cell_y: PackedInt32Array = PackedInt32Array()
 
@@ -77,12 +77,15 @@ func _create_pool() -> void:
 	for _row in visible_rows:
 		for _col in visible_cols:
 			var inst := segment_scene.instantiate()
-			var seg: WallSegment = inst as WallSegment
+			var seg = inst
 			if seg == null:
 				continue
 			add_child(seg)
 			seg.position = Vector2.ZERO
-			seg.setup(side_id, wall_data)
+			# В новых версиях WallSegment используется другая архитектура,
+			# поэтому вызываем setup() только если метод существует.
+			if seg.has_method("setup"):
+				seg.setup("", side_id, wall_data)
 			_segments[idx] = seg
 			_cell_x[idx] = 0
 			_cell_y[idx] = 0
@@ -99,7 +102,7 @@ func _update_all_segments() -> void:
 		for col in visible_cols:
 			if idx >= total:
 				return
-			var seg: WallSegment = _segments[idx]
+			var seg = _segments[idx]
 			if seg == null:
 				idx += 1
 				continue

@@ -18,6 +18,8 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameState="*res://GameState.gd"
+Logger="*res://scripts/Logger.gd"
+SideManager="*res://scripts/branding/SideManager.gd"
 
 [display]
 

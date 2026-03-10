@@ -1,0 +1,155 @@
+[gd_scene load_steps=2 format=3 uid="uid://bulk_purchase_dialog"]
+
+[ext_resource type="Script" path="res://BulkPurchaseDialog.gd" id="1_bulk"]
+
+[node name="BulkPurchaseDialog" type="AcceptDialog"]
+initial_position = 2
+dialog_text = "Покупка сегментов"
+script = ExtResource("1_bulk")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Покупка сегментов стены"
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="QuantityContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="QuantityLabel" type="Label" parent="VBoxContainer/QuantityContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Количество сегментов:"
+vertical_alignment = 1
+
+[node name="QuantitySpinBox" type="SpinBox" parent="VBoxContainer/QuantityContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 1000.0
+value = 1.0
+step = 1.0
+
+[node name="InfoLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Выберите количество сегментов для покупки"
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="LocationContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LocationLabel" type="Label" parent="VBoxContainer/LocationContainer"]
+layout_mode = 2
+text = "Выбор локации:"
+horizontal_alignment = 1
+
+[node name="LocationInfoLabel" type="Label" parent="VBoxContainer/LocationContainer"]
+layout_mode = 2
+text = "Нажмите 'Выбрать на карте' и кликните на стене для выбора начальной позиции"
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="SelectLocationButton" type="Button" parent="VBoxContainer/LocationContainer"]
+layout_mode = 2
+text = "Выбрать на карте"
+
+[node name="SelectedLocationLabel" type="Label" parent="VBoxContainer/LocationContainer"]
+layout_mode = 2
+text = "Локация не выбрана"
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="ImageContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ImageLabel" type="Label" parent="VBoxContainer/ImageContainer"]
+layout_mode = 2
+text = "Изображения (опционально):"
+horizontal_alignment = 1
+
+[node name="UploadImagesButton" type="Button" parent="VBoxContainer/ImageContainer"]
+layout_mode = 2
+disabled = true
+text = "Загрузить"
+
+[node name="PreviewButton" type="Button" parent="VBoxContainer/ImageContainer"]
+layout_mode = 2
+text = "Предпросмотр"
+
+[node name="LinkContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LinkLabel" type="Label" parent="VBoxContainer/LinkContainer"]
+layout_mode = 2
+text = "Ссылка для всех сегментов (опционально, формат: http:// или https://):"
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="LinkLineEdit" type="LineEdit" parent="VBoxContainer/LinkContainer"]
+layout_mode = 2
+placeholder_text = "https://example.com"
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="PriceLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Общая стоимость: 0 coin"
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+
+[node name="BalanceLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Ваш баланс: 0 coin"
+horizontal_alignment = 1
+
+[node name="HSeparator3" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="PrivacyContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PrivacyCheckBox" type="CheckBox" parent="VBoxContainer/PrivacyContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Я согласен с политикой конфиденциальности и условиями использования"
+
+[node name="HSeparator4" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="ButtonsContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 4
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="CancelButton" type="Button" parent="VBoxContainer/ButtonsContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Отмена"
+
+[node name="PurchaseButton" type="Button" parent="VBoxContainer/ButtonsContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Купить"

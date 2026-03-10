@@ -1,6 +1,13 @@
 extends Control
 # ============================================================================
 # Profile.gd — отдельная сцена профиля игрока (nickname + выбор героя + кастом-аватар jump(0/1))
+
+func _log(message: String) -> void:
+	var logger: Node = get_node_or_null("/root/Logger")
+	if logger != null and logger.has_method("log"):
+		logger.call("log", message)
+	else:
+		print(message)
 # ----------------------------------------------------------------------------
 # ТРЕБОВАНИЕ (твое):
 # ✅ Любая картинка, которую загружает ИГРОК (png/jpg/jpeg), должна в игре быть 64x64
@@ -170,6 +177,7 @@ func _on_hero_left_pressed() -> void:
 	_hero_index -= 1
 	if _hero_index < 0:
 		_hero_index = HEROES.size() - 1
+	_log("[PROFILE] hero left pressed, index=%d" % _hero_index)
 	_apply_hero_to_ui()
 	_save_current_hero_to_gamestate()
 
@@ -177,12 +185,14 @@ func _on_hero_right_pressed() -> void:
 	_hero_index += 1
 	if _hero_index >= HEROES.size():
 		_hero_index = 0
+	_log("[PROFILE] hero right pressed, index=%d" % _hero_index)
 	_apply_hero_to_ui()
 	_save_current_hero_to_gamestate()
 
 # ---------------- CUSTOM AVATAR ----------------
 
 func _on_custom_avatar_toggled(pressed: bool) -> void:
+	_log("[PROFILE] custom_avatar toggled: %s" % pressed)
 	GameState.set_use_custom_avatar(pressed)
 	_update_custom_avatar_buttons_state()
 
@@ -241,17 +251,23 @@ func _import_image_as_png_to_user(source_path: String, target_user_png_path: Str
 	return true
 
 func _on_jump_up_file_selected(path: String) -> void:
+	_log("[PROFILE] jump_up file selected: %s" % path)
 	var ok := _import_image_as_png_to_user(path, AVATAR_UP_PNG)
 	if ok:
+		_log("[PROFILE] jump_up imported successfully to: %s" % AVATAR_UP_PNG)
 		GameState.set_custom_avatar_paths(AVATAR_UP_PNG, GameState.get_custom_avatar_down_path())
 	else:
+		_log("[PROFILE] jump_up import FAILED")
 		_show_warn("Не удалось загрузить jump(0). Попробуй PNG/JPG/JPEG без повреждений.")
 
 func _on_jump_down_file_selected(path: String) -> void:
+	_log("[PROFILE] jump_down file selected: %s" % path)
 	var ok := _import_image_as_png_to_user(path, AVATAR_DOWN_PNG)
 	if ok:
+		_log("[PROFILE] jump_down imported successfully to: %s" % AVATAR_DOWN_PNG)
 		GameState.set_custom_avatar_paths(GameState.get_custom_avatar_up_path(), AVATAR_DOWN_PNG)
 	else:
+		_log("[PROFILE] jump_down import FAILED")
 		_show_warn("Не удалось загрузить jump(1). Попробуй PNG/JPG/JPEG без повреждений.")
 
 # ---------------- SAVE / BACK ----------------
@@ -262,20 +278,24 @@ func _on_save_pressed() -> void:
 		nick = nickname_edit.text.strip_edges()
 
 	if nick == "":
+		_log("[PROFILE] save pressed - NO NICKNAME")
 		_show_warn("Нужно заполнить никнейм!")
 		return
 
+	_log("[PROFILE] save pressed nickname=%s hero_index=%d" % [nick, _hero_index])
 	GameState.set_nickname(nick)
 	_save_current_hero_to_gamestate()
 
 	# сохраняем переключатель «дыхание мира»
 	if wall_breathing_check:
 		GameState.set_wall_breathing_enabled(wall_breathing_check.button_pressed)
+		_log("[PROFILE] wall_breathing=%s" % wall_breathing_check.button_pressed)
 
 	# если пользователь включил кастом-аватар — проверим что файлы существуют
 	if GameState.get_use_custom_avatar():
 		var up_ok := FileAccess.file_exists(GameState.get_custom_avatar_up_path())
 		var dn_ok := FileAccess.file_exists(GameState.get_custom_avatar_down_path())
+		_log("[PROFILE] custom_avatar enabled up_ok=%s dn_ok=%s" % [up_ok, dn_ok])
 		if not up_ok or not dn_ok:
 			_show_warn("Кастом-аватар включён, но jump(0) или jump(1) не загружены.")
 			return
@@ -283,9 +303,11 @@ func _on_save_pressed() -> void:
 	_on_back_pressed()
 
 func _on_back_pressed() -> void:
+	_log("[PROFILE] back pressed, scene=%s" % main_menu_scene)
 	var err := get_tree().change_scene_to_file(main_menu_scene)
 	if err != OK:
 		push_error("Profile.gd: не удалось вернуться в меню: " + main_menu_scene)
+		_log("[PROFILE] ERROR - scene change failed: %s" % main_menu_scene)
 
 func _show_warn(text: String) -> void:
 	if warn_dialog:

@@ -1,12 +1,20 @@
 extends Area2D
 # Coin.gd - ИСПРАВЛЕННАЯ ВЕРСИЯ
 
+func _log(message: String) -> void:
+	var logger: Node = get_node_or_null("/root/Logger")
+	if logger != null and logger.has_method("log"):
+		logger.call("log", message)
+	else:
+		print(message)
+
 @export var value: int = 1
 @export var radius: float = 16.0
 
 @onready var collision: CollisionShape2D = $CollisionShape2D
 
 func _ready() -> void:
+	_log("[COIN_READY] pos=%s value=%d radius=%.1f" % [global_position, value, radius])
 	# Монета на переднем плане (z_index > стены)
 	z_index = 1
 	
@@ -40,15 +48,15 @@ func _ready() -> void:
 	queue_redraw()
 
 func _on_body_entered(body: Node) -> void:
-	
 	if body is CharacterBody2D and body.name == "Player":
-		
-		
+		var old_score: int = GameState.score
 		# Добавляем очки
 		GameState.add_coin(value)
-		
+		_log("[COIN_COLLECTED] pos=%s value=%d score=%d->%d" % [global_position, value, old_score, GameState.score])
 		# Исчезаем
 		queue_free()
+	else:
+		_log("[COIN_COLLISION] pos=%s body=%s (not player)" % [global_position, body.name if body else "null"])
 
 func _draw() -> void:
 	# РИСУЕМ КРАСИВУЮ МОНЕТУ
