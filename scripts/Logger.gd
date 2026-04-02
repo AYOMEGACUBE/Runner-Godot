@@ -37,6 +37,15 @@ func write_log(message: String) -> void:
 	var line: String = "[%s] %s\n" % [stamp, message]
 	_file.store_string(line)
 
+func info(message: String) -> void:
+	write_log("[INFO] %s" % message)
+
+func warn(message: String) -> void:
+	write_log("[WARN] %s" % message)
+
+func error(message: String) -> void:
+	write_log("[ERROR] %s" % message)
+
 func _process(delta: float) -> void:
 	if not ENABLE_LOGGER or _file == null:
 		return

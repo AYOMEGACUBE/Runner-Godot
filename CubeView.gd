@@ -154,6 +154,11 @@ func _ready() -> void:
 	if bulk_cancel_button != null:
 		bulk_cancel_button.pressed.connect(_on_bulk_selection_cancel_pressed)
 
+	if not PurchaseManager.purchase_failed.is_connected(_on_purchase_manager_failed):
+		PurchaseManager.purchase_failed.connect(_on_purchase_manager_failed)
+	if not PurchaseManager.coins_updated.is_connected(_on_purchase_coins_updated):
+		PurchaseManager.coins_updated.connect(_on_purchase_coins_updated)
+
 	# ------------------------------------------------------------
 	# 3. Вычисляем высоту-гейт на основе GameState.
 	# ------------------------------------------------------------
@@ -957,47 +962,30 @@ func _on_bulk_purchase_confirmed(segment_ids: Array, side: String, image_paths: 
 		_log("[CUBEVIEW] ERROR - wall_data is null")
 		return
 	
-	# Проверяем баланс (монеты списывает WallData.buy_side)
 	if not Engine.has_singleton("GameState"):
 		push_error("CubeView: GameState недоступен для покупки!")
 		_log("[CUBEVIEW] ERROR - GameState недоступен")
 		return
 	
-	var balance = GameState.score
-	var total_price: int = 0
-	for seg_id in segment_ids:
-		var sid: String = str(seg_id)
-		if sid.is_empty():
-			continue
-		total_price += wall_data.get_segment_price(sid)
-	_log("[CUBEVIEW] purchase check: balance=%d total_price=%d" % [balance, total_price])
-	if balance < total_price:
-		push_error("CubeView: Недостаточно монет для покупки! Баланс: %d, требуется: %d" % [balance, total_price])
-		_log("[CUBEVIEW] ERROR - insufficient balance")
+	var buyer_uid: String = GameState.player_uid
+	var purchased_ids: Array[String] = PurchaseManager.commit_bulk_wall_segment_purchase(
+		segment_ids, side, wall_data, buyer_uid
+	)
+	if purchased_ids.is_empty() and segment_ids.size() > 0:
+		push_error("CubeView: покупка не выполнена (баланс, высота или сегменты недоступны).")
+		_log("[CUBEVIEW] ERROR - bulk purchase returned no segments")
 		return
 	
-	# Выполняем покупку каждого сегмента
-	var buyer_uid: String = GameState.player_uid
-	var purchased_count: int = 0
-	for seg_id in segment_ids:
-		var sid: String = str(seg_id)
-		if sid.is_empty():
-			continue
-		var price: int = wall_data.get_segment_price(sid)
-		if wall_data.buy_side(sid, side, buyer_uid, price):
-			purchased_count += 1
-			_log("[CUBEVIEW] purchased segment=%s side=%s price=%d" % [sid, side, price])
-			if corporate_mode and wall_data.has_method("set_segment_corporate_info"):
-				wall_data.set_segment_corporate_info(sid, group_id, true)
-			# Загружаем изображение если оно выбрано
-			if image_paths.has(sid) and image_paths[sid] != "":
-				_copy_and_set_image(sid, side, image_paths[sid], wall_data)
-			# Устанавливаем ссылку если она указана
-			if links.has(sid) and links[sid] != "":
-				wall_data.set_face_link(sid, side, links[sid])
-			wall_instance.update_segment_visual(sid)
+	for sid in purchased_ids:
+		if corporate_mode and wall_data.has_method("set_segment_corporate_info"):
+			wall_data.set_segment_corporate_info(sid, group_id, true)
+		if image_paths.has(sid) and str(image_paths[sid]) != "":
+			_copy_and_set_image(sid, side, str(image_paths[sid]), wall_data)
+		if links.has(sid) and str(links[sid]) != "":
+			wall_data.set_face_link(sid, side, str(links[sid]))
+		wall_instance.update_segment_visual(sid)
 	
-	_log("[CUBEVIEW] purchase complete: %d/%d segments purchased" % [purchased_count, segment_ids.size()])
+	_log("[CUBEVIEW] purchase complete: %d/%d segments purchased" % [purchased_ids.size(), segment_ids.size()])
 	
 	# Проверяем, не пора ли открыть следующую сторону
 	_check_and_unlock_next_side(wall_data)
@@ -1280,9 +1268,10 @@ func _on_purchase_confirmed(segment_id: String, side: String, image_path: String
 	if price == 0:
 		price = wall_data.get_segment_price(segment_id)
 	
-	# Покупаем сторону сегмента
 	var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
-	var success: bool = wall_data.buy_side(segment_id, side, buyer_uid, price)
+	var success: bool = PurchaseManager.commit_wall_face_purchase(
+		segment_id, side, wall_data, buyer_uid, price
+	)
 	
 	if success:
 		# Обрабатываем изображение
@@ -1391,13 +1380,21 @@ func _try_purchase_segment(click_data: Dictionary) -> void:
 	if wall_data == null:
 		return
 	
-	# Покупаем сторону сегмента
 	var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
-	var success: bool = wall_data.buy_side(segment_id, side, buyer_uid, price)
+	var success: bool = PurchaseManager.commit_wall_face_purchase(
+		segment_id, side, wall_data, buyer_uid, price
+	)
 	
 	if success:
-		# Обновляем визуал через wall_instance
 		wall_instance.update_segment_visual(segment_id)
+
+
+func _on_purchase_manager_failed(item_id: String, reason: String) -> void:
+	_log("[CUBEVIEW] PurchaseManager failed id=%s reason=%s" % [item_id, reason])
+
+
+func _on_purchase_coins_updated(new_balance: int) -> void:
+	_log("[CUBEVIEW] coins_updated balance=%d" % new_balance)
 
 
 func _on_back_button_pressed() -> void:
