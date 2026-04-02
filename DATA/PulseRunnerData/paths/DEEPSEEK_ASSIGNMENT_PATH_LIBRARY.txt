@@ -1,0 +1,62 @@
+ЗАДАНИЕ ДЛЯ DEEPSEEK / LLM: библиотека путей path_library_50.json
+================================================================
+
+ЦЕЛЬ
+-----
+Сгенерировать ОДИН валидный JSON-массив из РОВНО 50 объектов (моделей).
+Файл сохранить как: res://DATA/PulseRunnerData/path_library_50.json
+(в репозитории: DATA/PulseRunnerData/path_library_50.json)
+
+КРИТИЧНО: в массиве должно быть 50 элементов (model_id 1..50). Два объекта недопустимы.
+
+ШИРИНА МИРА (взять из проекта, не выдумывать)
+---------------------------------------------
+В platform_rules.json:
+- use_fixed_world_width = false
+- world_screens = 20
+Ширина мира в пикселях: world_width = max(1, world_screens) * viewport_width.
+
+Для проверки траектории в промпте используй эталон viewport_width = 1152 (типично при zoom камеры 1.2 от 1920)
+или явно: world_width = 20 * viewport_width игрока.
+
+Ориентир: при viewport 1920×1080 в логике UI — фактическая видимая ширина может быть меньше; движок берёт
+get_viewport().get_visible_rect().size.x в Level._ready. Для данных пути важно:
+- горизонтальный охват всех платформ модели (max_x_edge - min_x_edge) после «выпечки» должен быть
+  не меньше path_min_horizontal_span_ratio * world_width (сейчас ratio = 0.9).
+- Чередуй wave_id так, чтобы траектория реально заходила к левой и правой области мира (зигзаг по X),
+  иначе bake не достигнет целевого span даже при длинной цепочке.
+
+КОРИДОР
+--------
+- Высота полосы коридора: corridor_height_multiplier = 1.5 от высоты viewport (см. platform_rules.json).
+- Подъём ~5°: поле corridor_ascent_degrees = 5 — ориентир для среднего y_delta относительно x_gap
+  (в Godot 2D вверх = уменьшение Y).
+
+ФИЗИКА И ОГРАНИЧЕНИЯ (как в коде)
+---------------------------------
+См. PhysicsConfig: GRAVITY=2000, JUMP_VELOCITY=-960, MOVE_SPEED=350.
+Между соседними платформами: edge_dx <= jump_reach_max_fraction * reach + safe_margin_x
+(jump_reach_max_fraction=0.8, safe_margin_x=32). Плюс clamp x_gap ∈ [min_gap,max_gap], y_delta ∈ [-height_variation,height_variation].
+
+РАЗМЕРЫ ПЛАТФОРМ
+----------------
+В каждом шаге поле "size": "small" | "medium" | "large" (64 / 128 / 256 px ширина при тайле 64).
+На одну модель: 20% small, 40% medium, 40% large (по числу шагов, сумма 100%).
+
+ИСЧЕЗАЮЩИЕ
+-----------
+vanish в JSON не задавать — выставит движок по vanish_chance (сейчас 0.4).
+
+СТРУКТУРА МОДЕЛИ
+-----------------
+{ "model_id": N, "trend_degrees": 5, "steps": [ { "x_gap", "y_delta", "wave_id", "decoy_count", "size" }, ... ] }
+Рекомендуется 100–120 шагов на модель.
+
+ПЕРЕСЕЧЕНИЯ
+-----------
+Движок дополнительно разводит платформы по X в пределах досягаемости прыжка; всё равно проектируй шаги
+без намеренного наложения на одной высоте.
+
+ВЫВОД
+------
+Только JSON-массив из 50 моделей, без комментариев и без markdown.

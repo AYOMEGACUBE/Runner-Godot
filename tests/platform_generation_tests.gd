@@ -2,6 +2,7 @@ extends SceneTree
 
 const LEVEL_SCRIPT := preload("res://scripts/Level.gd")
 const PLATFORM_SCENE := preload("res://Platform.tscn")
+const PhysicsConfig = preload("res://scripts/config/PhysicsConfig.gd")
 
 var _failures: Array[String] = []
 
@@ -32,9 +33,9 @@ func _expect(condition: bool, message: String) -> void:
 func _test_reach_center_to_edge_rule() -> void:
 	var level: Node2D = LEVEL_SCRIPT.new()
 	level.last_main_pos = Vector2(0.0, 0.0)
-	var jump_v: float = -960.0
-	var grav: float = 2600.0
-	var speed: float = 260.0
+	var jump_v: float = PhysicsConfig.JUMP_VELOCITY
+	var grav: float = PhysicsConfig.GRAVITY
+	var speed: float = PhysicsConfig.MOVE_SPEED
 	var reach: float = level._max_horizontal_reach(-32.0, -32.0, jump_v, grav, speed)
 	var next_half: float = 128.0
 

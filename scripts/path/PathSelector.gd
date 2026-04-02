@@ -3,16 +3,25 @@ class_name PathSelector
 
 var library: PathLibrary = PathLibrary.new()
 var active_model: PathModel = null
+var active_model_index: int = -1
 var active_direction: int = 1
 var step_index: int = 0
 
-func initialize(rng: RandomNumberGenerator) -> void:
-	library.load_or_generate(rng)
-	select_random(rng)
+func initialize() -> void:
+	library.load_all()
+	select_model_for_run()
 
-func select_random(rng: RandomNumberGenerator) -> void:
-	active_model = library.get_random_model(rng)
-	active_direction = -1 if rng.randf() < 0.5 else 1
+func select_model_for_run() -> void:
+	active_model = null
+	active_model_index = -1
+	if library.size() == 0:
+		return
+	var rng: RandomNumberGenerator = SeedManager.get_rng_for("path")
+	var idx: int = rng.randi_range(0, library.size() - 1)
+	active_model = library.get_model_by_index(idx)
+	active_model_index = idx
+	if active_model != null:
+		active_direction = 1 if ((SeedManager.global_seed ^ int(active_model.model_id)) & 1) == 0 else -1
 	step_index = 0
 
 func next_step() -> Dictionary:

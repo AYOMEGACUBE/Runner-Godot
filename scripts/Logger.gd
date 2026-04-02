@@ -1,89 +1,83 @@
 extends Node
-# Logger.gd — система логирования в файл для отладки
-# Автоматически записывает все логи в файл 3301_LOG.txt
+## Autoload: узел `FileLogger`. По умолчанию пишет в `res://3301_LOG.txt` (файл в корне проекта).
+## В экспортированной сборке запись в res:// недоступна — тогда используется user://3301_LOG.txt.
 
-const LOG_FILE_PATH: String = "res://3301_LOG.txt"
-const LOG_FILE_PATH_USER: String = "user://3301_LOG.txt"
+const ENABLE_LOGGER := true
+const LOG_FILE_PATH_PROJECT: String = "res://3301_LOG.txt"
+const LOG_FILE_PATH_FALLBACK: String = "user://3301_LOG.txt"
 
-var log_file: FileAccess = null
-var session_start_time: String = ""
+var _file: FileAccess = null
+var _flush_accumulator := 0.0
+var _using_fallback: bool = false
 
 func _ready() -> void:
-	_start_new_session()
+	if not ENABLE_LOGGER:
+		set_process(false)
+		return
+	_open_file()
+	if _file == null:
+		push_error("FileLogger: cannot open log file")
+		return
+	_file.store_string("\n=== NEW SESSION ===\n")
+	_file.flush()
+	var path_shown: String = LOG_FILE_PATH_FALLBACK if _using_fallback else LOG_FILE_PATH_PROJECT
+	var abs_path: String = ProjectSettings.globalize_path(path_shown)
+	write_log("[FILELOGGER] active_path=%s" % abs_path)
+	_file.flush()
 
-func _start_new_session() -> void:
-	# Закрываем предыдущий файл, если открыт
-	if log_file != null:
-		log_file.close()
-		log_file = null
-	
-	# Получаем время начала сессии
-	var time_dict: Dictionary = Time.get_datetime_dict_from_system()
-	session_start_time = "%04d-%02d-%02d %02d:%02d:%02d" % [
-		time_dict.year,
-		time_dict.month,
-		time_dict.day,
-		time_dict.hour,
-		time_dict.minute,
-		time_dict.second
-	]
-	
-	# Пытаемся открыть файл для записи (append mode)
-	# В Godot 4.x используем READ_WRITE для append (с seek_end) или WRITE для нового файла
-	var file_exists_user: bool = FileAccess.file_exists(LOG_FILE_PATH_USER)
-	var file_was_existing: bool = false
-	
-	if file_exists_user:
-		# Файл существует - открываем для чтения-записи и переходим в конец
-		log_file = FileAccess.open(LOG_FILE_PATH_USER, FileAccess.READ_WRITE)
-		file_was_existing = true
-	else:
-		# Файла нет - создаём новый для записи
-		log_file = FileAccess.open(LOG_FILE_PATH_USER, FileAccess.WRITE)
-	
-	if log_file == null:
-		# Если не получилось открыть user://, пробуем res://
-		var file_exists_res: bool = FileAccess.file_exists(LOG_FILE_PATH)
-		if file_exists_res:
-			log_file = FileAccess.open(LOG_FILE_PATH, FileAccess.READ_WRITE)
-			file_was_existing = true
-		else:
-			log_file = FileAccess.open(LOG_FILE_PATH, FileAccess.WRITE)
-	
-	if log_file != null:
-		# Если файл существовал, перемещаемся в конец для добавления
-		if file_was_existing:
-			log_file.seek_end()
-		# Добавляем разделитель новой сессии
-		log_file.store_string("\n")
-		log_file.store_string("=".repeat(80) + "\n")
-		log_file.store_string("НОВАЯ СЕССИЯ: " + session_start_time + "\n")
-		log_file.store_string("=".repeat(80) + "\n")
-		log_file.flush()
-	else:
-		push_error("[Logger] Не удалось открыть файл лога: " + LOG_FILE_PATH_USER)
+func write_log(message: String) -> void:
+	if not ENABLE_LOGGER:
+		return
+	if _file == null:
+		_open_file()
+		if _file == null:
+			return
+	var t := Time.get_datetime_dict_from_system()
+	var stamp: String = "%02d:%02d:%02d" % [t.hour, t.minute, t.second]
+	var line: String = "[%s] %s\n" % [stamp, message]
+	_file.store_string(line)
 
-func log(message: String) -> void:
-	# Выводим в консоль
-	print(message)
-	
-	# Записываем в файл
-	if log_file != null and log_file.is_open():
-		var time_dict: Dictionary = Time.get_datetime_dict_from_system()
-		var time_str: String = "%02d:%02d:%02d.%03d" % [
-			time_dict.hour,
-			time_dict.minute,
-			time_dict.second,
-			Time.get_ticks_msec() % 1000
-		]
-		log_file.store_string("[%s] %s\n" % [time_str, message])
-		log_file.flush()  # Сразу записываем на диск
+func _process(delta: float) -> void:
+	if not ENABLE_LOGGER or _file == null:
+		return
+	_flush_accumulator += delta
+	if _flush_accumulator >= 2.0:
+		_file.flush()
+		_flush_accumulator = 0.0
 
 func _exit_tree() -> void:
-	# Закрываем файл при выходе
-	if log_file != null:
-		if log_file.is_open():
-			log_file.store_string("\n--- КОНЕЦ СЕССИИ ---\n\n")
-			log_file.flush()
-		log_file.close()
-		log_file = null
+	if _file != null:
+		_file.flush()
+		_file.close()
+		_file = null
+
+func _try_open_append(path: String) -> bool:
+	if FileAccess.file_exists(path):
+		_file = FileAccess.open(path, FileAccess.READ_WRITE)
+		if _file == null:
+			return false
+		_file.seek_end()
+		return true
+	var created: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if created == null:
+		return false
+	created.close()
+	_file = FileAccess.open(path, FileAccess.READ_WRITE)
+	if _file == null:
+		return false
+	_file.seek_end()
+	return true
+
+func _open_file() -> void:
+	_file = null
+	_using_fallback = false
+	if _try_open_append(LOG_FILE_PATH_PROJECT):
+		return
+	_using_fallback = true
+	push_warning(
+		"FileLogger: cannot write to %s (expected in exported builds); using %s"
+		% [LOG_FILE_PATH_PROJECT, LOG_FILE_PATH_FALLBACK]
+	)
+	if not _try_open_append(LOG_FILE_PATH_FALLBACK):
+		_file = null
+		_using_fallback = false

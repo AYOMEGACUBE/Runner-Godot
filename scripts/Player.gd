@@ -1,4 +1,7 @@
 extends CharacterBody2D
+
+const PhysicsConfig = preload("res://scripts/config/PhysicsConfig.gd")
+
 # ============================================================================
 # Player.gd — Улучшенная логика смерти: падение на 2 экрана от последней платформы
 # ----------------------------------------------------------------------------
@@ -9,15 +12,13 @@ extends CharacterBody2D
 # ============================================================================
 
 func _log(message: String) -> void:
-	var logger: Node = get_node_or_null("/root/Logger")
-	if logger != null and logger.has_method("log"):
-		logger.call("log", message)
-	else:
+	FileLogger.write_log(message)
+	if DEBUG:
 		print(message)
 
-@export var GRAVITY: float = 2000.0
-@export var MOVE_SPEED: float = 350.0
-@export var JUMP_VELOCITY: float = -960.0
+@export var GRAVITY: float = PhysicsConfig.GRAVITY
+@export var MOVE_SPEED: float = PhysicsConfig.MOVE_SPEED
+@export var JUMP_VELOCITY: float = PhysicsConfig.JUMP_VELOCITY
 @export var DEFAULT_MOVE_DIR: float = 1.0
 
 @export var JUMP_COOLDOWN: float = 0.08
@@ -68,6 +69,7 @@ var last_safe_y: float = 0.0
 @onready var custom_sprite: Sprite2D = $CustomAvatarSprite
 
 func _ready() -> void:
+	PhysicsConfig.calculate_jump_metrics()
 	if DEBUG:
 		_log("[PLAYER_READY] initializing at pos=%s" % global_position)
 	# Коллизии: игрок = слой 1, реагируем на платформы (1) и монеты (2)

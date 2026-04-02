@@ -1,0 +1,119 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://PlatformPurchaseDialog.gd" id="1_dialog"]
+
+[node name="PlatformPurchaseDialog" type="AcceptDialog"]
+initial_position = 2
+dialog_text = "Покупка платформ"
+script = ExtResource("1_dialog")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Покупка платформ"
+horizontal_alignment = 1
+
+[node name="CountLabel" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Выбрано платформ: 0"
+horizontal_alignment = 1
+
+[node name="TypeContainer" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TypeLabel" type="Label" parent="VBox/TypeContainer"]
+layout_mode = 2
+text = "Тип:"
+
+[node name="TypeOption" type="OptionButton" parent="VBox/TypeContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ImageContainer" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ImagePathLabel" type="Label" parent="VBox/ImageContainer"]
+layout_mode = 2
+text = "Изображение: не выбрано"
+autowrap_mode = 2
+
+[node name="Preview" type="TextureRect" parent="VBox/ImageContainer"]
+custom_minimum_size = Vector2(200, 120)
+layout_mode = 2
+expand_mode = 2
+stretch_mode = 5
+
+[node name="LoadImageButton" type="Button" parent="VBox/ImageContainer"]
+layout_mode = 2
+text = "Загрузить изображение"
+
+[node name="LinkContainer" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LinkLabel" type="Label" parent="VBox/LinkContainer"]
+layout_mode = 2
+text = "Ссылка (опционально):"
+
+[node name="LinkEdit" type="LineEdit" parent="VBox/LinkContainer"]
+layout_mode = 2
+placeholder_text = "https://example.com"
+
+[node name="DurationContainer" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DurationToggle" type="CheckBox" parent="VBox/DurationContainer"]
+layout_mode = 2
+text = "Ограниченный срок"
+
+[node name="DurationDaysSpin" type="SpinBox" parent="VBox/DurationContainer"]
+layout_mode = 2
+min_value = 1.0
+max_value = 3650.0
+value = 30.0
+editable = false
+
+[node name="QuantityContainer" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="QuantityLabel" type="Label" parent="VBox/QuantityContainer"]
+layout_mode = 2
+text = "Количество:"
+
+[node name="QuantitySpin" type="SpinBox" parent="VBox/QuantityContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 99999.0
+value = 1.0
+
+[node name="Buttons" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="CancelButton" type="Button" parent="VBox/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Отмена"
+
+[node name="BuyButton" type="Button" parent="VBox/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Купить"

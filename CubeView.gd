@@ -5,9 +5,9 @@ extends Node2D
 # СЦЕНА ПРОСМОТРА СТЕНЫ ВНЕ ИГРОВОГО ПРОЦЕССА
 
 func _log(message: String) -> void:
-	var logger: Node = get_node_or_null("/root/Logger")
-	if logger != null and logger.has_method("log"):
-		logger.call("log", message)
+	var logger: Node = get_node_or_null("/root/FileLogger")
+	if logger != null and logger.has_method("write_log"):
+		logger.call("write_log", message)
 	else:
 		print(message)
 # ----------------------------------------------------------------------------

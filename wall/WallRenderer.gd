@@ -160,9 +160,9 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			var pos: Vector2 = Vector2(x * SEGMENT_SIZE, y * SEGMENT_SIZE)
 			
 			# Генерируем РАНДОМНЫЕ параметры на основе segment_id
-			var seed_hash: int = hash(segment_id)
+			var seed_hash: int = int(hash(str(SeedManager.global_seed) + "::" + segment_id)) & 0x7FFFFFFF
 			var rng = RandomNumberGenerator.new()
-			rng.seed = seed_hash
+			rng.seed = seed_hash if seed_hash != 0 else 1
 			
 			# Восстанавливаем сторону из старого состояния или создаём новую
 			var current_side: String
@@ -282,24 +282,24 @@ func _process_side_changes(delta: float) -> void:
 					available_sides.append(side)
 			
 			if available_sides.size() > 0:
-				var seed_hash: int = hash(_segment_ids[i] + str(Time.get_ticks_msec()))
+				var seed_hash: int = int(hash(str(SeedManager.global_seed) + "::" + _segment_ids[i] + "::sidepick")) & 0x7FFFFFFF
 				var rng = RandomNumberGenerator.new()
-				rng.seed = seed_hash
+				rng.seed = seed_hash if seed_hash != 0 else 1
 				new_side = available_sides[rng.randi() % available_sides.size()]
 			
 			_segment_sides[i] = new_side
 			
 			# Сбрасываем таймер и задаём новый интервал
-			var segment_id: String = _segment_ids[i]
-			var seed_hash: int = hash(segment_id)
-			var rng = RandomNumberGenerator.new()
-			rng.seed = seed_hash
-			_side_change_intervals[i] = rng.randf_range(30.0, 90.0)
+			var segment_id2: String = _segment_ids[i]
+			var seed_iv: int = int(hash(str(SeedManager.global_seed) + "::" + segment_id2 + "::interval")) & 0x7FFFFFFF
+			var rng_iv = RandomNumberGenerator.new()
+			rng_iv.seed = seed_iv if seed_iv != 0 else 1
+			_side_change_intervals[i] = rng_iv.randf_range(30.0, 90.0)
 			_side_change_timers[i] = 0.0
 			
 			# Обновляем цвет сегмента по новой стороне
-			var face_data: Dictionary = wall_data.get_face_data(segment_id, new_side)
-			var color: Color = _get_segment_color_by_side(new_side, face_data, segment_id)
+			var face_data: Dictionary = wall_data.get_face_data(segment_id2, new_side)
+			var color: Color = _get_segment_color_by_side(new_side, face_data, segment_id2)
 			_multimesh.set_instance_color(i, color)
 
 # Обновление конкретного сегмента после покупки

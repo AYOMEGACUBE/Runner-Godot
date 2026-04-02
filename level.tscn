@@ -28,7 +28,7 @@ script = ExtResource("1_dp35j")
 
 [node name="Wall" parent="." instance=ExtResource("8_wall")]
 
-[node name="Player" type="CharacterBody2D" parent="."]
+[node name="Player" type="CharacterBody2D" parent="." groups=["player"]]
 position = Vector2(200, 250)
 up_direction = Vector2(0, 1)
 script = ExtResource("2_hc4jq")

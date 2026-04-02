@@ -11,6 +11,18 @@ class_name WallSegment
 
 @export var segment_id: String = ""
 
+var _visual_rng: RandomNumberGenerator = null
+
+func _vrng() -> RandomNumberGenerator:
+	if _visual_rng == null:
+		_visual_rng = RandomNumberGenerator.new()
+		var sid: String = str(segment_id).strip_edges()
+		if sid == "":
+			sid = "unset"
+		var s: int = int(hash(str(SeedManager.global_seed) + "::wallseg::" + sid)) & 0x7FFFFFFF
+		_visual_rng.seed = s if s != 0 else 1
+	return _visual_rng
+
 # Режим стены: статика / "живая" стена
 const WALL_MODE_STATIC: int = 0
 const WALL_MODE_LIVING: int = 1
@@ -94,21 +106,21 @@ func setup(id: String, side: String, data: WallData, allow_purchases_flag: bool 
 		area.monitoring = allow_purchases_flag
 	
 	# Генерируем микро-вариацию яркости (±5-10%)
-	_brightness_variation = 0.95 + randf() * 0.1  # От 0.95 до 1.05
+	_brightness_variation = 0.95 + _vrng().randf() * 0.1  # От 0.95 до 1.05
 
 	# Рандомные параметры "дыхания" — каждый сегмент двигается по-своему
-	_breath_speed_factor = randf_range(0.6, 1.4)
-	_breath_phase = randf() * TAU
+	_breath_speed_factor = _vrng().randf_range(0.6, 1.4)
+	_breath_phase = _vrng().randf() * TAU
 
 	# Асинхронные параметры цвета (очень медленная дрожь яркости)
-	_color_speed = randf_range(0.15, 0.4)
-	_color_phase = randf() * TAU
+	_color_speed = _vrng().randf_range(0.15, 0.4)
+	_color_phase = _vrng().randf() * TAU
 
-	_rot_amp = deg_to_rad(randf_range(1.0, 4.0))   # небольшая амплитуда вращения
-	_rot_speed = randf_range(0.5, 1.5)
-	_rot_phase = randf() * TAU
-	_rot_timer = randf_range(0.5, 2.5)
-	_rot_active = randf() < 0.7  # иногда кубы могут не вращаться долго
+	_rot_amp = deg_to_rad(_vrng().randf_range(1.0, 4.0))   # небольшая амплитуда вращения
+	_rot_speed = _vrng().randf_range(0.5, 1.5)
+	_rot_phase = _vrng().randf() * TAU
+	_rot_timer = _vrng().randf_range(0.5, 2.5)
+	_rot_active = _vrng().randf() < 0.7  # иногда кубы могут не вращаться долго
 	
 	_update_visual_state()
 	_reset_geometry()
@@ -130,7 +142,7 @@ func _ready() -> void:
 		set_process(true)
 
 	_change_timer = 0.0
-	_change_interval = randf_range(30.0, 90.0)
+	_change_interval = _vrng().randf_range(30.0, 90.0)
 
 	# Подключаем клики
 	if area and not area.input_event.is_connected(_on_area_input):
@@ -138,27 +150,27 @@ func _ready() -> void:
 
 	# Инициализируем микро-вариацию яркости, если не была установлена в setup()
 	if _brightness_variation == 1.0:
-		_brightness_variation = 0.95 + randf() * 0.1  # От 0.95 до 1.05
+		_brightness_variation = 0.95 + _vrng().randf() * 0.1  # От 0.95 до 1.05
 
 	# Если параметры дыхания / вращения / цвета ещё не заданы из setup()
 	if _breath_speed_factor == 1.0 and _breath_phase == 0.0:
-		_breath_speed_factor = randf_range(0.6, 1.4)
-		_breath_phase = randf() * TAU
+		_breath_speed_factor = _vrng().randf_range(0.6, 1.4)
+		_breath_phase = _vrng().randf() * TAU
 	if _color_speed == 0.0:
-		_color_speed = randf_range(0.15, 0.4)
-		_color_phase = randf() * TAU
+		_color_speed = _vrng().randf_range(0.15, 0.4)
+		_color_phase = _vrng().randf() * TAU
 	if _rot_amp == 0.0:
-		_rot_amp = deg_to_rad(randf_range(1.0, 4.0))
-		_rot_speed = randf_range(0.5, 1.5)
-		_rot_phase = randf() * TAU
-		_rot_timer = randf_range(0.5, 2.5)
-		_rot_active = randf() < 0.7
+		_rot_amp = deg_to_rad(_vrng().randf_range(1.0, 4.0))
+		_rot_speed = _vrng().randf_range(0.5, 1.5)
+		_rot_phase = _vrng().randf() * TAU
+		_rot_timer = _vrng().randf_range(0.5, 2.5)
+		_rot_active = _vrng().randf() < 0.7
 
 	_update_visual_state()
 	_reset_geometry()
 
 	# Случайный старт фазы для разнообразия
-	_time_accum = randf() * TAU
+	_time_accum = _vrng().randf() * TAU
 
 
 func _on_screen_entered() -> void:
@@ -186,11 +198,11 @@ func _process(delta: float) -> void:
 
 	_change_timer += delta
 	if _change_interval <= 0.0:
-		_change_interval = randf_range(30.0, 90.0)
+		_change_interval = _vrng().randf_range(30.0, 90.0)
 
 	if _change_timer >= _change_interval:
 		_change_timer = 0.0
-		_change_interval = randf_range(30.0, 90.0)
+		_change_interval = _vrng().randf_range(30.0, 90.0)
 		change_side_randomly()
 
 
@@ -199,7 +211,7 @@ func change_side_randomly() -> void:
 	if sprite == null:
 		return
 	# Немного меняем коэффициент яркости и пересчитываем цвет
-	_brightness_variation = lerp(0.8, 1.2, randf())
+	_brightness_variation = lerp(0.8, 1.2, _vrng().randf())
 	_update_visual_state()
 
 
