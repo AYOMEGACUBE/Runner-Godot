@@ -6,6 +6,7 @@ extends Node2D
 var platform_scene: PackedScene = preload("res://Platform.tscn")
 var coin_scene: PackedScene = preload("res://Coin.tscn")
 const RunDebugOverlayScript = preload("res://scripts/debug/RunDebugOverlay.gd")
+const WorldSegmentGrid = preload("res://scripts/config/WorldSegmentGrid.gd")
 
 @export var DEBUG_LOG: bool = true
 @export var show_run_debug_overlay: bool = false
@@ -16,16 +17,10 @@ var viewport_width: float = 0.0
 var viewport_height: float = 0.0
 var world_left: float = 0.0
 var world_right: float = 0.0
-
-var corridor_min_x: float = 0.0
-var corridor_max_x: float = 0.0
-var corridor_height: float = 0.0
-
-var active_corridor_index: int = 0
-var active_corridor: Dictionary = {}
+## Один AABB на весь забег: ширина = world_right−world_left, высота = ось грани куба (153 600 px), задаётся один раз в _setup_world_bounds.
+var world_bounds: Dictionary = {}
 
 var platforms: Array[Node2D] = []
-var platform_corridor_index: Dictionary = {}
 
 var path_selector: PathSelector = null
 var platform_pool: PlatformPool = null
@@ -70,15 +65,17 @@ func _ready() -> void:
 	viewport_height = viewport_size.y
 
 	world_left = 0.0
-	if bool(rules["use_fixed_world_width"]):
+	var _align_cube: bool = bool(rules.get("align_run_world_to_cube_face", true))
+	## При align по грани куба ширина мира = ось грани (3200×48 px). Иначе — из правил (экраны / фикс. ширина / время).
+	if _align_cube:
+		world_right = world_left + float(WorldSegmentGrid.FACE_AXIS_PX)
+	elif bool(rules["use_fixed_world_width"]):
 		world_right = world_left + max(0.0, float(rules["fixed_world_width"]))
 	elif int(rules["world_screens"]) > 0:
 		world_right = world_left + max(1, int(rules["world_screens"])) * viewport_width
 	else:
 		var seg_min: float = float(rules["world_segment_minutes"]) * 60.0
 		world_right = world_left + PhysicsConfig.MOVE_SPEED * seg_min
-
-	corridor_height = max(1.0, floor(viewport_height * float(rules["corridor_height_multiplier"])))
 
 	var ox: float = float(rules["player_spawn_offset_x"])
 	var oy: float = float(rules["player_spawn_offset_y"])
@@ -90,17 +87,13 @@ func _ready() -> void:
 		push_error("Level.gd: player node not found at $Player")
 		return
 
-	corridor_min_x = world_left
-	corridor_max_x = world_right
+	_setup_world_bounds()
 
 	var first_platform_y: float = player.global_position.y + float(rules["first_platform_offset_y"])
-	active_corridor_index = 0
-	_activate_corridor(0, first_platform_y + _platform_height * 0.5)
 
 	for c in platforms_root.get_children():
 		c.queue_free()
 	platforms.clear()
-	platform_corridor_index.clear()
 
 	platform_pool = PlatformPool.new(platform_scene, platforms_root, int(rules["pool_initial_size"]))
 
@@ -124,15 +117,27 @@ func _ready() -> void:
 
 func _prepare_path_layout(start_center: Vector2, start_seg: int) -> bool:
 	var m: PathModel = path_selector.active_model
+	if m != null and m.platforms.size() > 0:
+		var m_pb: PathModel = _snapshot_layout(m)
+		_align_prebaked_platforms_to_start(m_pb, start_center)
+		if m_pb.validate_full(rules, world_bounds, _tile_width, _platform_height):
+			_active_layout = m_pb
+			_fallback_snapshot = _snapshot_layout(m_pb)
+			if DEBUG_LOG:
+				_log("[PATH] prebaked model_id=%s slots=%d" % [m_pb.model_id, m_pb.platforms.size()])
+			return true
+		if DEBUG_LOG:
+			_log("[PATH] prebaked model_id=%s failed validate_full — fallback to bake" % m_pb.model_id)
+
 	if m != null and m.steps.size() > 0:
-		m.bake_from_steps(rules, active_corridor, start_center, start_seg, path_selector.active_direction, _tile_width, _platform_height)
+		m.bake_from_steps(rules, world_bounds, start_center, start_seg, path_selector.active_direction, _tile_width, _platform_height)
 		if m.detect_stairs(_platform_height * 0.2, 6):
 			m.smooth_path(_platform_height * 0.25)
-			m.resolve_platform_overlaps(rules, active_corridor, _tile_width, _platform_height)
-		if not m.validate_full(rules, active_corridor, _tile_width, _platform_height):
+			m.resolve_platform_overlaps(rules, world_bounds, _tile_width, _platform_height)
+		if not m.validate_full(rules, world_bounds, _tile_width, _platform_height):
 			m.smooth_path(_platform_height * 0.55)
-			m.resolve_platform_overlaps(rules, active_corridor, _tile_width, _platform_height)
-		if m.validate_full(rules, active_corridor, _tile_width, _platform_height):
+			m.resolve_platform_overlaps(rules, world_bounds, _tile_width, _platform_height)
+		if m.validate_full(rules, world_bounds, _tile_width, _platform_height):
 			_active_layout = m
 			_fallback_snapshot = _snapshot_layout(m)
 			if DEBUG_LOG:
@@ -143,8 +148,8 @@ func _prepare_path_layout(start_center: Vector2, start_seg: int) -> bool:
 		_log("[PATH] primary layout invalid — fail-safe")
 
 	var fb: PathModel = _fallback_snapshot
-	if fb == null or not fb.validate_full(rules, active_corridor, _tile_width, _platform_height):
-		fb = PathModel.create_minimal_safe(start_center, _tile_width, _platform_height, active_corridor)
+	if fb == null or not fb.validate_full(rules, world_bounds, _tile_width, _platform_height):
+		fb = PathModel.create_minimal_safe(start_center, _tile_width, _platform_height, world_bounds)
 	_active_layout = fb
 	return _active_layout != null and _active_layout.platforms.size() > 0
 
@@ -153,7 +158,19 @@ func _snapshot_layout(src: PathModel) -> PathModel:
 	c.model_id = src.model_id
 	c.platforms = src.platforms.duplicate(true)
 	c.steps = src.steps.duplicate(true)
+	c.support_chain_indices = src.support_chain_indices.duplicate()
 	return c
+
+func _align_prebaked_platforms_to_start(m: PathModel, start_center: Vector2) -> void:
+	if m.platforms.is_empty():
+		return
+	var p0: Dictionary = m.platforms[0]
+	var ox: float = start_center.x - float(p0["x"])
+	var oy: float = start_center.y - float(p0["y"])
+	for i in range(m.platforms.size()):
+		var d: Dictionary = m.platforms[i]
+		d["x"] = float(d["x"]) + ox
+		d["y"] = float(d["y"]) + oy
 
 func _burst_spawn_layout() -> void:
 	var n: int = mini(_initial_spawn_target, _active_layout.platforms.size())
@@ -169,7 +186,6 @@ func _physics_process(_delta: float) -> void:
 	if DEBUG_LOG and _debug_log_frame_counter % 30 == 0:
 		_log("[LEVEL] layout_idx=%s active=%s pool_avail=%d" % [_layout_index, platforms.size(), platform_pool.available_count()])
 
-	_update_active_corridor()
 	_cleanup_platforms_below_player()
 
 	var fps: float = Engine.get_frames_per_second()
@@ -222,21 +238,38 @@ func _spawn_next_layout_slot() -> bool:
 	if p == null:
 		return false
 
-	_configure_platform(p, pos, seg, vanish, _layout_index)
-	_register_platform(p, active_corridor_index)
-	_try_spawn_loot(_layout_index, pos)
+	_configure_platform(p, pos, seg, vanish, _layout_index, slot)
+	_register_platform(p)
+	if not bool(slot.get("is_decoy", false)):
+		_try_spawn_loot(_layout_index, pos)
 
 	last_main_pos = pos
 	_layout_index += 1
 	return true
 
-func _configure_platform(p: Node2D, pos: Vector2, seg: int, vanish: bool, slot_idx: int) -> void:
+func _configure_platform(p: Node2D, pos: Vector2, seg: int, vanish: bool, slot_idx: int, slot: Dictionary = {}) -> void:
 	p.global_position = pos
 	p.scale.x = float(seg)
-	p.set("is_crumbling", vanish)
 	p.set("coin_spawn_chance", 0.0)
 	p.set("size", Vector2(_tile_width, _platform_height))
+	var decoy: bool = bool(slot.get("is_decoy", false))
+	p.set("is_decoy", decoy)
+	p.set("fake_visual_only", decoy)
+	if decoy:
+		p.set("is_crumbling", false)
+	else:
+		p.set("is_crumbling", vanish)
 	p.call("apply_size_to_shape")
+	var cs: Node = p.get_node_or_null("CollisionShape2D")
+	if decoy:
+		p.set_collision_layer_value(1, false)
+		p.set_collision_mask_value(1, false)
+		if cs is CollisionShape2D:
+			(cs as CollisionShape2D).disabled = true
+	else:
+		p.set_collision_layer_value(1, true)
+		if cs is CollisionShape2D:
+			(cs as CollisionShape2D).disabled = false
 	if p.has_signal("platform_lifecycle_ended") and not p.platform_lifecycle_ended.is_connected(_on_platform_lifecycle_ended):
 		p.platform_lifecycle_ended.connect(_on_platform_lifecycle_ended)
 
@@ -255,25 +288,19 @@ func _try_spawn_loot(slot_idx: int, platform_center: Vector2) -> void:
 		root.add_child(c)
 		c.global_position = platform_center + Vector2(0.0, -_coin_height_offset)
 
-func _update_active_corridor() -> void:
-	if active_corridor.is_empty():
-		return
-	if player.global_position.y <= float(active_corridor["min_y"]):
-		var next_max_y: float = float(active_corridor["min_y"]) - 1.0
-		_activate_corridor(active_corridor_index + 1, next_max_y)
-
-func _activate_corridor(index: int, corridor_max_y: float) -> void:
-	active_corridor_index = index
-	var corridor_min_y: float = corridor_max_y - corridor_height + 1.0
-	active_corridor = {
-		"index": index,
-		"min_x": corridor_min_x,
-		"max_x": corridor_max_x,
-		"min_y": corridor_min_y,
-		"max_y": corridor_max_y
+func _setup_world_bounds() -> void:
+	var axis: float = float(WorldSegmentGrid.FACE_AXIS_PX)
+	var pad: float = float(rules.get("world_bounds_pad_below_player", 8192.0))
+	var bottom: float = player.global_position.y + pad
+	var top: float = bottom - axis
+	world_bounds = {
+		"min_x": world_left,
+		"max_x": world_right,
+		"min_y": top,
+		"max_y": bottom,
 	}
 	if DEBUG_LOG:
-		_log("[CORRIDOR_ACTIVE] idx=%s y=[%s,%s]" % [index, corridor_min_y, corridor_max_y])
+		_log("[WORLD_BOUNDS] w=%.0f h=%.0f x=[%.0f,%.0f] y=[%.0f,%.0f]" % [world_right - world_left, axis, world_left, world_right, top, bottom])
 
 func _cleanup_platforms_below_player() -> void:
 	var threshold: float = player.global_position.y + _release_below_px
@@ -287,14 +314,12 @@ func _cleanup_platforms_below_player() -> void:
 		_remove_platform(p)
 		platform_pool.release_platform(p)
 
-func _register_platform(p: Node2D, corridor_index: int) -> void:
+func _register_platform(p: Node2D) -> void:
 	platforms.append(p)
-	platform_corridor_index[p.get_instance_id()] = corridor_index
 
 func _remove_platform(platform: Node2D) -> void:
 	if platforms.has(platform):
 		platforms.erase(platform)
-	platform_corridor_index.erase(platform.get_instance_id())
 
 func release_platform_from_level(platform: Node2D) -> void:
 	if platform == null or not is_instance_valid(platform):
@@ -318,7 +343,7 @@ func _validate_rules(r: Dictionary) -> bool:
 	var required: Array[String] = [
 		"min_gap", "max_gap", "height_variation", "vanish_chance", "platform_sizes",
 		"pool_initial_size", "world_segment_minutes", "world_screens", "use_fixed_world_width",
-		"fixed_world_width", "corridor_height_multiplier", "min_edge_gap", "vertical_gap",
+		"fixed_world_width", "min_edge_gap", "vertical_gap",
 		"safe_margin_x", "coin_spawn_chance", "spawn_ahead_pixels", "release_below_player_pixels",
 		"initial_platforms_to_spawn", "max_spawns_per_frame",
 		"player_spawn_offset_x", "player_spawn_offset_y", "first_platform_offset_y",
@@ -351,31 +376,28 @@ func _apply_rules_to_fields(r: Dictionary) -> void:
 
 # --- Тестовые и вспомогательные хуки (overlap / reach), без физики уровневой генерации ---
 
-func _is_platform_fully_inside_active_corridor(pos: Vector2, segments: int, extra_x: float = 0.0, extra_y: float = 0.0) -> bool:
-	if active_corridor.is_empty():
+func _is_platform_fully_inside_world_bounds(pos: Vector2, segments: int, extra_x: float = 0.0, extra_y: float = 0.0) -> bool:
+	if world_bounds.is_empty():
 		return true
 	var half_w: float = float(segments) * _tile_width * 0.5 + extra_x
 	var half_h: float = _platform_height * 0.5 + extra_y
-	if pos.x - half_w < float(active_corridor["min_x"]):
+	if pos.x - half_w < float(world_bounds["min_x"]):
 		return false
-	if pos.x + half_w > float(active_corridor["max_x"]):
+	if pos.x + half_w > float(world_bounds["max_x"]):
 		return false
-	if pos.y - half_h < float(active_corridor["min_y"]):
+	if pos.y - half_h < float(world_bounds["min_y"]):
 		return false
-	if pos.y + half_h > float(active_corridor["max_y"]):
+	if pos.y + half_h > float(world_bounds["max_y"]):
 		return false
 	return true
 
 func _is_position_valid_for_platform(pos: Vector2, segments: int, _from_platform: Node2D = null, extra_x: float = 0.0, extra_y: float = 0.0, include_visual_only: bool = false) -> bool:
-	if not _is_platform_fully_inside_active_corridor(pos, segments, extra_x, extra_y):
+	if not _is_platform_fully_inside_world_bounds(pos, segments, extra_x, extra_y):
 		return false
 	var half_new_x: float = float(segments) * _tile_width * 0.5 + extra_x
 	var half_new_y: float = _platform_height * 0.5 + extra_y
 	for p in platforms:
 		if p == null or not is_instance_valid(p):
-			continue
-		var p_corridor_idx: int = int(platform_corridor_index.get(p.get_instance_id(), active_corridor_index))
-		if p_corridor_idx != active_corridor_index:
 			continue
 		if not include_visual_only:
 			var is_decoy_like: bool = p.get("is_decoy") == true or p.get("fake_visual_only") == true

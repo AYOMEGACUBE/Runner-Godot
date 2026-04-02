@@ -8,8 +8,9 @@ class_name WallRenderer
 # Данные берутся из WallData, клики обрабатываются по координатам
 # ============================================================================
 
-const SEGMENT_SIZE: int = 48
-const SEGMENTS_PER_SIDE: int = 3200  # Должно соответствовать wall.gd
+const WorldSegmentGrid = preload("res://scripts/config/WorldSegmentGrid.gd")
+const SEGMENT_SIZE: int = WorldSegmentGrid.SEGMENT_SIZE_PX
+const SEGMENTS_PER_SIDE: int = WorldSegmentGrid.SEGMENTS_PER_FACE_AXIS
 
 var multimesh_instance: MultiMeshInstance2D = null  # Создаётся в _ready()
 
@@ -39,12 +40,20 @@ var _segment_sides: Array[String] = []  # Текущая сторона для �
 var _side_change_timers: Array[float] = []  # Таймеры до следующей смены стороны
 var _side_change_intervals: Array[float] = []  # Интервалы смены для каждого сегмента
 const SIDES: Array[String] = ["front", "back", "left", "right", "top", "bottom"]
+## [OPTIMIZATION] Потолок инстансов MultiMesh — защита от отдаления камеры (миллионы ячеек)
+const MAX_VISIBLE_INSTANCES: int = 10000
+const HEAVY_MESH_SKIP_PROCESS: int = 500000
+
+## [OPTIMIZATION] Один RNG на весь кадр обновления видимой области / смены сторон
+var _shared_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 # Отображение изображений поверх MultiMesh
 var _images_layer: Node2D = null                  # Отдельный слой для спрайтов
 var _segment_sprites: Dictionary = {}             # segment_id -> Sprite2D
 var _sprite_pool: Array[Sprite2D] = []            # пул переиспользуемых спрайтов
 var _segment_index: Dictionary = {}               # segment_id -> индекс в массивах
+## Последняя известная грань тайла по id (сохраняется при скролле вне видимого MultiMesh) — цена покупки / экономика.
+var _last_known_tile_side: Dictionary = {}
 
 # Подсветка выбранных сегментов
 var _highlighted_segment_ids: Array[String] = []
@@ -109,16 +118,44 @@ func setup(data: WallData, side: String, purchases_enabled: bool = false) -> voi
 	side_id = side
 	allow_purchases = purchases_enabled
 
+
+func _remember_tile_side(segment_id: String, side_name: String) -> void:
+	if segment_id.is_empty() or side_name.strip_edges().is_empty():
+		return
+	_last_known_tile_side[segment_id] = side_name
+
+
 func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
+	## [OPTIMIZATION] Сжимаем окно к центру, если ячеек слишком много
+	var width: int = max_x - min_x + 1
+	var height: int = max_y - min_y + 1
+	var total_segments: int = width * height
+	if total_segments > MAX_VISIBLE_INSTANCES:
+		var scale: float = sqrt(float(MAX_VISIBLE_INSTANCES) / float(total_segments))
+		var cx: float = (float(min_x) + float(max_x)) * 0.5
+		var cy: float = (float(min_y) + float(max_y)) * 0.5
+		var half_w: float = (float(width) * 0.5) * scale
+		var half_h: float = (float(height) * 0.5) * scale
+		min_x = int(floor(cx - half_w))
+		max_x = int(ceil(cx + half_w))
+		min_y = int(floor(cy - half_h))
+		max_y = int(ceil(cy + half_h))
+		if min_x > max_x:
+			var swap_x: int = min_x
+			min_x = max_x
+			max_x = swap_x
+		if min_y > max_y:
+			var swap_y: int = min_y
+			min_y = max_y
+			max_y = swap_y
+		width = max_x - min_x + 1
+		height = max_y - min_y + 1
+		total_segments = width * height
+
 	visible_min_x = min_x
 	visible_max_x = max_x
 	visible_min_y = min_y
 	visible_max_y = max_y
-	
-	# Вычисляем количество видимых сегментов
-	var width: int = max_x - min_x + 1
-	var height: int = max_y - min_y + 1
-	var total_segments: int = width * height
 	
 	# Сохраняем текущие стороны существующих сегментов (чтобы не терять состояние)
 	var old_sides: Dictionary = {}  # segment_id -> side
@@ -161,8 +198,7 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			
 			# Генерируем РАНДОМНЫЕ параметры на основе segment_id
 			var seed_hash: int = int(hash(str(SeedManager.global_seed) + "::" + segment_id)) & 0x7FFFFFFF
-			var rng = RandomNumberGenerator.new()
-			rng.seed = seed_hash if seed_hash != 0 else 1
+			_shared_rng.seed = seed_hash if seed_hash != 0 else 1
 			
 			# Восстанавливаем сторону из старого состояния или создаём новую
 			var current_side: String
@@ -170,15 +206,22 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 				# Сохраняем текущую сторону сегмента
 				current_side = old_sides[segment_id]
 				_side_change_timers[idx] = old_timers.get(segment_id, 0.0)
-				_side_change_intervals[idx] = old_intervals.get(segment_id, rng.randf_range(30.0, 90.0))
+				_side_change_intervals[idx] = old_intervals.get(segment_id, _shared_rng.randf_range(30.0, 90.0))
 			else:
-				# Новый сегмент - случайная начальная сторона
-				current_side = SIDES[rng.randi() % SIDES.size()]
-				var change_interval: float = rng.randf_range(30.0, 90.0)
-				_side_change_intervals[idx] = change_interval
-				_side_change_timers[idx] = rng.randf_range(0.0, change_interval * 0.3)  # Случайный старт
+				# Новый в текущем окне: если сегмент уже был на экране раньше — та же грань, иначе случайная.
+				if _last_known_tile_side.has(segment_id):
+					current_side = str(_last_known_tile_side[segment_id])
+					var change_interval_r: float = _shared_rng.randf_range(30.0, 90.0)
+					_side_change_intervals[idx] = change_interval_r
+					_side_change_timers[idx] = _shared_rng.randf_range(0.0, change_interval_r * 0.3)
+				else:
+					current_side = SIDES[_shared_rng.randi() % SIDES.size()]
+					var change_interval: float = _shared_rng.randf_range(30.0, 90.0)
+					_side_change_intervals[idx] = change_interval
+					_side_change_timers[idx] = _shared_rng.randf_range(0.0, change_interval * 0.3)
 			
 			_segment_sides[idx] = current_side
+			_remember_tile_side(segment_id, current_side)
 			
 			# Получаем данные сегмента для текущей стороны
 			var seg_data: Dictionary = wall_data.get_segment(segment_id)
@@ -197,12 +240,12 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			
 			# Генерируем РАНДОМНЫЕ параметры дыхания для каждого сегмента
 			_breathing_params[idx] = {
-				"phase": rng.randf() * TAU,  # Случайная начальная фаза
-				"speed_factor": rng.randf_range(0.6, 1.4),  # Случайная скорость
-				"amplitude_x": rng.randf_range(0.3, 0.8) * BASE_BREATHING_AMPLITUDE,  # Случайная амплитуда по X
-				"amplitude_y": rng.randf_range(0.5, 1.2) * BASE_BREATHING_AMPLITUDE,  # Случайная амплитуда по Y
-				"offset_x": rng.randf_range(-0.5, 0.5),  # Случайное смещение фазы по X
-				"offset_y": rng.randf_range(-0.5, 0.5)   # Случайное смещение фазы по Y
+				"phase": _shared_rng.randf() * TAU,
+				"speed_factor": _shared_rng.randf_range(0.6, 1.4),
+				"amplitude_x": _shared_rng.randf_range(0.3, 0.8) * BASE_BREATHING_AMPLITUDE,
+				"amplitude_y": _shared_rng.randf_range(0.5, 1.2) * BASE_BREATHING_AMPLITUDE,
+				"offset_x": _shared_rng.randf_range(-0.5, 0.5),
+				"offset_y": _shared_rng.randf_range(-0.5, 0.5)
 			}
 			
 			# Применяем к MultiMesh
@@ -215,7 +258,9 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 	_update_image_sprites()
 
 func _process(delta: float) -> void:
-	# Обрабатываем смену сторон сегментов (независимо для каждого)
+	## [OPTIMIZATION] При аномально большом числе инстансов — не дышим и не дергаем стороны (защита от фриза)
+	if _multimesh != null and _multimesh.instance_count > HEAVY_MESH_SKIP_PROCESS:
+		return
 	_process_side_changes(delta)
 	
 	if not GameState.wall_breathing_enabled:
@@ -283,18 +328,17 @@ func _process_side_changes(delta: float) -> void:
 			
 			if available_sides.size() > 0:
 				var seed_hash: int = int(hash(str(SeedManager.global_seed) + "::" + _segment_ids[i] + "::sidepick")) & 0x7FFFFFFF
-				var rng = RandomNumberGenerator.new()
-				rng.seed = seed_hash if seed_hash != 0 else 1
-				new_side = available_sides[rng.randi() % available_sides.size()]
+				_shared_rng.seed = seed_hash if seed_hash != 0 else 1
+				new_side = available_sides[_shared_rng.randi() % available_sides.size()]
 			
 			_segment_sides[i] = new_side
+			_remember_tile_side(_segment_ids[i], new_side)
 			
 			# Сбрасываем таймер и задаём новый интервал
 			var segment_id2: String = _segment_ids[i]
 			var seed_iv: int = int(hash(str(SeedManager.global_seed) + "::" + segment_id2 + "::interval")) & 0x7FFFFFFF
-			var rng_iv = RandomNumberGenerator.new()
-			rng_iv.seed = seed_iv if seed_iv != 0 else 1
-			_side_change_intervals[i] = rng_iv.randf_range(30.0, 90.0)
+			_shared_rng.seed = seed_iv if seed_iv != 0 else 1
+			_side_change_intervals[i] = _shared_rng.randf_range(30.0, 90.0)
 			_side_change_timers[i] = 0.0
 			
 			# Обновляем цвет сегмента по новой стороне
@@ -439,8 +483,10 @@ func _get_side_color(segment_side: String) -> Color:
 # ---------------------------------------------------------------------------
 
 # Обработка клика по координатам (для CubeView)
-func handle_click(global_pos: Vector2) -> Dictionary:
-	if not allow_purchases or wall_data == null:
+func handle_click(global_pos: Vector2, for_price_preview: bool = false) -> Dictionary:
+	if wall_data == null:
+		return {}
+	if not for_price_preview and not allow_purchases:
 		return {}
 	
 	# Преобразуем глобальные координаты в локальные относительно WallRenderer
@@ -455,20 +501,42 @@ func handle_click(global_pos: Vector2) -> Dictionary:
 	if not _segment_index.has(segment_id):
 		return {}
 	
-	# Проверяем высотный гейт
 	var seg_height: float = wall_data.get_segment_height(segment_id)
-	if Engine.has_singleton("GameState"):
+	## [FIX] Превью цены для тултипа — без высотного гейта; покупка по-прежнему режется в CubeView
+	if not for_price_preview and Engine.has_singleton("GameState"):
 		var max_height: float = float(GameState.max_height_reached)
 		if seg_height < max_height:
-			return {}  # Сегмент выше достигнутой высоты
+			return {}
 	
-	# Возвращаем данные для покупки
+	var segment_side_name: String = side_id
+	if _segment_index.has(segment_id):
+		var ix: int = int(_segment_index[segment_id])
+		if ix >= 0 and ix < _segment_sides.size():
+			segment_side_name = str(_segment_sides[ix])
+	# Economy (offline): цены из economy.json; face_id стабилен при обновлении конфига
+	var listing_price: int = EconomyManager.get_listing_price_for_hit(
+		side_id, segment_id, segment_side_name, wall_data
+	)
+	var fid: int = EconomyManager.face_id_from_wall_segment(side_id, segment_id, segment_side_name)
 	return {
 		"segment_id": segment_id,
 		"side": side_id,
-		"price": wall_data.get_segment_price(segment_id),
-		"height": seg_height
+		"segment_side": segment_side_name,
+		"price": listing_price,
+		"height": seg_height,
+		"face_id": fid
 	}
+
+
+## Текущая грань тайла для экономики: сначала живой инстанс, иначе последняя известная (сегмент вне видимого mesh).
+func get_visible_segment_side(segment_id: String) -> String:
+	if _segment_index.has(segment_id):
+		var ix: int = int(_segment_index[segment_id])
+		if ix >= 0 and ix < _segment_sides.size():
+			return str(_segment_sides[ix])
+	if _last_known_tile_side.has(segment_id):
+		return str(_last_known_tile_side[segment_id])
+	return ""
 
 # ---------------------------------------------------------------------------
 # Изображения сегментов (Sprite2D поверх MultiMesh)

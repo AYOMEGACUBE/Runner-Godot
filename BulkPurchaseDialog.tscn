@@ -113,12 +113,14 @@ placeholder_text = "https://example.com"
 layout_mode = 2
 
 [node name="PriceLabel" type="Label" parent="VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Общая стоимость: 0 coin"
 theme_override_font_sizes/font_size = 20
 horizontal_alignment = 1
 
 [node name="BalanceLabel" type="Label" parent="VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Ваш баланс: 0 coin"
 horizontal_alignment = 1

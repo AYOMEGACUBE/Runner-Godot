@@ -10,7 +10,7 @@ func _initialize() -> void:
 func _run() -> void:
 	PhysicsConfig.calculate_jump_metrics()
 	var rules: Dictionary = _minimal_rules()
-	var corridor: Dictionary = {
+	var bounds: Dictionary = {
 		"min_x": 0.0, "max_x": 2000.0, "min_y": 0.0, "max_y": 1200.0
 	}
 	var start: Vector2 = Vector2(400.0, 600.0)
@@ -26,7 +26,7 @@ func _run() -> void:
 		sel.select_model_for_run()
 		var m: PathModel = sel.active_model
 		_expect(m != null, "model")
-		m.bake_from_steps(rules, corridor, start, 2, 1, 64.0, 64.0)
+		m.bake_from_steps(rules, bounds, start, 2, 1, 64.0, 64.0)
 		var h: int = _hash_platforms(m.platforms)
 		if iteration == 0:
 			first_hash = h

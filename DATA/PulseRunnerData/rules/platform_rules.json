@@ -1,10 +1,11 @@
 {
+	"align_run_world_to_cube_face": true,
 	"min_gap": 120,
 	"max_gap": 320,
 	"height_variation": 200,
 	"vanish_chance": 0.4,
 	"jump_reach_max_fraction": 0.8,
-	"corridor_ascent_degrees": 5,
+	"path_ascent_degrees": 5,
 	"platform_sizes": {
 		"small": [64, 64],
 		"medium": [128, 64],
@@ -15,7 +16,7 @@
 	"world_screens": 20,
 	"use_fixed_world_width": false,
 	"fixed_world_width": 8000,
-	"corridor_height_multiplier": 1.5,
+	"world_bounds_pad_below_player": 8192,
 	"min_edge_gap": 32,
 	"vertical_gap": 0,
 	"safe_margin_x": 32,

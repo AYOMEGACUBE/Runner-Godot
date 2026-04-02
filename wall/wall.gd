@@ -17,20 +17,15 @@ func _log(message: String) -> void:
 # Проверено: Godot 4.x
 # ============================================================================
 
-# ЗАФИКСИРОВАННЫЕ ПАРАМЕТРЫ
-const SEGMENT_SIZE: int = 48
+const WorldSegmentGrid = preload("res://scripts/config/WorldSegmentGrid.gd")
+
+# ЗАФИКСИРОВАННЫЕ ПАРАМЕТРЫ (сетка — из WorldSegmentGrid)
+const SEGMENT_SIZE: int = WorldSegmentGrid.SEGMENT_SIZE_PX
+const SEGMENTS_PER_SIDE: int = WorldSegmentGrid.SEGMENTS_PER_FACE_AXIS
 const WORLD_SCREENS: int = 20
 const VIEWPORT_WIDTH: int = 1152
 
-# Размер стороны мега-куба должен покрывать весь мир
-# Мир может быть: WORLD_WIDTH = PLAYER_SPEED_X * SEGMENT_TIME_SECONDS = 350 * 420 = 147,000 px
-# Или: WORLD_SCREENS * VIEWPORT_WIDTH = 20 * 1152 = 23,040 px
-# Берём максимум и добавляем запас: 147,000 / 48 ≈ 3,063 сегмента
-# Округляем до 3,200 для удобства (64 * 50)
-const SEGMENTS_PER_SIDE: int = 3200  # Виртуальная сторона мега-куба (было 720)
-
-# Интервал обновления и минимальный сдвиг камеры (оптимизировано для производительности)
-const UPDATE_INTERVAL: float = 0.8  # Увеличено с 0.4 для уменьшения частоты апдейтов
+# Минимальный сдвиг камеры / зума перед пересчётом видимой области (без периодического таймера)
 const UPDATE_DISTANCE_THRESHOLD: float = 400.0  # Увеличено с 256.0 для более редких обновлений
 
 # Размеры виртуальной стены в пикселях
@@ -59,11 +54,16 @@ var _last_debug_bounds: Dictionary = {}
 var _debug_print_cooldown: float = 0.0
 const DEBUG_PRINT_INTERVAL: float = 1.0  # Выводить раз в секунду
 
-var _update_timer: float = 0.0
 var _last_camera_position: Vector2 = Vector2.INF
+var _last_camera_zoom: Vector2 = Vector2.ZERO
 var _camera_ref: Camera2D = null
 var update_counter: int = 0
 var _debug_update_timer: float = 0.0
+## [OPTIMIZATION] Не дергать MultiMesh, если камера/viewport/zoom не менялись (в т.ч. после call_deferred).
+var _vis_cache_cam: Vector2 = Vector2(INF, INF)
+var _vis_cache_zoom: Vector2 = Vector2.ZERO
+var _vis_cache_vp: Vector2 = Vector2.ZERO
+var _vis_cache_valid: bool = false
 
 
 func _ready() -> void:
@@ -79,10 +79,12 @@ func _ready() -> void:
 	_camera_ref = get_viewport().get_camera_2d()
 	if _camera_ref:
 		_last_camera_position = _camera_ref.global_position
+		_last_camera_zoom = _camera_ref.zoom
 		_log("[WALL] camera found at pos=%s" % _last_camera_position)
 
 	# Локальное хранилище данных стены (без онлайна).
 	wall_data = WallData.new()
+	wall_data.name = "WallData"
 	add_child(wall_data)
 	# Загружаем сохранённые данные (если есть)
 	wall_data.load_from_file()
@@ -90,11 +92,12 @@ func _ready() -> void:
 
 	# Создаём оптимизированный рендерер
 	wall_renderer = WallRenderer.new()
+	wall_renderer.name = "WallRenderer"
 	add_child(wall_renderer)
 	wall_renderer.setup(wall_data, side_id, allow_purchases)
 	_log("[WALL] renderer setup complete")
 
-	call_deferred("_update_visible_segments")
+	call_deferred("_update_visible_segments", true)
 
 
 func _process(delta: float) -> void:
@@ -102,7 +105,6 @@ func _process(delta: float) -> void:
 		clear_wall()
 		return
 
-	_update_timer += delta
 	_debug_update_timer += delta
 
 	var camera := _camera_ref
@@ -112,43 +114,48 @@ func _process(delta: float) -> void:
 		if camera == null:
 			return
 
+	## [FIX] Раньше таймер срабатывал без движения камеры → фризы и спам логов.
 	var need_update: bool = false
-
-	if _update_timer >= UPDATE_INTERVAL:
+	var vp_now: Vector2 = get_viewport().get_visible_rect().size
+	if _vis_cache_valid and not _vis_cache_vp.is_equal_approx(vp_now):
 		need_update = true
-
-	if camera:
-		var cam_pos: Vector2 = camera.global_position
-		if _last_camera_position == Vector2.INF:
+	var cam_pos: Vector2 = camera.global_position
+	var cam_zoom: Vector2 = camera.zoom
+	if _last_camera_position == Vector2.INF:
+		_last_camera_position = cam_pos
+		_last_camera_zoom = cam_zoom
+		need_update = true
+	else:
+		var dist: float = cam_pos.distance_to(_last_camera_position)
+		var zoom_delta: float = cam_zoom.distance_to(_last_camera_zoom)
+		if dist >= UPDATE_DISTANCE_THRESHOLD or zoom_delta > 0.0001:
+			need_update = true
 			_last_camera_position = cam_pos
-		else:
-			var dist: float = cam_pos.distance_to(_last_camera_position)
-			if dist >= UPDATE_DISTANCE_THRESHOLD:
-				need_update = true
-				_last_camera_position = cam_pos
+			_last_camera_zoom = cam_zoom
 
 	if not need_update:
 		return
 
-	_update_timer = 0.0
 	update_counter += 1
 	_log("[WALL] update triggered counter=%d camera_pos=%s" % [update_counter, camera.global_position if camera else "null"])
-	_update_visible_segments()
+	_update_visible_segments(false)
 
 	if _debug_update_timer >= 2.0:
 		update_counter = 0
 		_debug_update_timer = 0.0
 
 
-func _update_visible_segments() -> void:
+func _update_visible_segments(force: bool = false) -> void:
 	if wall_renderer == null:
 		return
 	
 	# Получаем позицию камеры
 	var camera_pos: Vector2 = Vector2.ZERO
+	var cam_zoom: Vector2 = Vector2.ONE
 	var camera: Camera2D = get_viewport().get_camera_2d()
 	if camera:
 		camera_pos = camera.global_position
+		cam_zoom = camera.zoom
 	else:
 		# Fallback: пытаемся найти через Player
 		var player: Node = get_tree().get_first_node_in_group("player")
@@ -164,12 +171,16 @@ func _update_visible_segments() -> void:
 			camera = player.get_node_or_null("Camera2D")
 			if camera:
 				camera_pos = camera.global_position
+				cam_zoom = camera.zoom
 			else:
 				# Используем позицию игрока как приближение
 				camera_pos = player.global_position
 
 	# Вычисляем видимую область в мировых координатах
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	if not force and _vis_cache_valid:
+		if _vis_cache_cam.is_equal_approx(camera_pos) and _vis_cache_zoom.is_equal_approx(cam_zoom) and _vis_cache_vp.is_equal_approx(viewport_size):
+			return
 	var viewport_half_width: float = viewport_size.x * 0.5
 	var viewport_half_height: float = viewport_size.y * 0.5
 	
@@ -212,6 +223,10 @@ func _update_visible_segments() -> void:
 	var visible_count: int = (max_x_seg - min_x_seg + 1) * (max_y_seg - min_y_seg + 1)
 	_log("[WALL] update_visible_segments bounds=[%d,%d]x[%d,%d] visible=%d" % [min_x_seg, max_x_seg, min_y_seg, max_y_seg, visible_count])
 	wall_renderer.update_visible_area(min_x_seg, max_x_seg, min_y_seg, max_y_seg)
+	_vis_cache_cam = camera_pos
+	_vis_cache_zoom = cam_zoom
+	_vis_cache_vp = viewport_size
+	_vis_cache_valid = true
 
 	# Отладочный вывод (с кулдауном, чтобы не спамить)
 	if _debug_print_cooldown <= 0.0:
@@ -230,6 +245,7 @@ func _update_visible_segments() -> void:
 
 
 func clear_wall() -> void:
+	_vis_cache_valid = false
 	# Очищаем рендерер
 	if wall_renderer:
 		wall_renderer.update_visible_area(0, 0, 0, 0)
@@ -249,13 +265,14 @@ func _print_debug_info(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
 	# print("Wall: visible segments: %d (%d x %d)" % [segment_count, width, height])
 
 # Обработка клика по координатам (для CubeView)
-func handle_click(global_pos: Vector2) -> Dictionary:
+func handle_click(global_pos: Vector2, for_price_preview: bool = false) -> Dictionary:
 	if wall_renderer == null:
 		_log("[WALL] handle_click FAILED - renderer is null")
 		return {}
-	var result: Dictionary = wall_renderer.handle_click(global_pos)
+	var result: Dictionary = wall_renderer.handle_click(global_pos, for_price_preview)
 	if not result.is_empty():
-		_log("[WALL] handle_click pos=%s segment_id=%s" % [global_pos, result.get("segment_id", "unknown")])
+		_log("[WALL] handle_click pos=%s segment_id=%s segment_side=%s" % [global_pos, result.get("segment_id", "unknown"), result.get("segment_side", "")])
+		SegmentManager.notify_wall_segment_selected(self, wall_data, result)
 	return result
 
 # Обновление конкретного сегмента после покупки

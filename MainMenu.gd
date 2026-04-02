@@ -28,12 +28,15 @@ var profile_scene: String = "res://Profile.tscn"
 @export_file("*.tscn")
 var cube_view_scene: String = "res://CubeView.tscn"
 
+@onready var title_label: Label = $RootHBox/LeftPanel/TitleLabel
+@onready var nickname_label: Label = $RootHBox/LeftPanel/NicknameLabel
+@onready var coins_label: Label = $RootHBox/LeftPanel/CoinsLabel
+
 @onready var play_button: Button = $RootHBox/LeftPanel/VBoxButtons/PlayButton
 @onready var champions_button: Button = $RootHBox/LeftPanel/VBoxButtons/ChampionsButton
 @onready var profile_button: Button = $RootHBox/LeftPanel/VBoxButtons/ProfileButton
 @onready var cubeview_button: Button = $RootHBox/LeftPanel/VBoxButtons/CubeViewButton
 
-@onready var nickname_label: Label = $RootHBox/LeftPanel/NicknameLabel
 @onready var avatar_preview: TextureRect = $RootHBox/RightPanel/AvatarPreview
 
 @onready var warn_dialog: AcceptDialog = $WarnDialog
@@ -48,6 +51,10 @@ const HERO_PREVIEWS := {
 
 func _ready() -> void:
 	_log("[MAINMENU] _ready")
+	if title_label == null:
+		FileLogger.error("MainMenu: TitleLabel node missing")
+	if coins_label == null:
+		FileLogger.error("MainMenu: CoinsLabel node missing")
 	if play_button and not play_button.pressed.is_connected(_on_play_pressed):
 		play_button.pressed.connect(_on_play_pressed)
 
@@ -67,9 +74,16 @@ func _process(_delta: float) -> void:
 	_refresh_ui()
 
 func _refresh_ui() -> void:
-	var nick := GameState.get_nickname().strip_edges()
+	if title_label:
+		title_label.text = "Pulse Runner"
+
+	var nick: String = GameState.get_nickname().strip_edges()
 	if nickname_label:
-		nickname_label.text = "Nickname: " + (nick if nick != "" else "— не задан —")
+		nickname_label.text = "Nickname: %s" % (nick if nick != "" else "— не задан —")
+
+	var coins: int = GameState.get_coins()
+	if coins_label:
+		coins_label.text = "Coins: %d 🪙" % coins
 
 	# Показываем превью аватара:
 	# - если кастом включён и есть файл jump0 -> показываем его

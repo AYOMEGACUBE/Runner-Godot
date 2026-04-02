@@ -2,6 +2,7 @@ extends RefCounted
 class_name PhysicsConfig
 
 ## Единый источник физики прыжка (Player, PathModel, тесты). PathModel не дублирует формулы.
+## При GRAVITY/JUMP_VELOCITY/MOVE_SPEED ниже: макс. высота прыжка ≈230 px, макс. горизонталь ≈336 px (см. calculate_jump_metrics).
 
 const GRAVITY: float = 2000.0
 const JUMP_VELOCITY: float = -960.0

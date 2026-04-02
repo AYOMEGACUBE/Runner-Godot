@@ -93,6 +93,9 @@ var _last_drag_pos: Vector2 = Vector2.ZERO
 
 ## Мини-карта
 var minimap_camera: Camera2D = null
+## [OPTIMIZATION] Счётчики «Куплено/Всего» не каждый кадр
+var _minimap_stats_timer: float = 0.0
+const MINIMAP_STATS_INTERVAL: float = 0.5
 
 
 func _ready() -> void:
@@ -158,6 +161,10 @@ func _ready() -> void:
 		PurchaseManager.purchase_failed.connect(_on_purchase_manager_failed)
 	if not PurchaseManager.coins_updated.is_connected(_on_purchase_coins_updated):
 		PurchaseManager.coins_updated.connect(_on_purchase_coins_updated)
+	if not EconomyManager.face_purchase_recorded.is_connected(_on_minimap_stats_dirty):
+		EconomyManager.face_purchase_recorded.connect(_on_minimap_stats_dirty)
+	if not PurchaseManager.purchase_succeeded.is_connected(_on_minimap_stats_dirty):
+		PurchaseManager.purchase_succeeded.connect(_on_minimap_stats_dirty)
 
 	# ------------------------------------------------------------
 	# 3. Вычисляем высоту-гейт на основе GameState.
@@ -267,6 +274,7 @@ func _setup_minimap() -> void:
 		if minimap_label and Engine.has_singleton("GameState"):
 			var side := GameState.get_active_wall_side()
 			minimap_label.text = "Мини-карта\nСторона: %s" % side
+	call_deferred("_refresh_minimap_ownership_label")
 
 func _add_minimap_wall_visualization(minimap_viewport: SubViewport) -> void:
 	"""Добавляет упрощённую визуализацию стены в мини-карту."""
@@ -285,36 +293,71 @@ func _add_minimap_wall_visualization(minimap_viewport: SubViewport) -> void:
 		if minimap_drawer.has_method("setup"):
 			minimap_drawer.setup(wall_data)
 
-func _process(_delta: float) -> void:
-	# Обновляем позицию камеры мини-карты синхронно с основной камерой
+func _process(delta: float) -> void:
 	if minimap_camera:
 		var main_camera: Camera2D = get_node_or_null("Camera2D")
 		if main_camera:
 			minimap_camera.position = main_camera.position
-			
-			# Обновляем позицию индикатора камеры в мини-карте (рисуем через _draw)
 			var minimap_viewport = minimap_camera.get_parent()
 			if minimap_viewport:
 				var minimap_drawer = minimap_viewport.get_node_or_null("MinimapDrawer")
 				if minimap_drawer and minimap_drawer.has_method("set_camera_position"):
 					minimap_drawer.set_camera_position(main_camera.position)
-	
-	# Обновляем подпись мини-карты числом купленных сегментов (инфо вместо пустого квадрата)
+
+	## [OPTIMIZATION] Тяжёлый обход wall_data.segments — не чаще MINIMAP_STATS_INTERVAL
+	_minimap_stats_timer += delta
+	if _minimap_stats_timer >= MINIMAP_STATS_INTERVAL:
+		_minimap_stats_timer = 0.0
+		_refresh_minimap_ownership_label()
+
+
+func _on_minimap_stats_dirty(_arg1 = null, _arg2 = null, _arg3 = null) -> void:
+	_minimap_stats_timer = MINIMAP_STATS_INTERVAL
+
+
+func _refresh_minimap_ownership_label() -> void:
 	var minimap_panel = get_node_or_null("UILayer/MinimapPanel")
-	if minimap_panel and wall_instance and wall_instance.has_node("WallData"):
-		var minimap_label: Label = minimap_panel.get_node_or_null("MinimapLabel")
-		if minimap_label:
-			var wall_data: WallData = wall_instance.get_node("WallData") as WallData
-			var side: String = current_side
-			if Engine.has_singleton("GameState"):
-				side = GameState.get_active_wall_side()
-			var owned_count := 0
-			var total_count := wall_data.segments.size()
-			for seg_id in wall_data.segments.keys():
-				var face_data: Dictionary = wall_data.get_face_data(seg_id, side)
-				if str(face_data.get("owner", "")) != "":
-					owned_count += 1
-			minimap_label.text = "Мини-карта\nСторона: %s\nКуплено: %d\nВсего: %d" % [side, owned_count, total_count]
+	if minimap_panel == null or wall_instance == null or not wall_instance.has_node("WallData"):
+		return
+	var minimap_label: Label = minimap_panel.get_node_or_null("MinimapLabel")
+	if minimap_label == null:
+		return
+	var wall_data: WallData = wall_instance.get_node("WallData") as WallData
+	var side: String = current_side
+	if Engine.has_singleton("GameState"):
+		side = GameState.get_active_wall_side()
+	var owned_count: int = 0
+	var total_count: int = wall_data.segments.size()
+	for seg_id in wall_data.segments.keys():
+		var face_data: Dictionary = wall_data.get_face_data(seg_id, side)
+		if str(face_data.get("owner", "")) != "":
+			owned_count += 1
+	minimap_label.text = "Мини-карта\nСторона: %s\nКуплено: %d\nВсего: %d" % [side, owned_count, total_count]
+
+
+## [FIX] Тултип цены без обязательного режима bulk: превью по клику/тапу
+func _try_wall_price_tooltip_event(event: InputEvent) -> void:
+	if wall_instance == null:
+		return
+	var screen_pos: Vector2
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		screen_pos = mb.position
+	elif event is InputEventScreenTouch:
+		var st: InputEventScreenTouch = event as InputEventScreenTouch
+		if not st.pressed:
+			return
+		screen_pos = st.position
+	else:
+		return
+	if _is_over_selection_ui(screen_pos):
+		return
+	var camera: Camera2D = get_node_or_null("Camera2D")
+	var viewport: Viewport = get_viewport()
+	var world_pos: Vector2 = camera.get_global_mouse_position() if camera else viewport.get_global_mouse_position()
+	wall_instance.handle_click(world_pos, true)
 
 func _enable_purchases_in_renderer() -> void:
 	if wall_instance == null:
@@ -386,10 +429,12 @@ func _input(event: InputEvent) -> void:
 						bulk_ok_button.disabled = _bulk_selected_ids.is_empty()
 			get_viewport().set_input_as_handled()
 	
+	if allow_purchases:
+		_try_wall_price_tooltip_event(event)
+
 	# Обработка кликов для покупки/выбора сегментов
 	if not allow_purchases:
 		return
-	# Обрабатываем клики только в режиме bulk selection (single purchase mode удалён)
 	if not _bulk_selecting_location:
 		return
 	
@@ -657,6 +702,19 @@ func _exit_purchase_mode() -> void:
 	if next_button:
 		next_button.disabled = true
 
+## [FIX] Грань тайла для EconomyManager берётся из WallRenderer, а не из current_side (грань мегакуба).
+func _push_bulk_dialog_wall_and_setup() -> void:
+	if _bulk_purchase_dialog == null:
+		return
+	var wdata: WallData = null
+	if wall_instance and wall_instance.has_node("WallData"):
+		wdata = wall_instance.get_node("WallData") as WallData
+	if _bulk_purchase_dialog.has_method("set_wall_root"):
+		_bulk_purchase_dialog.call("set_wall_root", wall_instance)
+	if _bulk_purchase_dialog.has_method("setup"):
+		_bulk_purchase_dialog.setup(wdata)
+
+
 func _show_bulk_purchase_dialog() -> void:
 	"""Показывает диалог покупки нескольких сегментов."""
 	if _bulk_purchase_dialog == null:
@@ -677,11 +735,7 @@ func _show_bulk_purchase_dialog() -> void:
 						_bulk_purchase_dialog.images_upload_requested.connect(_on_bulk_images_upload_requested)
 					_bulk_purchase_dialog.visibility_changed.connect(_on_bulk_dialog_visibility_changed)
 	if _bulk_purchase_dialog:
-		var wdata: WallData = null
-		if wall_instance and wall_instance.has_node("WallData"):
-			wdata = wall_instance.get_node("WallData") as WallData
-		if _bulk_purchase_dialog.has_method("setup"):
-			_bulk_purchase_dialog.setup(wdata, current_side)
+		_push_bulk_dialog_wall_and_setup()
 		_bulk_purchase_dialog.popup_centered(Vector2(450, 500))
 
 func _on_bulk_location_selection_started() -> void:
@@ -731,11 +785,8 @@ func _on_bulk_selection_cancel_pressed() -> void:
 		bulk_ok_button.disabled = true
 	if wall_instance:
 		wall_instance.clear_highlight()
-	if _bulk_purchase_dialog and _bulk_purchase_dialog.has_method("setup"):
-		var wall_data: WallData = null
-		if wall_instance and wall_instance.has_node("WallData"):
-			wall_data = wall_instance.get_node("WallData") as WallData
-		_bulk_purchase_dialog.setup(wall_data, current_side)
+	if _bulk_purchase_dialog:
+		_push_bulk_dialog_wall_and_setup()
 		_bulk_purchase_dialog.popup_centered(Vector2(450, 500))
 
 func _on_bulk_dialog_visibility_changed() -> void:
@@ -784,7 +835,7 @@ func _on_bulk_preview_requested() -> void:
 				sum_y += float(parts[1]) * 48.0 + 24.0
 		cam.position = Vector2(sum_x / ids.size(), sum_y / ids.size())
 	if wall_instance and wall_instance.has_method("_update_visible_segments"):
-		wall_instance.call_deferred("_update_visible_segments")
+		wall_instance.call_deferred("_update_visible_segments", true)
 	
 	bulk_selection_overlay.visible = true
 	var hint = bulk_selection_overlay.get_node_or_null("VBox/HintLabel")
@@ -968,8 +1019,11 @@ func _on_bulk_purchase_confirmed(segment_ids: Array, side: String, image_paths: 
 		return
 	
 	var buyer_uid: String = GameState.player_uid
+	var tile_by_seg: Dictionary = {}
+	if _bulk_purchase_dialog != null and _bulk_purchase_dialog.has_method("get_tile_side_by_segment_id"):
+		tile_by_seg = _bulk_purchase_dialog.call("get_tile_side_by_segment_id")
 	var purchased_ids: Array[String] = PurchaseManager.commit_bulk_wall_segment_purchase(
-		segment_ids, side, wall_data, buyer_uid
+		segment_ids, side, wall_data, buyer_uid, tile_by_seg
 	)
 	if purchased_ids.is_empty() and segment_ids.size() > 0:
 		push_error("CubeView: покупка не выполнена (баланс, высота или сегменты недоступны).")
@@ -977,12 +1031,13 @@ func _on_bulk_purchase_confirmed(segment_ids: Array, side: String, image_paths: 
 		return
 	
 	for sid in purchased_ids:
+		var tile_for_sid: String = str(tile_by_seg.get(str(sid), side))
 		if corporate_mode and wall_data.has_method("set_segment_corporate_info"):
 			wall_data.set_segment_corporate_info(sid, group_id, true)
 		if image_paths.has(sid) and str(image_paths[sid]) != "":
-			_copy_and_set_image(sid, side, str(image_paths[sid]), wall_data)
+			_copy_and_set_image(sid, tile_for_sid, str(image_paths[sid]), wall_data)
 		if links.has(sid) and str(links[sid]) != "":
-			wall_data.set_face_link(sid, side, str(links[sid]))
+			wall_data.set_face_link(sid, tile_for_sid, str(links[sid]))
 		wall_instance.update_segment_visual(sid)
 	
 	_log("[CUBEVIEW] purchase complete: %d/%d segments purchased" % [purchased_ids.size(), segment_ids.size()])
@@ -1234,7 +1289,7 @@ func _on_single_preview_requested() -> void:
 			var seg_y: int = int(parts[1])
 			cam.position = Vector2(seg_x * 48.0 + 24.0, seg_y * 48.0 + 24.0)
 	if wall_instance and wall_instance.has_method("_update_visible_segments"):
-		wall_instance.call_deferred("_update_visible_segments")
+		wall_instance.call_deferred("_update_visible_segments", true)
 	selection_overlay.visible = true
 	var hint = selection_overlay.get_node_or_null("VBox/HintLabel")
 	if hint is Label:
@@ -1269,8 +1324,9 @@ func _on_purchase_confirmed(segment_id: String, side: String, image_path: String
 		price = wall_data.get_segment_price(segment_id)
 	
 	var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
+	var wall_side: String = wall_instance.side_id if wall_instance else ""
 	var success: bool = PurchaseManager.commit_wall_face_purchase(
-		segment_id, side, wall_data, buyer_uid, price
+		segment_id, side, wall_data, buyer_uid, price, wall_side
 	)
 	
 	if success:
@@ -1381,8 +1437,9 @@ func _try_purchase_segment(click_data: Dictionary) -> void:
 		return
 	
 	var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
+	var wall_side_fb: String = wall_instance.side_id if wall_instance else ""
 	var success: bool = PurchaseManager.commit_wall_face_purchase(
-		segment_id, side, wall_data, buyer_uid, price
+		segment_id, side, wall_data, buyer_uid, price, wall_side_fb
 	)
 	
 	if success:

@@ -4,15 +4,22 @@ class_name PathModel
 var model_id: int = 0
 var trend_degrees: float = 2.0
 var steps: Array = []
-## Выпеченные слоты: центр платформы, число сегментов по X, vanish (0/1). Level только размещает.
+## Выпеченные слоты: центр платформы, число сегментов по X, vanish (0/1), опционально is_decoy. Level только размещает.
 var platforms: Array = []
+## Если непусто, validate_full проверяет прыжки только между соседними индексами здесь (карты с decoy между опорными в platforms[]).
+var support_chain_indices: Array = []
 
 func to_dict() -> Dictionary:
-	return {
+	var out: Dictionary = {
 		"model_id": model_id,
 		"trend_degrees": trend_degrees,
 		"steps": steps,
 	}
+	if platforms.size() > 0:
+		out["platforms"] = platforms.duplicate(true)
+	if support_chain_indices.size() > 0:
+		out["support_chain_indices"] = support_chain_indices.duplicate()
+	return out
 
 static func from_dict(data: Dictionary) -> PathModel:
 	var m: PathModel = PathModel.new()
@@ -30,6 +37,37 @@ static func from_dict(data: Dictionary) -> PathModel:
 			"decoy_count": int(d.get("decoy_count", 1)),
 			"size": str(d.get("size", "")),
 		})
+	m.support_chain_indices.clear()
+	var sch: Variant = data.get("support_chain_indices", [])
+	if typeof(sch) == TYPE_ARRAY:
+		for el in sch:
+			m.support_chain_indices.append(int(el))
+	var raw_plats: Variant = data.get("platforms", [])
+	if typeof(raw_plats) == TYPE_ARRAY:
+		var plist: Array = []
+		for rp in raw_plats:
+			if typeof(rp) == TYPE_DICTIONARY:
+				plist.append(rp)
+		if plist.size() > 0:
+			var has_order: bool = false
+			var probe: Dictionary = plist[0]
+			if probe.has("order"):
+				has_order = true
+			if has_order:
+				plist.sort_custom(func(a: Variant, b: Variant) -> bool:
+					if typeof(a) != TYPE_DICTIONARY or typeof(b) != TYPE_DICTIONARY:
+						return false
+					return int((a as Dictionary).get("order", 0)) < int((b as Dictionary).get("order", 0))
+				)
+			for pd in plist:
+				var pdd: Dictionary = pd
+				m.platforms.append({
+					"x": float(pdd.get("x", 0.0)),
+					"y": float(pdd.get("y", 0.0)),
+					"segments": maxi(1, int(pdd.get("segments", 1))),
+					"vanish": 1 if int(pdd.get("vanish", 0)) != 0 else 0,
+					"is_decoy": bool(pdd.get("is_decoy", false)),
+				})
 	return m
 
 func _size_key_for_step(step: Dictionary, step_index: int) -> String:
@@ -57,7 +95,7 @@ func _segment_count_for_size_key(key: String, rules: Dictionary, tile_w: float) 
 func _clamp_x_for_jump(
 	last_pos: Vector2, last_seg: int, target: Vector2, new_seg: int,
 	tile_w: float, plat_h: float, safe_margin_x: float,
-	corridor: Dictionary,
+	bounds: Dictionary,
 	reach_fraction: float = 1.0
 ) -> float:
 	var start_surface_y: float = last_pos.y - plat_h * 0.5
@@ -71,13 +109,13 @@ func _clamp_x_for_jump(
 	var dx: float = target.x - last_pos.x
 	dx = clampf(dx, -max_dx, max_dx)
 	var x: float = last_pos.x + dx
-	var lim: Vector2 = _center_x_limits_for_segments(new_seg, tile_w, corridor)
+	var lim: Vector2 = _center_x_limits_for_segments(new_seg, tile_w, bounds)
 	return clampf(x, lim.x, lim.y)
 
-func _center_x_limits_for_segments(segments: int, tile_w: float, corridor: Dictionary) -> Vector2:
+func _center_x_limits_for_segments(segments: int, tile_w: float, bounds: Dictionary) -> Vector2:
 	var half_w: float = float(segments) * tile_w * 0.5
-	var min_x: float = float(corridor["min_x"]) + half_w
-	var max_x: float = float(corridor["max_x"]) - half_w
+	var min_x: float = float(bounds["min_x"]) + half_w
+	var max_x: float = float(bounds["max_x"]) - half_w
 	if max_x < min_x:
 		var mid: float = (min_x + max_x) * 0.5
 		return Vector2(mid, mid)
@@ -85,7 +123,7 @@ func _center_x_limits_for_segments(segments: int, tile_w: float, corridor: Dicti
 
 func _reachable_x_bounds(
 	last_pos: Vector2, last_seg: int, target_y: float, new_seg: int,
-	tile_w: float, plat_h: float, safe_margin_x: float, corridor: Dictionary, reach_fraction: float
+	tile_w: float, plat_h: float, safe_margin_x: float, bounds: Dictionary, reach_fraction: float
 ) -> Vector2:
 	var start_surface_y: float = last_pos.y - plat_h * 0.5
 	var target_surface_y: float = target_y - plat_h * 0.5
@@ -95,7 +133,7 @@ func _reachable_x_bounds(
 	var half_p: float = float(last_seg) * tile_w * 0.5
 	var half_n: float = float(new_seg) * tile_w * 0.5
 	var max_dx: float = max(0.0, reach + half_p + half_n - safe_margin_x)
-	var lim: Vector2 = _center_x_limits_for_segments(new_seg, tile_w, corridor)
+	var lim: Vector2 = _center_x_limits_for_segments(new_seg, tile_w, bounds)
 	var x_lo: float = clampf(last_pos.x - max_dx, lim.x, lim.y)
 	var x_hi: float = clampf(last_pos.x + max_dx, lim.x, lim.y)
 	if x_lo > x_hi:
@@ -152,7 +190,7 @@ func _pick_x_clear_in_bounds(
 	return px
 
 ## Сдвигает уже выпеченные слоты, если AABB всё ещё пересекаются (после smooth_path).
-func resolve_platform_overlaps(rules: Dictionary, corridor: Dictionary, tile_w: float, plat_h: float) -> void:
+func resolve_platform_overlaps(rules: Dictionary, bounds: Dictionary, tile_w: float, plat_h: float) -> void:
 	var min_g: float = float(rules["min_edge_gap"])
 	var vg: float = float(rules["vertical_gap"])
 	var y_cut: float = plat_h + vg + 2.0
@@ -182,7 +220,7 @@ func resolve_platform_overlaps(rules: Dictionary, corridor: Dictionary, tile_w: 
 					continue
 				var dir: float = 1.0 if xi >= float(slot_j["x"]) else -1.0
 				var new_x: float = xi + dir * need
-				var lim: Vector2 = _center_x_limits_for_segments(segi, tile_w, corridor)
+				var lim: Vector2 = _center_x_limits_for_segments(segi, tile_w, bounds)
 				new_x = clampf(new_x, lim.x, lim.y)
 				if abs(new_x - xi) > 0.05:
 					platforms[i]["x"] = new_x
@@ -199,10 +237,10 @@ func _deterministic_vanish(salt: int, chance: float) -> bool:
 	var h: int = int(abs(salt)) * 1103515245 + 12345 + model_id * 17
 	return (h % 10000) < p
 
-## Строит platforms[] из steps + правил + коридора. Детерминированно, без RNG.
+## Строит platforms[] из steps + правил + оси min/max (bounds). Детерминированно, без RNG.
 func bake_from_steps(
 	rules: Dictionary,
-	corridor: Dictionary,
+	bounds: Dictionary,
 	start_center: Vector2,
 	start_segments: int,
 	initial_direction: int,
@@ -224,7 +262,7 @@ func bake_from_steps(
 	var reach_frac: float = float(rules.get("jump_reach_max_fraction", 1.0))
 	var min_g: float = float(rules["min_edge_gap"])
 	var vg: float = float(rules["vertical_gap"])
-	var world_w: float = float(corridor["max_x"]) - float(corridor["min_x"])
+	var world_w: float = float(bounds["max_x"]) - float(bounds["min_x"])
 	var span_ratio: float = float(rules.get("path_min_horizontal_span_ratio", 0.88))
 	var max_iter: int = int(rules.get("path_bake_max_iterations", 1400))
 	var min_steps_span: int = int(rules.get("path_bake_min_steps_before_span_ok", 120))
@@ -258,12 +296,12 @@ func bake_from_steps(
 		cursor.x += float(direction) * x_gap
 		cursor.y += y_delta
 		var half_h: float = plat_h * 0.5
-		cursor.y = clampf(cursor.y, float(corridor["min_y"]) + half_h, float(corridor["max_y"]) - half_h)
+		cursor.y = clampf(cursor.y, float(bounds["min_y"]) + half_h, float(bounds["max_y"]) - half_h)
 
 		var seg: int = _segment_count_for_size_key(_size_key_for_step(step, step_index), rules, tile_w)
-		cursor.x = _clamp_x_for_jump(last_pos, last_seg, cursor, seg, tile_w, plat_h, safe_mx, corridor, reach_frac)
+		cursor.x = _clamp_x_for_jump(last_pos, last_seg, cursor, seg, tile_w, plat_h, safe_mx, bounds, reach_frac)
 		var x_bounds: Vector2 = _reachable_x_bounds(
-			last_pos, last_seg, cursor.y, seg, tile_w, plat_h, safe_mx, corridor, reach_frac
+			last_pos, last_seg, cursor.y, seg, tile_w, plat_h, safe_mx, bounds, reach_frac
 		)
 		cursor.x = _pick_x_clear_in_bounds(
 			cursor.x, cursor.y, seg, platforms, x_bounds, tile_w, plat_h, min_g, vg
@@ -295,7 +333,7 @@ func bake_from_steps(
 		)
 
 	smooth_path(plat_h * 0.25)
-	resolve_platform_overlaps(rules, corridor, tile_w, plat_h)
+	resolve_platform_overlaps(rules, bounds, tile_w, plat_h)
 	FileLogger.write_log("[PATHMODEL] bake model_id=%d slots=%d" % [model_id, platforms.size()])
 
 func smooth_path(min_dy_merge: float) -> void:
@@ -331,7 +369,7 @@ func is_stair_pattern(stair_epsilon: float, min_same_run: int) -> bool:
 func detect_stairs(stair_epsilon: float, min_same_run: int) -> bool:
 	return is_stair_pattern(stair_epsilon, min_same_run)
 
-func validate_full(rules: Dictionary, corridor: Dictionary, tile_w: float, plat_h: float) -> bool:
+func validate_full(rules: Dictionary, bounds: Dictionary, tile_w: float, plat_h: float) -> bool:
 	if platforms.is_empty():
 		return false
 	var reach_frac: float = clampf(float(rules.get("jump_reach_max_fraction", 1.0)), 0.05, 1.0)
@@ -339,15 +377,26 @@ func validate_full(rules: Dictionary, corridor: Dictionary, tile_w: float, plat_
 		var slot: Dictionary = platforms[i]
 		var pos: Vector2 = Vector2(float(slot["x"]), float(slot["y"]))
 		var seg: int = int(slot["segments"])
-		if not _slot_inside_corridor(pos, seg, tile_w, plat_h, corridor):
+		if not _slot_inside_bounds(pos, seg, tile_w, plat_h, bounds):
 			return false
-		if i == 0:
-			continue
-		var prev: Dictionary = platforms[i - 1]
+	var jump_pairs: Array = []
+	if support_chain_indices.size() >= 2:
+		for j in range(1, support_chain_indices.size()):
+			jump_pairs.append([int(support_chain_indices[j - 1]), int(support_chain_indices[j])])
+	else:
+		for i in range(1, platforms.size()):
+			jump_pairs.append([i - 1, i])
+	for pair in jump_pairs:
+		var i_prev: int = int(pair[0])
+		var i_curr: int = int(pair[1])
+		if i_prev < 0 or i_curr < 0 or i_prev >= platforms.size() or i_curr >= platforms.size():
+			return false
+		var prev: Dictionary = platforms[i_prev]
+		var slot: Dictionary = platforms[i_curr]
 		var p0: Vector2 = Vector2(float(prev["x"]), float(prev["y"]))
-		var p1: Vector2 = pos
+		var p1: Vector2 = Vector2(float(slot["x"]), float(slot["y"]))
 		var s0: int = int(prev["segments"])
-		var s1: int = seg
+		var s1: int = int(slot["segments"])
 		var surf0: float = p0.y - plat_h * 0.5
 		var surf1: float = p1.y - plat_h * 0.5
 		var reach: float = PhysicsConfig.horizontal_reach_surface_to_surface(surf1 - surf0) * reach_frac
@@ -372,20 +421,20 @@ func validate_full(rules: Dictionary, corridor: Dictionary, tile_w: float, plat_
 				return false
 	return true
 
-func _slot_inside_corridor(pos: Vector2, seg: int, tile_w: float, plat_h: float, corridor: Dictionary) -> bool:
+func _slot_inside_bounds(pos: Vector2, seg: int, tile_w: float, plat_h: float, bounds: Dictionary) -> bool:
 	var half_w: float = float(seg) * tile_w * 0.5
 	var half_h: float = plat_h * 0.5
-	if pos.x - half_w < float(corridor["min_x"]):
+	if pos.x - half_w < float(bounds["min_x"]):
 		return false
-	if pos.x + half_w > float(corridor["max_x"]):
+	if pos.x + half_w > float(bounds["max_x"]):
 		return false
-	if pos.y - half_h < float(corridor["min_y"]):
+	if pos.y - half_h < float(bounds["min_y"]):
 		return false
-	if pos.y + half_h > float(corridor["max_y"]):
+	if pos.y + half_h > float(bounds["max_y"]):
 		return false
 	return true
 
-static func create_minimal_safe(start_center: Vector2, tile_w: float, plat_h: float, corridor: Dictionary) -> PathModel:
+static func create_minimal_safe(start_center: Vector2, tile_w: float, plat_h: float, bounds: Dictionary) -> PathModel:
 	var m: PathModel = PathModel.new()
 	m.model_id = -1
 	var y: float = start_center.y
@@ -400,5 +449,5 @@ static func create_minimal_safe(start_center: Vector2, tile_w: float, plat_h: fl
 		})
 		x += tile_w * 3.0
 		y -= plat_h * 0.5
-		y = clampf(y, float(corridor["min_y"]) + hh, float(corridor["max_y"]) - hh)
+		y = clampf(y, float(bounds["min_y"]) + hh, float(bounds["max_y"]) - hh)
 	return m

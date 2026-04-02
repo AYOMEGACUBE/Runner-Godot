@@ -93,6 +93,10 @@ func get_nickname() -> String:
 func has_valid_nickname() -> bool:
 	return nickname.strip_edges() != ""
 
+## Баланс монет (раннер, покупки на стене). Совпадает с полем `score` текущей сессии.
+func get_coins() -> int:
+	return score
+
 # ---------------- RUN ----------------
 
 func start_new_run() -> void:

@@ -1,0 +1,23 @@
+{
+	"version": "2.0",
+	"free_sides_external": [1, 5],
+	"price_paid": 50,
+	"price_buyout_free": 400,
+	"coin_to_usd": 0.01,
+	"wall_side_to_face_global": {
+		"front": 4,
+		"back": 5,
+		"left": 0,
+		"right": 1,
+		"top": 2,
+		"bottom": 3
+	},
+	"side_name_to_external": {
+		"front": 1,
+		"back": 2,
+		"left": 3,
+		"right": 4,
+		"top": 5,
+		"bottom": 6
+	}
+}

@@ -16,21 +16,34 @@ var news_data: Dictionary = {}
 
 signal load_completed
 
-## True after load_all_data() finished (local JSON applied).
+## True после загрузки локальных JSON (оффлайн). Сеть — отдельно, см. _deferred_network_refresh.
 var is_data_ready: bool = false
 
 func _ready() -> void:
-	load_all_data()
+	## [FIX] Локальные JSON сразу (совместимость с await load_completed); HTTP — не в этом кадре
+	_load_all_local_jsons()
+	is_data_ready = true
+	load_completed.emit()
+	if needs_update():
+		call_deferred("_deferred_network_refresh")
+
+
+func _deferred_network_refresh() -> void:
+	await get_tree().process_frame
+	await _update_all_remote()
+	update_timestamp()
+	_load_all_local_jsons()
+	load_completed.emit()
+
 
 func load_all_data() -> void:
-	is_data_ready = false
-	var do_update: bool = needs_update()
-	if do_update:
-		# Попытка скачать все актуальные данные и сохранить в user://
-		await _update_all_remote()
-		update_timestamp()
-	
-	# После этого загружаем локальные данные (user:// с fallback на res://)
+	## Публичный перезагрузочный путь: только локальные файлы (без сети)
+	_load_all_local_jsons()
+	is_data_ready = true
+	load_completed.emit()
+
+
+func _load_all_local_jsons() -> void:
 	paths_data = load_json(
 		DATA_ROOT_RES + "paths/precomputed_paths.json",
 		DATA_ROOT_USER + "paths/precomputed_paths.json"
@@ -51,7 +64,6 @@ func load_all_data() -> void:
 		DATA_ROOT_RES + "shop/items.json",
 		DATA_ROOT_USER + "shop/items.json"
 	)
-	# Локализация: собираем словарь по языкам
 	var en_loc := load_json(
 		DATA_ROOT_RES + "localization/en.json",
 		DATA_ROOT_USER + "localization/en.json"
@@ -68,8 +80,6 @@ func load_all_data() -> void:
 		DATA_ROOT_RES + "news/today.json",
 		DATA_ROOT_USER + "news/today.json"
 	)
-	is_data_ready = true
-	load_completed.emit()
 
 func load_json(path_res: String, path_user: String) -> Dictionary:
 	var chosen_path: String = ""

@@ -22,6 +22,9 @@ FileLogger="*res://scripts/Logger.gd"
 SideManager="*res://scripts/branding/SideManager.gd"
 SeedManager="*res://scripts/seed/SeedManager.gd"
 DataManager="*res://scripts/DataManager.gd"
+EconomyManager="*res://autoload/EconomyManager.gd"
+SegmentManager="*res://managers/SegmentManager.gd"
+UIManager="*res://managers/UIManager.gd"
 PurchaseManager="*res://scripts/purchase/PurchaseManager.gd"
 
 [display]

@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://economy_price_tooltip_01"]
+
+[node name="PriceTooltip" type="CanvasLayer"]
+layer = 100
+
+[node name="Panel" type="PanelContainer" parent="."]
+offset_left = 8.0
+offset_top = 8.0
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="PriceLabel" type="Label" parent="Panel/Margin"]
+unique_name_in_owner = true
+text = "—"

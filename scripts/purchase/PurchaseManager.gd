@@ -63,7 +63,8 @@ func commit_wall_face_purchase(
 	side: String,
 	wall_data: WallData,
 	buyer_uid: String,
-	price_override: int = -1
+	price_override: int = -1,
+	wall_cube_side: String = ""
 ) -> bool:
 	var op_id: String = "wall:%s:%s" % [segment_id, side]
 	purchase_started.emit(op_id)
@@ -80,6 +81,9 @@ func commit_wall_face_purchase(
 		price = price_override
 	var ok: bool = wall_data.buy_side(segment_id, side, buyer_uid, price)
 	if ok:
+		if wall_cube_side != "":
+			var fid: int = EconomyManager.face_id_from_wall_segment(wall_cube_side, segment_id, side)
+			EconomyManager.record_face_purchase(fid, price)
 		FileLogger.info(
 			"PurchaseManager.commit_wall_face_purchase: ok segment=%s side=%s price=%d"
 			% [segment_id, side, price]
@@ -95,12 +99,14 @@ func commit_wall_face_purchase(
 
 
 ## Массовая покупка: проверка суммарной цены, затем `buy_side` по каждому id.
+## `tile_side_by_segment_id`: segment_id → грань тайла (front/back/…); пусто — для всех `default_tile_side`.
 ## Возвращает список id, для которых покупка прошла успешно.
 func commit_bulk_wall_segment_purchase(
 	segment_ids: Array,
-	side: String,
+	default_tile_side: String,
 	wall_data: WallData,
-	buyer_uid: String
+	buyer_uid: String,
+	tile_side_by_segment_id: Dictionary = {}
 ) -> Array[String]:
 	var bulk_id: String = "bulk_wall:%d" % segment_ids.size()
 	purchase_started.emit(bulk_id)
@@ -114,12 +120,19 @@ func commit_bulk_wall_segment_purchase(
 		purchase_failed.emit(bulk_id, "gamestate_missing")
 		return purchased
 	var balance: int = GameState.score
+	var wall_side: String = "front"
+	if GameState.has_method("get_active_wall_side"):
+		wall_side = str(GameState.get_active_wall_side())
 	var total_price: int = 0
 	for seg_id in segment_ids:
 		var sid: String = str(seg_id)
 		if sid.is_empty():
 			continue
-		total_price += wall_data.get_segment_price(sid)
+		var tile_side: String = str(tile_side_by_segment_id.get(sid, default_tile_side))
+		if tile_side.strip_edges().is_empty():
+			tile_side = default_tile_side
+		## [FIX] Согласовано с EconomyManager; сумма = free_total + paid_total по каждой грани
+		total_price += EconomyManager.get_listing_price_for_hit(wall_side, sid, tile_side, wall_data)
 	FileLogger.info(
 		"PurchaseManager.commit_bulk_wall_segment_purchase: balance=%d total_price=%d count=%d"
 		% [balance, total_price, segment_ids.size()]
@@ -135,12 +148,15 @@ func commit_bulk_wall_segment_purchase(
 		var sid: String = str(seg_id)
 		if sid.is_empty():
 			continue
-		var price: int = wall_data.get_segment_price(sid)
-		if wall_data.buy_side(sid, side, buyer_uid, price):
+		var tile_side2: String = str(tile_side_by_segment_id.get(sid, default_tile_side))
+		if tile_side2.strip_edges().is_empty():
+			tile_side2 = default_tile_side
+		var price: int = EconomyManager.get_listing_price_for_hit(wall_side, sid, tile_side2, wall_data)
+		if wall_data.buy_side(sid, tile_side2, buyer_uid, price):
 			purchased.append(sid)
 			FileLogger.info(
-				"PurchaseManager.commit_bulk_wall_segment_purchase: purchased segment=%s side=%s price=%d"
-				% [sid, side, price]
+				"PurchaseManager.commit_bulk_wall_segment_purchase: purchased segment=%s tile_side=%s price=%d"
+				% [sid, tile_side2, price]
 			)
 		else:
 			FileLogger.warn("PurchaseManager.commit_bulk_wall_segment_purchase: buy_side failed segment=%s" % sid)
