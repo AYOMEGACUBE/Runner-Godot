@@ -1,0 +1,294 @@
+extends Node
+class_name PathManager
+## Стриминг уровня по коленам (Z-path). Два колена в памяти: текущее и предзагруженное.
+## Не трогает JSON на диске; чанки только из копий ChunkRegistry.
+
+const WorldSegmentGrid = preload("res://scripts/config/WorldSegmentGrid.gd")
+
+signal leg_started(leg_index: int, direction: int)
+signal leg_completed(leg_index: int, direction: int)
+signal wall_top_reached
+
+@export var player_path: NodePath = NodePath("../Player")
+@export var platforms_parent_path: NodePath = NodePath("../Platforms")
+@export var chunks_per_leg: int = 6
+@export var leg_ascent_degrees: float = 5.0
+@export var first_leg_anchor: Vector2 = Vector2(2000.0, 1000.0)
+@export var preload_progress: float = 0.90
+@export var handoff_margin_px: float = 48.0
+@export var hide_next_leg_until_handoff: bool = false
+@export var debug_log: bool = false
+@export var auto_start: bool = false
+## Следующее колено по Y: смещение вверх (меньше y) от верхней точки текущего колена.
+## Полный ΔY грани (~13438) здесь даёт колено вне досягаемости игрока за один горизонтальный проход — см. аудит.
+@export_range(200, 800, 1.0) var leg_next_row_drop_px: float = 480.0
+@export var audit_verbose: bool = false
+## Одноразовые сообщения при старте стриминга (независимо от debug_log), для смоук-теста.
+@export var log_streaming_startup: bool = true
+## Лог каждого выбранного чанка: Leg | chunk i/N | model_id | direction.
+@export var trace_chunk_selection: bool = false
+## На каждое колено: перемешать все model_id и проходить по колоде (равномерное покрытие; при chunks_per_leg ≤ числа моделей — без повторов в одном колене).
+@export var use_shuffled_chunk_deck_per_leg: bool = true
+
+var current_leg_index: int = 0
+var current_direction: int = 1
+var current_leg_container: Node2D = null
+var next_leg_container: Node2D = null
+var next_leg_direction: int = 1
+var leg_start_x: float = 0.0
+var leg_end_x: float = 0.0
+var leg_bounds_min_x: float = 0.0
+var leg_bounds_max_x: float = 0.0
+var leg_anchor_y: float = 1000.0
+
+var _player: CharacterBody2D = null
+var _platforms_parent: Node2D = null
+var _registry: ChunkRegistry = ChunkRegistry.new()
+var _scaler: DifficultyScaler = DifficultyScaler.new()
+var _leg_builder: LegBuilder = null
+var _spawner: PlatformSpawner = PlatformSpawner.new()
+var _rng: RandomNumberGenerator = null
+var _run_start_player_y: float = 0.0
+## Копии словарей чанков текущего колена (для валидации стыка с первым чанком следующего).
+var _current_leg_chunk_data: Array = []
+## Копия чанков, из которых собрано предзагруженное колено (до handoff).
+var _staged_next_leg_chunk_data: Array = []
+var _wall_emitted: bool = false
+var _preload_logged: bool = false
+
+
+func _ready() -> void:
+	_leg_builder = LegBuilder.new(_registry, _scaler)
+	_sync_leg_builder_from_rules()
+	_rng = SeedManager.get_rng_for("path_legs")
+	_registry.debug_load = debug_log or trace_chunk_selection
+	_registry.reload()
+	if auto_start:
+		call_deferred("start_streaming")
+
+
+func _sync_leg_builder_from_rules() -> void:
+	var r: Dictionary = DataManager.rules_data
+	if r.is_empty():
+		_leg_builder.jump_reach_fraction = 0.8
+		_leg_builder.safe_margin_x = 32.0
+	else:
+		_leg_builder.jump_reach_fraction = float(r.get("jump_reach_max_fraction", 0.8))
+		_leg_builder.safe_margin_x = float(r.get("safe_margin_x", 32.0))
+	_leg_builder.leg_next_row_drop_px = leg_next_row_drop_px
+	_leg_builder.max_y_correction_per_transition_px = 300.0
+	_leg_builder.use_shuffled_chunk_deck = use_shuffled_chunk_deck_per_leg
+	_leg_builder.trace_chunk_selection = trace_chunk_selection
+
+
+func _clone_chunk_array(src: Array) -> Array:
+	var out: Array = []
+	for el in src:
+		if typeof(el) == TYPE_DICTIONARY:
+			out.append((el as Dictionary).duplicate(true))
+	return out
+
+
+func start_streaming() -> void:
+	_sync_leg_builder_from_rules()
+	_clear_container(next_leg_container)
+	next_leg_container = null
+	_current_leg_chunk_data.clear()
+	_staged_next_leg_chunk_data.clear()
+	_wall_emitted = false
+	_preload_logged = false
+	current_leg_index = 0
+	current_direction = 1 if ((_rng.randi() & 1) == 0) else -1
+	next_leg_direction = -current_direction
+	_player = get_node_or_null(player_path) as CharacterBody2D
+	_platforms_parent = get_node_or_null(platforms_parent_path) as Node2D
+	if _player == null or _platforms_parent == null:
+		push_error("PathManager: assign player_path and platforms_parent_path")
+		return
+	_registry.debug_load = debug_log or trace_chunk_selection
+	if _registry.size() == 0:
+		_registry.reload()
+	_run_start_player_y = _player.global_position.y
+	leg_anchor_y = first_leg_anchor.y
+	_scaler.global_path_height = 0.0
+	if log_streaming_startup:
+		print("[ChunkRegistry] Loaded %d models" % _registry.size())
+		print("[PathManager] Streaming started")
+	_spawn_leg_initial()
+
+
+func _spawn_leg_initial() -> void:
+	_clear_container(current_leg_container)
+	current_leg_container = null
+	var start: Vector2 = Vector2(first_leg_anchor.x, leg_anchor_y)
+	_audit_verbose("spawn initial start=%s dir=%d chunks_per_leg=%d registry_size=%d" % [str(start), current_direction, chunks_per_leg, _registry.size()])
+	_sync_leg_builder_from_rules()
+	_leg_builder.trace_leg_index = current_leg_index
+	if debug_log or trace_chunk_selection:
+		print("[PathManager] Building leg %d with %d chunks (registry=%d models)" % [current_leg_index, chunks_per_leg, _registry.size()])
+	var chunks: Array = _leg_builder.build_leg(start, current_direction, chunks_per_leg, _rng)
+	if chunks.is_empty():
+		push_error("PathManager: no chunks — check ChunkRegistry / chunks folder")
+		return
+	_current_leg_chunk_data = _clone_chunk_array(chunks)
+	current_leg_container = _spawner.spawn_leg(chunks, _platforms_parent)
+	_update_leg_x_bounds(current_leg_container)
+	leg_start_x = leg_bounds_min_x
+	leg_end_x = leg_bounds_max_x
+	leg_started.emit(current_leg_index, current_direction)
+	if debug_log:
+		_log("Leg %d started dir=%d x=[%.0f,%.0f] y=%.0f" % [current_leg_index, current_direction, leg_bounds_min_x, leg_bounds_max_x, leg_anchor_y])
+
+
+func _process(_delta: float) -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	if current_leg_container == null or not is_instance_valid(current_leg_container):
+		return
+	_scaler.global_path_height = maxf(0.0, _run_start_player_y - _player.global_position.y)
+	if not _wall_emitted and _scaler.global_path_height >= _scaler.total_wall_height_px * 0.995:
+		_wall_emitted = true
+		wall_top_reached.emit()
+	var span: float = leg_end_x - leg_start_x
+	if absf(span) < 1.0:
+		return
+	var t: float = (_player.global_position.x - leg_start_x) / span
+	if current_direction < 0:
+		t = (leg_end_x - _player.global_position.x) / span
+	t = clampf(t, 0.0, 1.0)
+	if audit_verbose and Engine.get_process_frames() % 45 == 0:
+		print_debug("[PathManager][audit] progress t=%.3f leg=%d px=%.0f" % [t, current_leg_index, _player.global_position.x])
+	if t >= preload_progress and next_leg_container == null:
+		_prebuild_next_leg()
+	if next_leg_container != null and is_instance_valid(next_leg_container):
+		if _should_handoff():
+			_commit_handoff()
+
+
+func _prebuild_next_leg() -> void:
+	var top_y: float = _leg_top_platform_y(current_leg_container)
+	var ny: float = top_y - leg_next_row_drop_px
+	if ny != ny or absf(top_y) > 1.0e12:
+		ny = leg_anchor_y - mini(leg_next_row_drop_px, _delta_y_per_leg())
+	var anchor: Vector2 = Vector2.ZERO
+	if current_direction > 0:
+		anchor = Vector2(leg_bounds_max_x - 800.0, ny)
+	else:
+		anchor = Vector2(leg_bounds_min_x + 800.0, ny)
+	next_leg_direction = -current_direction
+	_sync_leg_builder_from_rules()
+	_leg_builder.trace_leg_index = current_leg_index + 1
+	if debug_log or trace_chunk_selection:
+		print("[PathManager] Building leg %d with %d chunks (registry=%d models)" % [current_leg_index + 1, chunks_per_leg, _registry.size()])
+	var built: Array = _leg_builder.build_leg(anchor, next_leg_direction, chunks_per_leg, _rng)
+	if built.is_empty():
+		return
+	if not _current_leg_chunk_data.is_empty():
+		_leg_builder.validate_transition_adjust_landing_chunk(_current_leg_chunk_data[_current_leg_chunk_data.size() - 1], built[0])
+	if debug_log and not _preload_logged:
+		_preload_logged = true
+		var arrow: String = "→" if next_leg_direction > 0 else "←"
+		_log("Prebuilding Leg %d (%s) at y=%.0f (row_drop=%.0f)" % [current_leg_index + 1, arrow, ny, leg_next_row_drop_px])
+	_audit_verbose("prebuild next leg ny=%.1f anchor=%s" % [ny, str(anchor)])
+	_staged_next_leg_chunk_data = _clone_chunk_array(built)
+	next_leg_container = _spawner.spawn_leg(built, _platforms_parent)
+	if hide_next_leg_until_handoff:
+		next_leg_container.visible = false
+
+
+func _should_handoff() -> bool:
+	var nb: Dictionary = _container_x_bounds(next_leg_container)
+	var nmin: float = nb.get("min", 0.0)
+	var nmax: float = nb.get("max", 0.0)
+	var px: float = _player.global_position.x
+	if current_direction > 0:
+		return px >= nmin - handoff_margin_px
+	return px <= nmax + handoff_margin_px
+
+
+func _commit_handoff() -> void:
+	var done_idx: int = current_leg_index
+	var done_dir: int = current_direction
+	if current_leg_container != null and is_instance_valid(current_leg_container):
+		current_leg_container.queue_free()
+	current_leg_container = next_leg_container
+	next_leg_container = null
+	current_direction = next_leg_direction
+	current_leg_index += 1
+	if hide_next_leg_until_handoff and current_leg_container != null:
+		current_leg_container.visible = true
+	_update_leg_x_bounds(current_leg_container)
+	leg_start_x = leg_bounds_min_x
+	leg_end_x = leg_bounds_max_x
+	var sync_y: float = _leg_top_platform_y(current_leg_container)
+	if sync_y == sync_y and absf(sync_y) < 1.0e12:
+		leg_anchor_y = sync_y
+	_current_leg_chunk_data = _clone_chunk_array(_staged_next_leg_chunk_data)
+	_staged_next_leg_chunk_data.clear()
+	_preload_logged = false
+	leg_completed.emit(done_idx, done_dir)
+	leg_started.emit(current_leg_index, current_direction)
+	if debug_log:
+		_log("Handoff → leg %d dir=%d x=[%.0f,%.0f]" % [current_leg_index, current_direction, leg_bounds_min_x, leg_bounds_max_x])
+
+
+func _delta_y_per_leg() -> float:
+	var rad: float = deg_to_rad(leg_ascent_degrees)
+	return float(WorldSegmentGrid.FACE_AXIS_PX) * tan(rad)
+
+
+func _leg_top_platform_y(container: Node2D) -> float:
+	if container == null or not is_instance_valid(container):
+		return NAN
+	var vmin: float = 1.0e20
+	for c in container.get_children():
+		if c is Node2D:
+			vmin = minf(vmin, (c as Node2D).global_position.y)
+	if vmin > 1.0e19:
+		return NAN
+	return vmin
+
+
+func _audit_verbose(msg: String) -> void:
+	if not audit_verbose:
+		return
+	print_debug("[PathManager][audit] ", msg)
+
+
+func _update_leg_x_bounds(container: Node2D) -> void:
+	var b: Dictionary = _container_x_bounds(container)
+	leg_bounds_min_x = b.get("min", 0.0)
+	leg_bounds_max_x = b.get("max", 0.0)
+
+
+func _container_x_bounds(container: Node2D) -> Dictionary:
+	var min_x: float = 1.0e15
+	var max_x: float = -1.0e15
+	if container == null:
+		return {"min": 0.0, "max": 0.0}
+	for c in container.get_children():
+		if c is Node2D:
+			var n: Node2D = c as Node2D
+			var sx: float = 1.0
+			if absf(n.scale.x) > 0.001:
+				sx = absf(n.scale.x)
+			var half: float = 32.0 * sx
+			var gx: float = n.global_position.x
+			min_x = minf(min_x, gx - half)
+			max_x = maxf(max_x, gx + half)
+	if min_x > max_x:
+		return {"min": 0.0, "max": 0.0}
+	return {"min": min_x, "max": max_x}
+
+
+func _clear_container(c: Node2D) -> void:
+	if c != null and is_instance_valid(c):
+		c.queue_free()
+
+
+func _log(msg: String) -> void:
+	if not debug_log:
+		return
+	var line: String = "[PathManager] " + msg
+	print(line)
+	FileLogger.write_log(line)

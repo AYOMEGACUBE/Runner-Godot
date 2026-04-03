@@ -31,3 +31,9 @@ static func horizontal_reach_surface_to_surface(delta_surface_y: float) -> float
 		return 0.0
 	var t: float = (-JUMP_VELOCITY + sqrt(disc)) / GRAVITY
 	return abs(MOVE_SPEED) * t
+
+
+## Горизонтальная досягаемость с долей «запаса» (как jump_reach_max_fraction в platform_rules).
+static func horizontal_reach_with_fraction(delta_surface_y: float, reach_fraction: float) -> float:
+	var rf: float = clampf(reach_fraction, 0.05, 1.0)
+	return horizontal_reach_surface_to_surface(delta_surface_y) * rf

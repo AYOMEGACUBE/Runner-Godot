@@ -10,6 +10,9 @@ const WorldSegmentGrid = preload("res://scripts/config/WorldSegmentGrid.gd")
 
 @export var DEBUG_LOG: bool = true
 @export var show_run_debug_overlay: bool = false
+## Включает стриминг колен (PathManager). В инспекторе укажите узел с PathManager (см. PathLegStream в level.tscn).
+@export var use_path_leg_streaming: bool = false
+@export var path_leg_stream_node: NodePath = NodePath("PathLegStream")
 
 var rules: Dictionary = {}
 
@@ -95,6 +98,30 @@ func _ready() -> void:
 		c.queue_free()
 	platforms.clear()
 
+	if use_path_leg_streaming:
+		print_rich("[color=lime]🟢 [LEVEL_DEBUG] Mode: CHUNK_STREAMING enabled — using PathManager/ChunkRegistry[/color]")
+		platform_pool = null
+		path_selector = null
+		_active_layout = null
+		var pm: Node = get_node_or_null(path_leg_stream_node)
+		if pm is PathManager:
+			var pms: PathManager = pm as PathManager
+			pms.first_leg_anchor = Vector2(start_x, first_platform_y)
+			pms.call_deferred("start_streaming")
+			var _dbg_cr: ChunkRegistry = ChunkRegistry.new()
+			_dbg_cr.reload()
+			print_rich("[color=cyan]📦 [CHUNK_DEBUG] Registry size: %d models loaded (standalone scan, same as PathManager uses)[/color]" % _dbg_cr.size())
+			if DEBUG_LOG:
+				_log("[LEVEL] path leg streaming active — PathModel pool spawn disabled")
+		else:
+			push_error("Level.gd: use_path_leg_streaming but PathManager not found at %s" % str(path_leg_stream_node))
+		if show_run_debug_overlay:
+			var o2: CanvasLayer = RunDebugOverlayScript.new()
+			o2.level_path = get_path()
+			add_child(o2)
+		return
+
+	print_rich("[color=tomato]🔴 [LEVEL_DEBUG] Mode: LEGACY_LIBRARY enabled — using PathSelector/path_library_50.json[/color]")
 	platform_pool = PlatformPool.new(platform_scene, platforms_root, int(rules["pool_initial_size"]))
 
 	path_selector = PathSelector.new()
@@ -278,6 +305,8 @@ func _on_platform_lifecycle_ended(p: Node2D) -> void:
 
 func _try_spawn_loot(slot_idx: int, platform_center: Vector2) -> void:
 	if _coin_spawn_chance <= 0.0:
+		return
+	if path_selector == null:
 		return
 	var h: int = int(abs(hash(str(SeedManager.global_seed) + ":" + str(path_selector.active_model_index) + ":" + str(slot_idx)))) % 10000
 	if (float(h) / 10000.0) >= _coin_spawn_chance:

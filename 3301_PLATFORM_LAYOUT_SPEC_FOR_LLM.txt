@@ -226,6 +226,17 @@ segments, vanish, is_decoy; остальное игнорируется.
 обычные записи библиотеки). Если platforms[] непустой — уровень выравнивает первую опорную
 платформу к фактическому старту и прогоняет validate_full по support_chain_indices.
 
+АЛЬТЕРНАТИВА: ФАЙЛЫ ЧАНКОВ (PathManager, не вывод модели)
+---------------------------------------------------------
+Тот же объект модели (model_id, platforms[], support_chain_indices, часто пустой steps[])
+можно положить в отдельный файл .json в каталоге:
+
+  res://DATA/PulseRunnerData/chunks/
+
+Движок при включённом флаге Level.use_path_leg_streaming и узле PathManager (сцена level.tscn,
+узел PathLegStream) сканирует папку через ChunkRegistry и строит «колена» из нескольких чанков.
+Подробности: 3301_PROJECT_STATE.md, 3301_PATHMODEL_LIBRARY.md, 3301_SCENE_TREE.md.
+
 САМОПРОВЕРКА ПЕРЕД ОТВЕТОМ
 --------------------------
 1) JSON парсится без ошибок.
