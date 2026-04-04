@@ -18,6 +18,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameState="*res://GameState.gd"
+AuthService="*res://scripts/auth/AuthService.gd"
 FileLogger="*res://scripts/Logger.gd"
 SideManager="*res://scripts/branding/SideManager.gd"
 SeedManager="*res://scripts/seed/SeedManager.gd"

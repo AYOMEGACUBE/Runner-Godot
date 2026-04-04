@@ -98,9 +98,12 @@ func _ready() -> void:
 	# Далее это значение уменьшается по мере «подъёма» игрока вверх (Y ↓ в Godot).
 	var gs: Node = get_node_or_null("/root/GameState")
 	if gs != null:
+		GameState.run_start_player_x = global_position.x
+		GameState.run_start_player_y = global_position.y
 		GameState.max_height_reached = global_position.y
+		GameState.recompute_run_score()
 		if DEBUG:
-			_log("[PLAYER_READY] initialized max_height_reached=%.1f" % global_position.y)
+			_log("[PLAYER_READY] initialized max_height_reached=%.1f run_start_y=%.1f score=%d" % [global_position.y, GameState.run_start_player_y, GameState.score])
 
 	if cam:
 		cam.make_current()
@@ -241,6 +244,7 @@ func _physics_process(delta: float) -> void:
 			GameState.max_height_reached = global_position.y
 		elif global_position.y < GameState.max_height_reached:
 			GameState.max_height_reached = global_position.y
+		GameState.recompute_run_score()
 
 	jump_timer = max(0.0, jump_timer - delta)
 
@@ -391,7 +395,11 @@ func _die() -> void:
 			if DEBUG:
 				_log("[PLAYER_DIE] already game_over, ignoring")
 			return
+		GameState.recompute_run_score()
 		GameState.is_game_over = true
+		var fl: Node = get_node_or_null("/root/FileLogger")
+		if fl != null and fl.has_method("write_log"):
+			fl.call("write_log", "💀 Run finished: Score=%d, MaxHeight=%.1f" % [GameState.score, GameState.max_height_reached])
 		if DEBUG:
 			_log("[PLAYER_DIE] pos=%s last_safe_y=%.1f max_height=%.1f score=%d" % [global_position, last_safe_y, GameState.max_height_reached, GameState.score])
 

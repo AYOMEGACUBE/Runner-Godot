@@ -27,7 +27,9 @@ func _refresh_labels() -> void:
 	var pn := GameState.player_name
 	if pn == "" or pn == "NoName":
 		pn = "NoName"
-	score_label.text = "Score: " + str(GameState.score)
+	var alt_pts: int = GameState.get_altitude_points()
+	var coins: int = GameState.run_coin_bonus
+	score_label.text = "Height pts: %d | Coins: %d | Total: %d" % [alt_pts, coins, GameState.score]
 	name_label.text = "Player: " + pn
 
 func _on_back_button_pressed() -> void:

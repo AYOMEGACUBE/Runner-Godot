@@ -5,14 +5,17 @@ class_name PathManager
 
 const WorldSegmentGrid = preload("res://scripts/config/WorldSegmentGrid.gd")
 
+## Совпадает с наклоном смещения Y в PlatformSpawner (подъём пути при росте |x − старт|).
+const PATH_SLOPE_DEG: float = 5.0
+
 signal leg_started(leg_index: int, direction: int)
 signal leg_completed(leg_index: int, direction: int)
 signal wall_top_reached
 
 @export var player_path: NodePath = NodePath("../Player")
 @export var platforms_parent_path: NodePath = NodePath("../Platforms")
-@export var chunks_per_leg: int = 6
-@export var leg_ascent_degrees: float = 5.0
+@export var chunks_per_leg: int = 4
+@export var leg_ascent_degrees: float = PATH_SLOPE_DEG
 @export var first_leg_anchor: Vector2 = Vector2(2000.0, 1000.0)
 @export var preload_progress: float = 0.90
 @export var handoff_margin_px: float = 48.0
@@ -49,6 +52,12 @@ var _leg_builder: LegBuilder = null
 var _spawner: PlatformSpawner = PlatformSpawner.new()
 var _rng: RandomNumberGenerator = null
 var _run_start_player_y: float = 0.0
+var _run_start_player_x: float = 0.0
+
+
+func _sync_slope_into_leg_builder() -> void:
+	_leg_builder.path_slope_origin_x = _run_start_player_x
+	_leg_builder.path_slope_deg = PATH_SLOPE_DEG
 ## Копии словарей чанков текущего колена (для валидации стыка с первым чанком следующего).
 var _current_leg_chunk_data: Array = []
 ## Копия чанков, из которых собрано предзагруженное колено (до handoff).
@@ -109,12 +118,24 @@ func start_streaming() -> void:
 	if _registry.size() == 0:
 		_registry.reload()
 	_run_start_player_y = _player.global_position.y
+	_run_start_player_x = _player.global_position.x
 	leg_anchor_y = first_leg_anchor.y
 	_scaler.global_path_height = 0.0
 	if log_streaming_startup:
 		print("[ChunkRegistry] Loaded %d models" % _registry.size())
 		print("[PathManager] Streaming started")
 	_spawn_leg_initial()
+	_sync_player_move_to_leg_direction()
+
+
+## Горизонтальный бег/первый прыжок по инерции — в ту же сторону, куда собрано первое колено (+1 вправо, −1 влево).
+func _sync_player_move_to_leg_direction() -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	var dir_f: float = 1.0 if current_direction >= 0 else -1.0
+	# Player.gd: move_dir + DEFAULT_MOVE_DIR (после отпускания клавиш вернётся к умолчанию)
+	_player.set("move_dir", dir_f)
+	_player.set("DEFAULT_MOVE_DIR", dir_f)
 
 
 func _spawn_leg_initial() -> void:
@@ -123,6 +144,7 @@ func _spawn_leg_initial() -> void:
 	var start: Vector2 = Vector2(first_leg_anchor.x, leg_anchor_y)
 	_audit_verbose("spawn initial start=%s dir=%d chunks_per_leg=%d registry_size=%d" % [str(start), current_direction, chunks_per_leg, _registry.size()])
 	_sync_leg_builder_from_rules()
+	_sync_slope_into_leg_builder()
 	_leg_builder.trace_leg_index = current_leg_index
 	if debug_log or trace_chunk_selection:
 		print("[PathManager] Building leg %d with %d chunks (registry=%d models)" % [current_leg_index, chunks_per_leg, _registry.size()])
@@ -131,7 +153,7 @@ func _spawn_leg_initial() -> void:
 		push_error("PathManager: no chunks — check ChunkRegistry / chunks folder")
 		return
 	_current_leg_chunk_data = _clone_chunk_array(chunks)
-	current_leg_container = _spawner.spawn_leg(chunks, _platforms_parent)
+	current_leg_container = _spawner.spawn_leg(chunks, _platforms_parent, _run_start_player_y, _rng)
 	_update_leg_x_bounds(current_leg_container)
 	leg_start_x = leg_bounds_min_x
 	leg_end_x = leg_bounds_max_x
@@ -177,6 +199,7 @@ func _prebuild_next_leg() -> void:
 		anchor = Vector2(leg_bounds_min_x + 800.0, ny)
 	next_leg_direction = -current_direction
 	_sync_leg_builder_from_rules()
+	_sync_slope_into_leg_builder()
 	_leg_builder.trace_leg_index = current_leg_index + 1
 	if debug_log or trace_chunk_selection:
 		print("[PathManager] Building leg %d with %d chunks (registry=%d models)" % [current_leg_index + 1, chunks_per_leg, _registry.size()])
@@ -191,7 +214,7 @@ func _prebuild_next_leg() -> void:
 		_log("Prebuilding Leg %d (%s) at y=%.0f (row_drop=%.0f)" % [current_leg_index + 1, arrow, ny, leg_next_row_drop_px])
 	_audit_verbose("prebuild next leg ny=%.1f anchor=%s" % [ny, str(anchor)])
 	_staged_next_leg_chunk_data = _clone_chunk_array(built)
-	next_leg_container = _spawner.spawn_leg(built, _platforms_parent)
+	next_leg_container = _spawner.spawn_leg(built, _platforms_parent, _run_start_player_y, _rng)
 	if hide_next_leg_until_handoff:
 		next_leg_container.visible = false
 
@@ -228,6 +251,7 @@ func _commit_handoff() -> void:
 	_preload_logged = false
 	leg_completed.emit(done_idx, done_dir)
 	leg_started.emit(current_leg_index, current_direction)
+	_sync_player_move_to_leg_direction()
 	if debug_log:
 		_log("Handoff → leg %d dir=%d x=[%.0f,%.0f]" % [current_leg_index, current_direction, leg_bounds_min_x, leg_bounds_max_x])
 

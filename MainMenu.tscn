@@ -70,6 +70,21 @@ custom_minimum_size = Vector2(0, 36)
 theme_override_font_sizes/font_size = 20
 text = "Coins: 0 🪙"
 
+[node name="AuthStatusLabel" type="Label" parent="RootHBox/LeftPanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = 24.0
+offset_top = 154.0
+offset_right = -24.0
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 3
+text = "Google: —"
+
 [node name="VBoxButtons" type="VBoxContainer" parent="RootHBox/LeftPanel"]
 layout_mode = 1
 anchors_preset = 8
@@ -78,11 +93,23 @@ anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = 164.0
-offset_right = 304.0
+offset_top = 206.0
+offset_right = 360.0
 offset_bottom = -24.0
 grow_vertical = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 12
+
+[node name="GoogleSignInButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Войти через Google"
+
+[node name="SignOutButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Выйти"
 
 [node name="PlayButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
 custom_minimum_size = Vector2(0, 80)

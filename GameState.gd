@@ -15,9 +15,9 @@ func _log(message: String) -> void:
 # - настройки кастом-аватара (jump0/jump1)
 # - НИКНЕЙМ (persisted) — теперь игра не стартует без него
 #
-# Закладки под будущий мультиплеер:
-# - player_uid (пока локально)
-# - auth_provider / auth_token (пока пустые)
+# Firebase / облако:
+# - player_uid — Firebase Auth localId
+# - auth_token — Firebase idToken (обновляется через firebase_refresh_token в AuthService)
 # ============================================================================
 
 const SAVE_PATH: String = "user://blackout_run_scores.save"
@@ -27,9 +27,12 @@ const DEFAULT_HERO_ID: String = "default"
 
 # --- PERSISTED PROFILE ---
 var nickname: String = ""              # <- ОБЯЗАТЕЛЕН для старта
-var player_uid: String = ""            # <- заглушка (мультиплеер)
-var auth_provider: String = ""         # <- заглушка (Google/Apple/etc)
-var auth_token: String = ""            # <- заглушка
+var player_uid: String = ""            # Firebase uid
+var auth_provider: String = ""         # например "google"
+var auth_token: String = ""            # Firebase idToken (не путать с монетным score)
+var firebase_refresh_token: String = ""
+var auth_email: String = ""
+var firebase_token_saved_at_unix: int = 0
 
 # --- HERO ---
 var selected_hero_id: String = DEFAULT_HERO_ID
@@ -55,6 +58,12 @@ var disable_wall: bool = false
 
 # --- RUN STATE ---
 var score: int = 0
+## X игрока в момент старта забега (якорь наклона пути / горизонтальный прогресс).
+var run_start_player_x: float = 0.0
+## Y игрока в момент старта забега (для altitude-очков и crumble-прогресса).
+var run_start_player_y: float = 0.0
+## Монеты, собранные за текущий забег (score = altitude_points + run_coin_bonus).
+var run_coin_bonus: int = 0
 var player_name: String = ""           # имя текущего забега (берём из nickname)
 var is_game_over: bool = false         # флаг завершения текущего забега
 
@@ -102,6 +111,9 @@ func get_coins() -> int:
 func start_new_run() -> void:
 	# Имя забега всегда берём из persisted nickname
 	score = 0
+	run_coin_bonus = 0
+	run_start_player_x = 0.0
+	run_start_player_y = 0.0
 	player_name = nickname.strip_edges()
 	is_game_over = false
 	# Сбрасываем высоту; реальное начальное значение задаётся в Player._ready()
@@ -110,15 +122,28 @@ func start_new_run() -> void:
 	# last_run_* НЕ сбрасываем: GameOver показывает последний завершённый забег.
 	# При первом запуске они уже 0. При следующей смерти Player._die() их перезапишет.
 
-func add_coin(value: int = 1) -> void:
-	var old_score: int = score
-	var old_best: int = best_score
-	score += value
+func get_altitude_points() -> int:
+	return int(absf(run_start_player_y - max_height_reached) * 0.1)
+
+
+func recompute_run_score() -> void:
+	if is_game_over:
+		return
+	var alt_pts: int = get_altitude_points()
+	score = alt_pts + run_coin_bonus
 	if score > best_score:
 		best_score = score
+
+
+func add_coin(value: int = 1) -> void:
+	var old_score: int = score
+	run_coin_bonus += value
+	recompute_run_score()
+	if score > best_score:
 		_log("[GAMESTATE] add_coin value=%d score=%d->%d NEW_BEST=%d" % [value, old_score, score, best_score])
 	else:
 		_log("[GAMESTATE] add_coin value=%d score=%d->%d best=%d" % [value, old_score, score, best_score])
+	save_scores()
 
 # ---------------- HERO ----------------
 
@@ -251,6 +276,9 @@ func save_scores() -> void:
 		"player_uid": player_uid,
 		"auth_provider": auth_provider,
 		"auth_token": auth_token,
+		"firebase_refresh_token": firebase_refresh_token,
+		"auth_email": auth_email,
+		"firebase_token_saved_at_unix": firebase_token_saved_at_unix,
 
 		# records
 		"best_score": best_score,
@@ -294,6 +322,9 @@ func load_scores() -> void:
 	player_uid = str(data.get("player_uid", "")).strip_edges()
 	auth_provider = str(data.get("auth_provider", "")).strip_edges()
 	auth_token = str(data.get("auth_token", "")).strip_edges()
+	firebase_refresh_token = str(data.get("firebase_refresh_token", "")).strip_edges()
+	auth_email = str(data.get("auth_email", "")).strip_edges()
+	firebase_token_saved_at_unix = int(data.get("firebase_token_saved_at_unix", 0))
 
 	# records
 	best_score = int(data.get("best_score", 0))
@@ -331,8 +362,14 @@ func _reset_to_defaults() -> void:
 	player_uid = ""
 	auth_provider = ""
 	auth_token = ""
+	firebase_refresh_token = ""
+	auth_email = ""
+	firebase_token_saved_at_unix = 0
 
 	score = 0
+	run_coin_bonus = 0
+	run_start_player_x = 0.0
+	run_start_player_y = 0.0
 	player_name = ""
 	best_score = 0
 	champions.clear()

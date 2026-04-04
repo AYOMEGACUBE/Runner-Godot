@@ -28,6 +28,9 @@ var use_shuffled_chunk_deck: bool = true
 var trace_chunk_selection: bool = false
 ## Индекс колена только для трассировки (PathManager выставляет перед build_leg).
 var trace_leg_index: int = 0
+## Якорь X старта забега и угол наклона пути (градусы); PathManager выставляет перед build_leg. При deg≈0 наклон не применяется.
+var path_slope_origin_x: float = 0.0
+var path_slope_deg: float = 0.0
 
 
 func _init(p_registry: ChunkRegistry = null, p_scaler: DifficultyScaler = null) -> void:
@@ -77,7 +80,6 @@ func build_leg(start_pos: Vector2, direction: int, chunk_count: int, rng: Random
 		if trace_chunk_selection:
 			print("[PathManager][chunks] Leg %d | chunk %d/%d | model_id=%s | dir=%d" % [trace_leg_index, i + 1, chunk_count, str(raw.get("model_id", "?")), direction])
 		var chunk: Dictionary = raw.duplicate(true)
-		scaler.apply_crumble_to_chunk(chunk, rng)
 		var ref_y: float = _first_support_y(chunk)
 		var anchor: Vector2
 		if i == 0:
@@ -95,6 +97,7 @@ func build_leg(start_pos: Vector2, direction: int, chunk_count: int, rng: Random
 			var ax: float = want_center_x - dir_sign * (cx0 - REF_X_TEMPLATE)
 			anchor = Vector2(ax, last_row_y)
 		_transform_chunk(chunk, anchor, direction, REF_X_TEMPLATE, ref_y)
+		_apply_path_slope_to_chunk(chunk)
 		out.append(chunk)
 		if out.size() >= 2:
 			validate_transition_adjust_landing_chunk(out[out.size() - 2], out[out.size() - 1])
@@ -102,6 +105,22 @@ func build_leg(start_pos: Vector2, direction: int, chunk_count: int, rng: Random
 		last_row_y = _trailing_support_center_y(chunk)
 
 	return out
+
+
+func _apply_path_slope_to_chunk(chunk: Dictionary) -> void:
+	if path_slope_deg < 0.001:
+		return
+	var rad: float = deg_to_rad(path_slope_deg)
+	var tan_slope: float = tan(rad)
+	var plats: Array = chunk.get("platforms", []) as Array
+	for p_variant in plats:
+		if typeof(p_variant) != TYPE_DICTIONARY:
+			continue
+		var d: Dictionary = p_variant as Dictionary
+		var wx: float = float(d.get("x", 0.0))
+		var wy: float = float(d.get("y", 0.0))
+		var dist: float = absf(wx - path_slope_origin_x)
+		d["y"] = wy - dist * tan_slope
 
 
 ## После трансформации: проверка прыжка с последней опоры предыдущего чанка на первую опору следующего; сдвигает **весь** landing_chunk по Y (±max_y_correction_per_transition_px).

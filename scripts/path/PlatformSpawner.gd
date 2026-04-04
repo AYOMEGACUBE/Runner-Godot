@@ -1,6 +1,7 @@
 extends RefCounted
 class_name PlatformSpawner
 ## Инстансинг платформ колена через существующую Platform.tscn (StaticBody2D + Platform.gd).
+## Crumble назначается процедурно по высоте (не из JSON слота).
 
 const TILE_W: float = 64.0
 const TILE_H: float = 64.0
@@ -8,7 +9,15 @@ const TILE_H: float = 64.0
 var _platform_scene: PackedScene = preload("res://Platform.tscn")
 
 
-func spawn_leg(chunks: Array, parent: Node) -> Node2D:
+## Прогресс по вертикали относительно старта забега; шанс crumble линейно 5% → 90%.
+static func crumble_probability_at_y(platform_y: float, run_start_y: float) -> float:
+	var max_h: float = float(WorldSegmentGrid.FACE_AXIS_PX)
+	var progress: float = (run_start_y - platform_y) / maxf(1.0, max_h)
+	progress = clampf(progress, 0.0, 1.0)
+	return lerpf(0.05, 0.90, progress)
+
+
+func spawn_leg(chunks: Array, parent: Node, run_start_y: float, rng: RandomNumberGenerator) -> Node2D:
 	var leg_root: Node2D = Node2D.new()
 	leg_root.name = "LegContainer"
 	parent.add_child(leg_root)
@@ -29,17 +38,14 @@ func spawn_leg(chunks: Array, parent: Node) -> Node2D:
 			if node == null:
 				continue
 			leg_root.add_child(node)
-			_apply_slot(node, slot)
+			_apply_slot(node, slot, run_start_y, rng)
 	return leg_root
 
 
-func _apply_slot(p: Node2D, slot: Dictionary) -> void:
+func _apply_slot(p: Node2D, slot: Dictionary, run_start_y: float, rng: RandomNumberGenerator) -> void:
 	var pos: Vector2 = Vector2(float(slot.get("x", 0.0)), float(slot.get("y", 0.0)))
 	var seg: int = maxi(1, int(slot.get("segments", 1)))
-	var vanish: bool = int(slot.get("vanish", 0)) != 0
 	var kind: String = str(slot.get("kind", "")).to_lower()
-	if kind == "crumble":
-		vanish = true
 	var decoy: bool = bool(slot.get("is_decoy", false)) or kind == "decoy"
 	p.global_position = pos
 	p.scale = Vector2(float(seg), 1.0)
@@ -51,7 +57,8 @@ func _apply_slot(p: Node2D, slot: Dictionary) -> void:
 	if decoy:
 		p.set("is_crumbling", false)
 	else:
-		p.set("is_crumbling", vanish)
+		var p_crumb: float = crumble_probability_at_y(pos.y, run_start_y)
+		p.set("is_crumbling", rng.randf() < p_crumb)
 	if p.has_method("apply_size_to_shape"):
 		p.call("apply_size_to_shape")
 	var cs: Node = p.get_node_or_null("CollisionShape2D")

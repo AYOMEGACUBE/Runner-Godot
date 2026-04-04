@@ -28,9 +28,23 @@ var profile_scene: String = "res://Profile.tscn"
 @export_file("*.tscn")
 var cube_view_scene: String = "res://CubeView.tscn"
 
+## Проверка связи с Firebase Realtime Database (см. `3301_PROJECT_STATE.md`). В релизе можно выключить.
+@export var firebase_rtdb_ping_on_ready: bool = true
+## Базовый URL без завершающего `/` (как в консоли Firebase).
+@export var firebase_rtdb_base_url: String = "https://endlessrunnerayo-default-rtdb.europe-west1.firebasedatabase.app"
+## После успешного GET записать тестовый узел `debug/godot_rtdb_ping` (нужны открытые Rules на запись).
+@export var firebase_rtdb_write_test_ping: bool = true
+
+var _http_rtdb: HTTPRequest = null
+var _rtdb_put_after_get: bool = false
+
 @onready var title_label: Label = $RootHBox/LeftPanel/TitleLabel
 @onready var nickname_label: Label = $RootHBox/LeftPanel/NicknameLabel
 @onready var coins_label: Label = $RootHBox/LeftPanel/CoinsLabel
+
+@onready var auth_status_label: Label = $RootHBox/LeftPanel/AuthStatusLabel
+@onready var google_signin_button: Button = $RootHBox/LeftPanel/VBoxButtons/GoogleSignInButton
+@onready var sign_out_button: Button = $RootHBox/LeftPanel/VBoxButtons/SignOutButton
 
 @onready var play_button: Button = $RootHBox/LeftPanel/VBoxButtons/PlayButton
 @onready var champions_button: Button = $RootHBox/LeftPanel/VBoxButtons/ChampionsButton
@@ -55,6 +69,18 @@ func _ready() -> void:
 		FileLogger.error("MainMenu: TitleLabel node missing")
 	if coins_label == null:
 		FileLogger.error("MainMenu: CoinsLabel node missing")
+	if google_signin_button and not google_signin_button.pressed.is_connected(_on_google_signin_pressed):
+		google_signin_button.pressed.connect(_on_google_signin_pressed)
+	if sign_out_button and not sign_out_button.pressed.is_connected(_on_sign_out_pressed):
+		sign_out_button.pressed.connect(_on_sign_out_pressed)
+
+	if not AuthService.login_failed.is_connected(_on_auth_login_failed):
+		AuthService.login_failed.connect(_on_auth_login_failed)
+	if not AuthService.login_succeeded.is_connected(_on_auth_login_succeeded):
+		AuthService.login_succeeded.connect(_on_auth_login_succeeded)
+	if not AuthService.logout_done.is_connected(_on_auth_logout_done):
+		AuthService.logout_done.connect(_on_auth_logout_done)
+
 	if play_button and not play_button.pressed.is_connected(_on_play_pressed):
 		play_button.pressed.connect(_on_play_pressed)
 
@@ -68,6 +94,9 @@ func _ready() -> void:
 		cubeview_button.pressed.connect(_on_cubeview_pressed)
 
 	_refresh_ui()
+
+	if firebase_rtdb_ping_on_ready:
+		call_deferred("_firebase_rtdb_start_ping")
 
 func _process(_delta: float) -> void:
 	# лёгкий refresh (тут нет тяжёлых операций)
@@ -84,6 +113,11 @@ func _refresh_ui() -> void:
 	var coins: int = GameState.get_coins()
 	if coins_label:
 		coins_label.text = "Coins: %d 🪙" % coins
+
+	if auth_status_label:
+		auth_status_label.text = AuthService.get_auth_status_line()
+	if sign_out_button:
+		sign_out_button.disabled = not AuthService.is_signed_in()
 
 	# Показываем превью аватара:
 	# - если кастом включён и есть файл jump0 -> показываем его
@@ -162,3 +196,96 @@ func _show_warn(text: String) -> void:
 	if warn_dialog:
 		warn_dialog.dialog_text = text
 		warn_dialog.popup_centered()
+
+
+func _on_google_signin_pressed() -> void:
+	_log("[MAINMENU] google sign-in pressed")
+	AuthService.start_google_sign_in_ui(self)
+
+
+func _on_sign_out_pressed() -> void:
+	_log("[MAINMENU] sign out pressed")
+	AuthService.sign_out()
+
+
+func _on_auth_login_failed(msg: String) -> void:
+	_log("[MAINMENU] auth failed: %s" % msg)
+	_show_warn(str(msg))
+
+
+func _on_auth_login_succeeded() -> void:
+	_log("[MAINMENU] auth ok")
+
+
+func _on_auth_logout_done() -> void:
+	_log("[MAINMENU] auth logout")
+
+
+func _firebase_rtdb_start_ping() -> void:
+	var base: String = firebase_rtdb_base_url.strip_edges().trim_suffix("/")
+	if base.is_empty():
+		_log("[FIREBASE_RTDB] skip ping: empty firebase_rtdb_base_url")
+		return
+	if _http_rtdb != null:
+		return
+	_http_rtdb = HTTPRequest.new()
+	add_child(_http_rtdb)
+	_http_rtdb.request_completed.connect(_on_firebase_rtdb_request_completed)
+	var get_url: String = base + "/.json"
+	var err: int = _http_rtdb.request(get_url)
+	if err != OK:
+		_log("[FIREBASE_RTDB] GET schedule failed err=%d url=%s" % [err, get_url])
+		_firebase_rtdb_cleanup_http()
+
+
+func _on_firebase_rtdb_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	if _http_rtdb == null:
+		return
+	var body_text: String = body.get_string_from_utf8()
+	if not _rtdb_put_after_get:
+		if result != HTTPRequest.RESULT_SUCCESS:
+			_log("[FIREBASE_RTDB] GET failed result=%d http=%d body=%s" % [result, response_code, body_text])
+			_firebase_rtdb_cleanup_http()
+			return
+		if response_code < 200 or response_code >= 300:
+			_log("[FIREBASE_RTDB] GET bad http=%d body=%s" % [response_code, body_text])
+			_firebase_rtdb_cleanup_http()
+			return
+		var preview: String = body_text
+		if preview.length() > 160:
+			preview = preview.substr(0, 160) + "…"
+		_log("[FIREBASE_RTDB] GET ok http=%d len=%d preview=%s" % [response_code, body.size(), preview])
+		if not firebase_rtdb_write_test_ping:
+			_firebase_rtdb_cleanup_http()
+			return
+		var base: String = firebase_rtdb_base_url.strip_edges().trim_suffix("/")
+		var put_url: String = base + "/debug/godot_rtdb_ping.json"
+		var payload_dict: Dictionary = {
+			"t": Time.get_unix_time_from_system(),
+			"v": 1,
+			"godot": str(Engine.get_version_info())
+		}
+		var payload: String = JSON.stringify(payload_dict)
+		var hdrs: PackedStringArray = PackedStringArray(["Content-Type: application/json"])
+		_rtdb_put_after_get = true
+		var err2: int = _http_rtdb.request(put_url, hdrs, HTTPClient.METHOD_PUT, payload)
+		if err2 != OK:
+			_log("[FIREBASE_RTDB] PUT schedule failed err=%d" % err2)
+			_rtdb_put_after_get = false
+			_firebase_rtdb_cleanup_http()
+		return
+
+	_rtdb_put_after_get = false
+	if result != HTTPRequest.RESULT_SUCCESS or response_code < 200 or response_code >= 300:
+		_log("[FIREBASE_RTDB] PUT failed result=%d http=%d body=%s" % [result, response_code, body_text])
+	else:
+		_log("[FIREBASE_RTDB] PUT ok http=%d (debug/godot_rtdb_ping)" % response_code)
+	_firebase_rtdb_cleanup_http()
+
+
+func _firebase_rtdb_cleanup_http() -> void:
+	if _http_rtdb != null and is_instance_valid(_http_rtdb):
+		if _http_rtdb.request_completed.is_connected(_on_firebase_rtdb_request_completed):
+			_http_rtdb.request_completed.disconnect(_on_firebase_rtdb_request_completed)
+		_http_rtdb.queue_free()
+	_http_rtdb = null

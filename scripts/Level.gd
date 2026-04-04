@@ -90,6 +90,13 @@ func _ready() -> void:
 		push_error("Level.gd: player node not found at $Player")
 		return
 
+	var gs_sync: Node = get_node_or_null("/root/GameState")
+	if gs_sync != null:
+		GameState.run_start_player_x = player.global_position.x
+		GameState.run_start_player_y = player.global_position.y
+		GameState.max_height_reached = player.global_position.y
+		GameState.recompute_run_score()
+
 	_setup_world_bounds()
 
 	var first_platform_y: float = player.global_position.y + float(rules["first_platform_offset_y"])
@@ -259,13 +266,12 @@ func _spawn_next_layout_slot() -> bool:
 	var slot: Dictionary = _active_layout.platforms[_layout_index]
 	var pos: Vector2 = Vector2(float(slot["x"]), float(slot["y"]))
 	var seg: int = int(slot["segments"])
-	var vanish: bool = int(slot.get("vanish", 0)) != 0
 
 	var p: Node2D = platform_pool.get_platform()
 	if p == null:
 		return false
 
-	_configure_platform(p, pos, seg, vanish, _layout_index, slot)
+	_configure_platform(p, pos, seg, _layout_index, slot)
 	_register_platform(p)
 	if not bool(slot.get("is_decoy", false)):
 		_try_spawn_loot(_layout_index, pos)
@@ -274,7 +280,7 @@ func _spawn_next_layout_slot() -> bool:
 	_layout_index += 1
 	return true
 
-func _configure_platform(p: Node2D, pos: Vector2, seg: int, vanish: bool, slot_idx: int, slot: Dictionary = {}) -> void:
+func _configure_platform(p: Node2D, pos: Vector2, seg: int, slot_idx: int, slot: Dictionary = {}) -> void:
 	p.global_position = pos
 	p.scale.x = float(seg)
 	p.set("coin_spawn_chance", 0.0)
@@ -285,7 +291,9 @@ func _configure_platform(p: Node2D, pos: Vector2, seg: int, vanish: bool, slot_i
 	if decoy:
 		p.set("is_crumbling", false)
 	else:
-		p.set("is_crumbling", vanish)
+		var rng_lp: RandomNumberGenerator = SeedManager.get_rng_for("level_platform_crumble")
+		var p_crumb: float = PlatformSpawner.crumble_probability_at_y(pos.y, GameState.run_start_player_y)
+		p.set("is_crumbling", rng_lp.randf() < p_crumb)
 	p.call("apply_size_to_shape")
 	var cs: Node = p.get_node_or_null("CollisionShape2D")
 	if decoy:

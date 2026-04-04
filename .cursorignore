@@ -1,0 +1,3 @@
+﻿# Локальные секреты — не подмешивать в контекст ИИ
+config/firebase_web_config.json
+**/google-services.json

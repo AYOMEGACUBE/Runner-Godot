@@ -13,6 +13,8 @@ func _log(message: String) -> void:
 
 @onready var collision: CollisionShape2D = $CollisionShape2D
 
+var _collected: bool = false
+
 func _ready() -> void:
 	_log("[COIN_READY] pos=%s value=%d radius=%.1f" % [global_position, value, radius])
 	# Монета на переднем плане (z_index > стены)
@@ -48,7 +50,10 @@ func _ready() -> void:
 	queue_redraw()
 
 func _on_body_entered(body: Node) -> void:
+	if _collected:
+		return
 	if body is CharacterBody2D and body.name == "Player":
+		_collected = true
 		var old_score: int = GameState.score
 		# Добавляем очки
 		GameState.add_coin(value)

@@ -19,8 +19,10 @@ func _log(message: String) -> void:
 var _player_landed: bool = false
 var _crumble_timer: float = 0.0
 var _player_ref: CharacterBody2D = null
+var _crumble_dispatched: bool = false
 
 func _ready() -> void:
+	_crumble_dispatched = false
 	if is_decoy or fake_visual_only:
 		is_crumbling = false
 	if debug_log_ready:
@@ -60,6 +62,7 @@ func prepare_for_pool() -> void:
 	is_crumbling = false
 	_player_landed = false
 	_crumble_timer = 0.0
+	_crumble_dispatched = false
 	_player_ref = null
 	set_collision_layer_value(1, true)
 	set_collision_mask_value(1, true)
@@ -99,12 +102,13 @@ func _physics_process(_delta: float) -> void:
 				break
 
 func _process(delta: float) -> void:
-	if not is_crumbling or not _player_landed:
+	if not is_crumbling or not _player_landed or _crumble_dispatched:
 		return
 
 	_crumble_timer += delta
 	queue_redraw()
 	if _crumble_timer >= crumble_delay:
+		_crumble_dispatched = true
 		_log("[PLATFORM_CRUMBLE] pos=%s" % global_position)
 		platform_lifecycle_ended.emit(self)
 
