@@ -18,7 +18,6 @@ var wall_data: WallData = null
 var selected_links: Dictionary = {}  # segment_id -> link
 
 # UI (пути через VBoxContainer; AcceptDialog/Window может менять дерево — дозаполняем в _resolve_ui_nodes)
-var quantity_spinbox: SpinBox
 var select_location_button: Button
 var selected_location_label: Label
 var price_label: Label
@@ -29,26 +28,33 @@ var preview_button: Button
 var upload_images_button: Button
 var link_line_edit: LineEdit
 var privacy_checkbox: CheckBox
+var side_option: OptionButton
 
 var location_selection_mode: bool = false
 var selected_image_paths: Dictionary = {}  # segment_id -> image_path
 var _privacy_accepted: bool = false
 var corporate_mode_enabled: bool = false
 var corporate_group_id: String = ""
+var _side_locked_by_user: bool = false
+
+var _purchase_confirm: ConfirmationDialog = null
+var _pending_bulk_ids: Array = []
 
 ## Ссылка на ноду стены (CubeView): синхронизация грани тайла с WallRenderer._segment_sides
 var _wall_root: Node2D = null
-## [OPTIMIZATION] Баланс в диалоге не нужен 60 Гц
-var _balance_refresh_timer: float = 0.0
-const BALANCE_REFRESH_INTERVAL: float = 0.25
 
 ## Чтобы не засорять лог сотнями одинаковых строк за кадр
 var _logged_balance_label_missing: bool = false
 var _logged_gamestate_missing: bool = false
 
 func _ready() -> void:
-	set_process(false)
+	# We don't use the built-in AcceptDialog OK button; dialog has its own Buy/Cancel.
+	var ok_btn: Button = get_ok_button()
+	if ok_btn:
+		ok_btn.visible = false
 	call_deferred("_init_ui")
+	if not PurchaseManager.coins_updated.is_connected(_on_coins_updated):
+		PurchaseManager.coins_updated.connect(_on_coins_updated)
 
 func _resolve_ui_nodes() -> void:
 	# Сначала уникальные имена сцены (%), затем пути, затем рекурсивный поиск (Window может сдвинуть иерархию)
@@ -56,8 +62,6 @@ func _resolve_ui_nodes() -> void:
 		balance_label = get_node_or_null("%BalanceLabel") as Label
 	if price_label == null:
 		price_label = get_node_or_null("%PriceLabel") as Label
-	if quantity_spinbox == null:
-		quantity_spinbox = get_node_or_null("VBoxContainer/QuantityContainer/QuantitySpinBox") as SpinBox
 	if select_location_button == null:
 		select_location_button = get_node_or_null("VBoxContainer/LocationContainer/SelectLocationButton") as Button
 	if selected_location_label == null:
@@ -78,13 +82,13 @@ func _resolve_ui_nodes() -> void:
 		link_line_edit = get_node_or_null("VBoxContainer/LinkContainer/LinkLineEdit") as LineEdit
 	if privacy_checkbox == null:
 		privacy_checkbox = get_node_or_null("VBoxContainer/PrivacyContainer/PrivacyCheckBox") as CheckBox
+	if side_option == null:
+		side_option = get_node_or_null("VBoxContainer/SideContainer/SideOptionButton") as OptionButton
 	# Fallback: Window/AcceptDialog может вложить контент иначе
 	if balance_label == null:
 		balance_label = find_child("BalanceLabel", true, false) as Label
 	if price_label == null:
 		price_label = find_child("PriceLabel", true, false) as Label
-	if quantity_spinbox == null:
-		quantity_spinbox = find_child("QuantitySpinBox", true, false) as SpinBox
 	if balance_label == null:
 		balance_label = _find_label_by_node_name(self, "BalanceLabel")
 	if price_label == null:
@@ -107,8 +111,11 @@ func _find_label_by_node_name(root_node: Node, node_name: String) -> Label:
 
 func _init_ui() -> void:
 	_resolve_ui_nodes()
-	if quantity_spinbox:
-		quantity_spinbox.value_changed.connect(_on_quantity_changed)
+	if side_option:
+		if side_option.item_count == 0:
+			for side_name in ["front", "back", "left", "right", "top", "bottom"]:
+				side_option.add_item(side_name)
+		side_option.item_selected.connect(_on_side_selected)
 	
 	if select_location_button:
 		select_location_button.pressed.connect(_on_select_location_pressed)
@@ -129,26 +136,39 @@ func _init_ui() -> void:
 		privacy_checkbox.toggled.connect(_on_privacy_checkbox_toggled)
 	if not visibility_changed.is_connected(_on_visibility_changed):
 		visibility_changed.connect(_on_visibility_changed)
-	
+	_setup_purchase_confirm_dialog()
 	_update_price_display()
 	_update_buttons_state()  # Инициализируем состояние кнопок
+
+
+func _setup_purchase_confirm_dialog() -> void:
+	if _purchase_confirm != null:
+		return
+	_purchase_confirm = ConfirmationDialog.new()
+	_purchase_confirm.name = "BulkPurchaseConfirm"
+	_purchase_confirm.title = "Подтверждение покупки"
+	_purchase_confirm.ok_button_text = "Купить"
+	_purchase_confirm.cancel_button_text = "Назад"
+	_purchase_confirm.dialog_text = "Вы уверены, что хотите оформить покупку сторон сегментов?\n\nСредства списываются с кошелька. Покупка не подлежит возврату."
+	_purchase_confirm.exclusive = true
+	add_child(_purchase_confirm)
+	_purchase_confirm.confirmed.connect(_on_bulk_purchase_really_confirmed)
+	if not _purchase_confirm.canceled.is_connected(_on_bulk_purchase_confirm_canceled):
+		_purchase_confirm.canceled.connect(_on_bulk_purchase_confirm_canceled)
 
 func _on_visibility_changed() -> void:
 	if visible:
 		_resolve_ui_nodes()
-		_balance_refresh_timer = BALANCE_REFRESH_INTERVAL
 		_refresh_balance_label()
 		sync_purchase_side_from_wall()
 		_update_price_display()
-		set_process(true)
-	else:
-		set_process(false)
 
-func _process(delta: float) -> void:
-	_balance_refresh_timer += delta
-	if _balance_refresh_timer >= BALANCE_REFRESH_INTERVAL:
-		_balance_refresh_timer = 0.0
-		_refresh_balance_label()
+
+func _on_coins_updated(_new_balance: int) -> void:
+	if not visible:
+		return
+	_refresh_balance_label()
+	_update_price_display()
 
 func _refresh_balance_label() -> void:
 	if not visible:
@@ -186,12 +206,12 @@ func setup(data: WallData = null, segment_purchase_side: String = "") -> void:
 		selected_side = segment_purchase_side.strip_edges()
 	else:
 		selected_side = "back"
+	_side_locked_by_user = false
+	_apply_selected_side_to_ui()
 	start_segment_id = ""
 	selected_segment_ids.clear()
 	quantity = 1
 	_privacy_accepted = false
-	if quantity_spinbox:
-		quantity_spinbox.value = 1
 	if selected_location_label:
 		selected_location_label.text = "Локация не выбрана"
 	if privacy_checkbox:
@@ -210,10 +230,7 @@ func setup(data: WallData = null, segment_purchase_side: String = "") -> void:
 	if link_line_edit:
 		link_line_edit.text = ""
 	sync_purchase_side_from_wall()
-	_update_price_display()
-
-func _on_quantity_changed(value: float) -> void:
-	quantity = int(value)
+	_apply_selected_side_to_ui()
 	_update_price_display()
 
 func _on_preview_pressed() -> void:
@@ -246,13 +263,11 @@ func set_selected_segments(segment_ids: Array) -> void:
 		var s: String = str(id_val)
 		if s != "" and s not in selected_segment_ids:
 			selected_segment_ids.append(s)
-	quantity = selected_segment_ids.size()
-	if quantity > 0:
+	quantity = 1
+	if selected_segment_ids.size() > 0:
 		start_segment_id = selected_segment_ids[0]
-	if quantity_spinbox:
-		quantity_spinbox.value = quantity
 	if selected_location_label:
-		selected_location_label.text = "Выбрано сегментов: %d" % quantity
+		selected_location_label.text = "Выбрано сегментов: %d" % selected_segment_ids.size()
 	if upload_images_button:
 		upload_images_button.disabled = selected_segment_ids.size() == 0
 	sync_purchase_side_from_wall()
@@ -261,6 +276,8 @@ func set_selected_segments(segment_ids: Array) -> void:
 
 ## [FIX] Визуальная грань тайла из WallRenderer (первый ref-сегмент: список или start_segment_id).
 func sync_purchase_side_from_wall() -> void:
+	if _side_locked_by_user:
+		return
 	if _wall_root == null:
 		return
 	var ref_id: String = ""
@@ -278,9 +295,27 @@ func sync_purchase_side_from_wall() -> void:
 	if wr == null:
 		return
 	if wr.has_method("get_visible_segment_side"):
-		var vis: String = wr.get_visible_segment_side(ref_id)
+		var vis: String = str(wr.get_visible_segment_side(ref_id)).strip_edges().to_lower()
 		if vis != "":
 			selected_side = vis
+			_apply_selected_side_to_ui()
+
+
+func _on_side_selected(idx: int) -> void:
+	if side_option == null or idx < 0 or idx >= side_option.item_count:
+		return
+	_side_locked_by_user = true
+	selected_side = side_option.get_item_text(idx).strip_edges().to_lower()
+	_update_price_display()
+
+
+func _apply_selected_side_to_ui() -> void:
+	if side_option == null:
+		return
+	for i in range(side_option.item_count):
+		if side_option.get_item_text(i).to_lower() == selected_side:
+			side_option.select(i)
+			return
 
 
 func _active_wall_side_for_economy() -> String:
@@ -301,12 +336,7 @@ func _wall_renderer() -> WallRenderer:
 ## Грань тайла в момент покупки: `WallRenderer` отдаёт живую грань или `_last_known_tile_side` после скролла.
 ## «back» только если id никогда не попадал в рендерер (нет в памяти) — не копируем грань первого выбранного.
 func _tile_side_for_segment_id(segment_id: String) -> String:
-	var wr: WallRenderer = _wall_renderer()
-	if wr != null and wr.has_method("get_visible_segment_side"):
-		var vis: String = wr.get_visible_segment_side(segment_id)
-		if vis != "":
-			return vis
-	return "back"
+	return selected_side
 
 
 func _iter_purchase_segment_ids() -> Array[String]:
@@ -489,8 +519,6 @@ func _update_buttons_state() -> void:
 	"""Обновляет состояние всех кнопок в зависимости от согласия с политикой."""
 	if _privacy_accepted:
 		# Если согласие дано, деактивируем все кнопки кроме "Купить"
-		if quantity_spinbox:
-			quantity_spinbox.editable = false
 		if select_location_button:
 			select_location_button.disabled = true
 		if preview_button:
@@ -503,8 +531,6 @@ func _update_buttons_state() -> void:
 			cancel_button.disabled = true
 	else:
 		# Если согласие не дано, активируем все кнопки
-		if quantity_spinbox:
-			quantity_spinbox.editable = true
 		if select_location_button:
 			select_location_button.disabled = false
 		if preview_button:
@@ -549,16 +575,48 @@ func _on_purchase_pressed() -> void:
 		push_warning("BulkPurchaseDialog: Нет сегментов для покупки!")
 		return
 	
-	print("BulkPurchaseDialog: Начинаем покупку ", ids_to_buy.size(), " сегментов за ", total_price, " монет")
-	
-	# Собираем ссылки для всех сегментов (если указана одна ссылка для всех)
+	_pending_bulk_ids = ids_to_buy.duplicate()
+	if Engine.has_singleton("FileLogger"):
+		FileLogger.write_log("[STORE] Buy pressed: selected=%d total_price=%d side=%s" % [_pending_bulk_ids.size(), total_price, selected_side])
+	if _purchase_confirm == null:
+		_setup_purchase_confirm_dialog()
+	if _purchase_confirm:
+		_purchase_confirm.popup_centered()
+	return
+
+
+func _on_bulk_purchase_confirm_canceled() -> void:
+	_pending_bulk_ids.clear()
+
+
+func _on_bulk_purchase_really_confirmed() -> void:
+	var gs2: Node = get_node_or_null("/root/GameState")
+	if gs2 == null or not gs2.has_method("get_coins"):
+		FileLogger.error("BulkPurchaseDialog: GameState недоступен при подтверждении покупки")
+		_pending_bulk_ids.clear()
+		return
+	var br3: Dictionary = _compute_bulk_purchase_totals()
+	var total_price2: int = int(br3.get("total", 0))
+	var balance2: int = int(gs2.call("get_coins"))
+	if balance2 < total_price2:
+		push_warning("BulkPurchaseDialog: Недостаточно монет при подтверждении! Баланс: %d, требуется: %d" % [balance2, total_price2])
+		_pending_bulk_ids.clear()
+		return
+	var ids_to_buy: Array = []
+	for x in _pending_bulk_ids:
+		ids_to_buy.append(x)
+	_pending_bulk_ids.clear()
+	if ids_to_buy.is_empty():
+		push_warning("BulkPurchaseDialog: Нет сегментов для покупки после подтверждения!")
+		return
+	print("BulkPurchaseDialog: Начинаем покупку ", ids_to_buy.size(), " сегментов за ", total_price2, " монет")
+	if Engine.has_singleton("FileLogger"):
+		FileLogger.write_log("[STORE] Confirmed in dialog: count=%d total_price=%d side=%s" % [ids_to_buy.size(), total_price2, selected_side])
 	var links_dict: Dictionary = {}
 	var link_text: String = link_line_edit.text.strip_edges() if link_line_edit else ""
 	if link_text != "":
 		for seg_id in ids_to_buy:
 			links_dict[str(seg_id)] = link_text
-	
-	# Эмитируем сигнал покупки - логика покупки будет обработана в CubeView
 	purchase_confirmed.emit(ids_to_buy, selected_side, selected_image_paths, links_dict, corporate_mode_enabled, corporate_group_id)
 	hide()
 

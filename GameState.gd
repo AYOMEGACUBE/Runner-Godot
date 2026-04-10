@@ -32,7 +32,14 @@ var auth_provider: String = ""         # например "google"
 var auth_token: String = ""            # Firebase idToken (не путать с монетным score)
 var firebase_refresh_token: String = ""
 var auth_email: String = ""
+## Имя из Google / Firebase (displayName), для UI; не путать с игровым nickname.
+var auth_display_name: String = ""
 var firebase_token_saved_at_unix: int = 0
+
+## Постоянный кошелёк (покупки сегментов, главное меню). Не сбрасывается между забегами.
+var wallet_coins: int = 0
+## Unix-время последней принятой с сервера или успешно отправленной версии кошелька (RTDB merge).
+var wallet_remote_mtime: int = 0
 
 # --- HERO ---
 var selected_hero_id: String = DEFAULT_HERO_ID
@@ -52,6 +59,21 @@ const WALL_SIDES: Array[String] = ["front", "back", "left", "right", "top", "bot
 var unlocked_sides: Array[String] = ["front"]
 # Текущая активная сторона для CubeView
 var active_wall_side: String = "front"
+
+# --- WALL SEGMENTS (user://wall_segments.json) ---
+## Эмитится после успешной записи на диск — все инстансы стены перечитывают файл (оффлайн-покупка без RTDB push).
+signal wall_segments_disk_updated
+var _wall_disk_emit_queued: bool = false
+
+func notify_wall_segments_saved_to_disk() -> void:
+	if _wall_disk_emit_queued:
+		return
+	_wall_disk_emit_queued = true
+	call_deferred("_flush_wall_segments_disk_notification")
+
+func _flush_wall_segments_disk_notification() -> void:
+	_wall_disk_emit_queued = false
+	wall_segments_disk_updated.emit()
 
 # --- DEBUG / DEV ---
 var disable_wall: bool = false
@@ -73,7 +95,11 @@ var is_game_over: bool = false         # флаг завершения теку�
 # ДЕФОЛТЫ ОБЯЗАТЕЛЬНЫ: даже без единого забега UI не должен быть пустым.
 var last_run_score: int = 0
 var last_run_max_height: float = 0.0
+var last_run_coin_bonus: int = 0
 var has_finished_run: bool = false
+
+## Один раз за забег: монеты из run_coin_bonus перенесены в wallet_coins.
+var run_wallet_applied: bool = false
 
 # Максимальная достигнутая высота игрока в world-space (ось Y Godot).
 # Принято соглашение:
@@ -89,6 +115,24 @@ var champions: Array = [] # { "name": String, "score": int, "time": int }
 
 func _ready() -> void:
 	load_scores()
+	_apply_temp_pre_release_wallet_boost()
+
+
+func _apply_temp_pre_release_wallet_boost() -> void:
+	# Temporary pre-release helper for manual purchase QA only.
+	# Disabled automatically in headless runs to keep tests deterministic.
+	if DisplayServer.get_name() == "headless":
+		return
+	var enabled: bool = bool(ProjectSettings.get_setting("3301_temp_pre_release/wallet_boost_enabled", false))
+	if not enabled:
+		return
+	var amount: int = int(ProjectSettings.get_setting("3301_temp_pre_release/wallet_boost_amount", 1000000))
+	if amount <= 0:
+		return
+	if wallet_coins < amount:
+		wallet_coins = amount
+		_log("[GAMESTATE] TEMP pre-release wallet boost applied: wallet=%d" % wallet_coins)
+		save_scores()
 
 # ---------------- PROFILE ----------------
 
@@ -102,9 +146,53 @@ func get_nickname() -> String:
 func has_valid_nickname() -> bool:
 	return nickname.strip_edges() != ""
 
-## Баланс монет (раннер, покупки на стене). Совпадает с полем `score` текущей сессии.
+## Баланс кошелька (главное меню, покупки). Не равен очкам забега (`score`).
 func get_coins() -> int:
-	return score
+	return wallet_coins
+
+
+## Имя в HUD за забег: Google display name, иначе никнейм забега.
+func get_hud_display_name() -> String:
+	var g: String = auth_display_name.strip_edges()
+	if g != "":
+		return g
+	var n: String = player_name.strip_edges()
+	if n != "":
+		return n
+	return "NoName"
+
+
+## Перенос собранных за забег монет в кошелёк (один раз до следующего start_new_run).
+func apply_run_coins_to_wallet_once() -> void:
+	if run_wallet_applied:
+		return
+	run_wallet_applied = true
+	if run_coin_bonus <= 0:
+		return
+	wallet_coins += run_coin_bonus
+	_log("[GAMESTATE] wallet +%d run coins -> total wallet=%d" % [run_coin_bonus, wallet_coins])
+	save_scores()
+	_request_economy_cloud_push()
+
+
+func spend_wallet_coins(amount: int) -> bool:
+	if amount <= 0:
+		return true
+	if wallet_coins < amount:
+		return false
+	wallet_coins -= amount
+	save_scores()
+	_request_economy_cloud_push()
+	return true
+
+
+func _request_economy_cloud_push() -> void:
+	var root: Window = get_tree().root if get_tree() != null else null
+	if root == null:
+		return
+	var sync: Node = root.get_node_or_null("/root/EconomyRemoteSync")
+	if sync != null and sync.has_method("request_push_wallet"):
+		sync.call("request_push_wallet")
 
 # ---------------- RUN ----------------
 
@@ -112,6 +200,7 @@ func start_new_run() -> void:
 	# Имя забега всегда берём из persisted nickname
 	score = 0
 	run_coin_bonus = 0
+	run_wallet_applied = false
 	run_start_player_x = 0.0
 	run_start_player_y = 0.0
 	player_name = nickname.strip_edges()
@@ -121,6 +210,23 @@ func start_new_run() -> void:
 	_log("[GAMESTATE] start_new_run player_name=%s" % player_name)
 	# last_run_* НЕ сбрасываем: GameOver показывает последний завершённый забег.
 	# При первом запуске они уже 0. При следующей смерти Player._die() их перезапишет.
+
+
+func get_wall_height_gate() -> float:
+	## Один порог Y для CubeView (красная линия), WallRenderer.handle_click и WallData.buy_side.
+	## Сегмент можно купить, если seg_height >= порога (меньший Y = выше на экране).
+	## После start_new_run() max_height_reached = 0, иначе вся верхняя половина сетки (seg_height < 0)
+	## ошибочно блокируется; тогда берём last_run_max_height последнего завершённого забега.
+	var m: float = max_height_reached
+	var l: float = last_run_max_height
+	if absf(m) < 0.0001 and absf(l) < 0.0001:
+		return -200.0
+	if absf(m) < 0.0001 and absf(l) >= 0.0001:
+		return l
+	if absf(m) >= 0.0001:
+		return m
+	return l
+
 
 func get_altitude_points() -> int:
 	return int(absf(run_start_player_y - max_height_reached) * 0.1)
@@ -224,13 +330,14 @@ func unlock_next_wall_side() -> void:
 # ---------------- CHAMPIONS ----------------
 
 func register_run_finished() -> void:
+	apply_run_coins_to_wallet_once()
 	# Фиксируем данные последнего забега ДО добавления в таблицу чемпионов.
-	# GameOver читает last_run_score и last_run_max_height — они уже должны быть записаны
-	# в Player._die(), но на случай вызова register_run_finished откуда-то ещё — дублируем.
+	# GameOver читает last_run_* — при вызове не из Player._die() дублируем здесь.
 	last_run_score = score
 	last_run_max_height = max_height_reached
+	last_run_coin_bonus = run_coin_bonus
 	has_finished_run = true
-	_log("[GAMESTATE] register_run_finished score=%d height=%.1f" % [score, max_height_reached])
+	_log("[GAMESTATE] register_run_finished score=%d height=%.1f coins_run=%d wallet=%d" % [score, max_height_reached, last_run_coin_bonus, wallet_coins])
 
 	var player_n := player_name.strip_edges()
 	if player_n == "":
@@ -256,6 +363,8 @@ func get_champions() -> Array:
 
 func reset_scores() -> void:
 	score = 0
+	wallet_coins = 0
+	wallet_remote_mtime = 0
 	best_score = 0
 	champions.clear()
 	save_scores()
@@ -278,7 +387,10 @@ func save_scores() -> void:
 		"auth_token": auth_token,
 		"firebase_refresh_token": firebase_refresh_token,
 		"auth_email": auth_email,
+		"auth_display_name": auth_display_name,
 		"firebase_token_saved_at_unix": firebase_token_saved_at_unix,
+		"wallet_coins": wallet_coins,
+		"wallet_remote_mtime": wallet_remote_mtime,
 
 		# records
 		"best_score": best_score,
@@ -324,7 +436,10 @@ func load_scores() -> void:
 	auth_token = str(data.get("auth_token", "")).strip_edges()
 	firebase_refresh_token = str(data.get("firebase_refresh_token", "")).strip_edges()
 	auth_email = str(data.get("auth_email", "")).strip_edges()
+	auth_display_name = str(data.get("auth_display_name", "")).strip_edges()
 	firebase_token_saved_at_unix = int(data.get("firebase_token_saved_at_unix", 0))
+	wallet_coins = int(data.get("wallet_coins", 0))
+	wallet_remote_mtime = int(data.get("wallet_remote_mtime", 0))
 
 	# records
 	best_score = int(data.get("best_score", 0))
@@ -364,10 +479,14 @@ func _reset_to_defaults() -> void:
 	auth_token = ""
 	firebase_refresh_token = ""
 	auth_email = ""
+	auth_display_name = ""
 	firebase_token_saved_at_unix = 0
+	wallet_coins = 0
+	wallet_remote_mtime = 0
 
 	score = 0
 	run_coin_bonus = 0
+	run_wallet_applied = false
 	run_start_player_x = 0.0
 	run_start_player_y = 0.0
 	player_name = ""
@@ -376,6 +495,7 @@ func _reset_to_defaults() -> void:
 
 	last_run_score = 0
 	last_run_max_height = 0.0
+	last_run_coin_bonus = 0
 	has_finished_run = false
 
 	selected_hero_id = DEFAULT_HERO_ID

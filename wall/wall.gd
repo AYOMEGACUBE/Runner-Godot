@@ -64,6 +64,8 @@ var _vis_cache_cam: Vector2 = Vector2(INF, INF)
 var _vis_cache_zoom: Vector2 = Vector2.ZERO
 var _vis_cache_vp: Vector2 = Vector2.ZERO
 var _vis_cache_valid: bool = false
+var _ownership_pull_accum: float = 0.0
+const OWNERSHIP_PULL_INTERVAL_SEC: float = 4.0
 
 
 func _ready() -> void:
@@ -72,8 +74,9 @@ func _ready() -> void:
 	z_index = -10
 	
 	# Берём активную сторону из GameState (если есть)
-	if Engine.has_singleton("GameState") and GameState.has_method("get_active_wall_side"):
-		side_id = GameState.get_active_wall_side()
+	var gs: Node = get_node_or_null("/root/GameState")
+	if gs != null and gs.has_method("get_active_wall_side"):
+		side_id = str(gs.call("get_active_wall_side"))
 		_log("[WALL] active side from GameState: %s" % side_id)
 	
 	_camera_ref = get_viewport().get_camera_2d()
@@ -96,16 +99,54 @@ func _ready() -> void:
 	add_child(wall_renderer)
 	wall_renderer.setup(wall_data, side_id, allow_purchases)
 	_log("[WALL] renderer setup complete")
+	var ors: Node = get_node_or_null("/root/OwnershipRemoteSync")
+	if ors != null:
+		if ors.has_signal("ownership_updated") and not ors.ownership_updated.is_connected(_on_ownership_updated):
+			ors.ownership_updated.connect(_on_ownership_updated)
+		if ors.has_method("pull_ownership_then_merge"):
+			ors.call_deferred("pull_ownership_then_merge")
 
 	call_deferred("_update_visible_segments", true)
 
+	var gs_disk: Node = get_node_or_null("/root/GameState")
+	if gs_disk != null and gs_disk.has_signal("wall_segments_disk_updated"):
+		if not gs_disk.wall_segments_disk_updated.is_connected(_on_wall_segments_disk_updated):
+			gs_disk.wall_segments_disk_updated.connect(_on_wall_segments_disk_updated)
+
+
+func _exit_tree() -> void:
+	var gs_disk2: Node = get_node_or_null("/root/GameState")
+	if gs_disk2 != null and gs_disk2.has_signal("wall_segments_disk_updated"):
+		if gs_disk2.wall_segments_disk_updated.is_connected(_on_wall_segments_disk_updated):
+			gs_disk2.wall_segments_disk_updated.disconnect(_on_wall_segments_disk_updated)
+
+
+func _on_wall_segments_disk_updated() -> void:
+	## Другой экран (CubeView) сохранил wall_segments.json — перечитать, иначе Level остаётся со старым WallData в памяти.
+	if wall_data == null:
+		return
+	wall_data.load_from_file()
+	if wall_renderer != null and wall_renderer.has_method("clear_texture_cache"):
+		wall_renderer.clear_texture_cache()
+	_vis_cache_valid = false
+	_update_visible_segments(true)
+	refresh_segment_textures()
+	_log("[LOAD] wall reloaded from disk (wall_segments_disk_updated) segments=%d" % wall_data.segments.size())
+
 
 func _process(delta: float) -> void:
-	if GameState.disable_wall:
+	var gs2: Node = get_node_or_null("/root/GameState")
+	if gs2 != null and bool(gs2.get("disable_wall")):
 		clear_wall()
 		return
 
 	_debug_update_timer += delta
+	_ownership_pull_accum += delta
+	if _ownership_pull_accum >= OWNERSHIP_PULL_INTERVAL_SEC:
+		_ownership_pull_accum = 0.0
+		var ors: Node = get_node_or_null("/root/OwnershipRemoteSync")
+		if ors != null and ors.has_method("pull_ownership_then_merge"):
+			ors.call("pull_ownership_then_merge")
 
 	var camera := _camera_ref
 	if camera == null:
@@ -280,6 +321,12 @@ func update_segment_visual(segment_id: String) -> void:
 	if wall_renderer:
 		wall_renderer.update_segment(segment_id)
 
+
+func refresh_segment_textures() -> void:
+	## После записи image_path в WallData — перерисовать спрайты в CubeView / Level.
+	if wall_renderer and wall_renderer.has_method("refresh_images_from_wall_data"):
+		wall_renderer.refresh_images_from_wall_data()
+
 # Подсветка сегмента (для CubeView)
 func set_highlighted_segment(segment_id: String) -> void:
 	if wall_renderer:
@@ -307,3 +354,15 @@ func set_dim_other_segments(enabled: bool) -> void:
 func set_preview_image_paths(paths: Dictionary) -> void:
 	if wall_renderer:
 		wall_renderer.set_preview_image_paths(paths)
+
+
+func _on_ownership_updated(wall_changed: bool, _platform_changed: bool) -> void:
+	if not wall_changed or wall_data == null:
+		return
+	wall_data.load_from_file()
+	_log("[WALL] ownership_updated -> wall_data reloaded, segments=%d" % wall_data.segments.size())
+	if wall_renderer != null and wall_renderer.has_method("clear_texture_cache"):
+		wall_renderer.clear_texture_cache()
+	_vis_cache_valid = false
+	_update_visible_segments(true)
+	refresh_segment_textures()

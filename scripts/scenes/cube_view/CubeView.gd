@@ -1,4 +1,5 @@
 extends Node2D
+const CubeViewPurchaseService = preload("res://scripts/scenes/cube_view/CubeViewPurchaseService.gd")
 # ============================================================================
 # CubeView.gd
 # ============================================================================
@@ -45,6 +46,8 @@ var wall_instance: Node2D = null
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var back_button: Button = $UILayer/Panel/VBoxContainer/BackButton
 @onready var purchase_segment_button: Button = $UILayer/Panel/VBoxContainer/PurchaseSegmentButton
+@onready var purchase_platform_button: Button = $UILayer/Panel/VBoxContainer/PurchasePlatformButton
+@onready var sync_status_label: Label = $UILayer/Panel/VBoxContainer/SyncStatusLabel
 @onready var selection_overlay: Panel = $UILayer/SelectionOverlay
 @onready var next_button: Button = $UILayer/SelectionOverlay/VBox/NextButton
 @onready var cancel_selection_button: Button = $UILayer/SelectionOverlay/VBox/CancelSelectionButton
@@ -70,12 +73,19 @@ var _bulk_drag_active: bool = false
 var _bulk_selected_ids: Array[String] = []
 ## Режим предпросмотра bulk (OK = вернуться в диалог)
 var _bulk_preview_mode: bool = false
+## Когда bulk-диалог скрываем намеренно (выбор на карте/preview), не сбрасываем режимы в visibility_changed.
+var _suppress_bulk_hide_reset: bool = false
 ## Режим предпросмотра single (больше не используется, оставлено для совместимости)
 var _single_preview_mode: bool = false
+## Локальное хранилище платформ для sync-контракта (RTDB ownership).
+var _platform_store: PlatformDataStore = PlatformDataStore.new()
+## Диалог покупки платформ
+var _platform_purchase_dialog: AcceptDialog = null
+var _purchase_service: CubeViewPurchaseService = CubeViewPurchaseService.new()
+var _last_sync_status: String = ""
 
-## Высота-гейт по Y в мировых координатах CubeView.
-## Сегменты с global_position.y > gate_y считаются НИЖЕ линии (доступны),
-## а с y <= gate_y — ВЫШЕ линии (клики игнорируются).
+## Высота-гейт по Y: **GameState.get_wall_height_gate()** (активный забег или last_run после сброса).
+## Красная линия (`GateLine`) на **gate_y**; покупка/выбор при **seg_height >= gate_y** (меньший Y = выше — ниже порога нельзя).
 var gate_y: float = 0.0
 
 ## Флаг разрешения покупок (включается в _ready)
@@ -93,13 +103,18 @@ var _last_drag_pos: Vector2 = Vector2.ZERO
 
 ## Мини-карта
 var minimap_camera: Camera2D = null
-## [OPTIMIZATION] Счётчики «Куплено/Всего» не каждый кадр
-var _minimap_stats_timer: float = 0.0
-const MINIMAP_STATS_INTERVAL: float = 0.5
+var _last_main_cam_pos: Vector2 = Vector2.INF
+var _minimap_sync_accum: float = 0.0
+const MINIMAP_SYNC_INTERVAL: float = 0.12
+
+
+func _gs_node() -> Node:
+	return get_node_or_null("/root/GameState")
 
 
 func _ready() -> void:
 	_log("[CUBEVIEW] _ready")
+	_platform_store.load_from_file()
 	# ------------------------------------------------------------
 	# 1. Инстанс существующей сцены стены.
 	# ------------------------------------------------------------
@@ -128,6 +143,13 @@ func _ready() -> void:
 				wall_instance.allow_purchases = true
 				# Также обновляем рендерер если он уже создан
 				call_deferred("_enable_purchases_in_renderer")
+				if wall_instance.has_node("WallData"):
+					var wd_for_sync: WallData = wall_instance.get_node("WallData") as WallData
+					if wd_for_sync != null and Engine.has_singleton("OwnershipRemoteSync"):
+						var sync_platform_store: PlatformDataStore = _platform_store
+						if Engine.has_singleton("PurchaseManager") and PurchaseManager.has_method("get_platform_store_ref"):
+							sync_platform_store = PurchaseManager.get_platform_store_ref()
+						OwnershipRemoteSync.bind_sources(wd_for_sync, sync_platform_store)
 			else:
 				_log("[CUBEVIEW] ERROR - wall_instance is null after instantiate")
 		else:
@@ -147,7 +169,10 @@ func _ready() -> void:
 	if back_button != null and not back_button.pressed.is_connected(_on_back_button_pressed):
 		back_button.pressed.connect(_on_back_button_pressed)
 	if purchase_segment_button != null:
+		purchase_segment_button.text = "Купить сторону сегмента"
 		purchase_segment_button.pressed.connect(_on_purchase_segment_pressed)
+	if purchase_platform_button != null and not purchase_platform_button.pressed.is_connected(_on_purchase_platforms_pressed):
+		purchase_platform_button.pressed.connect(_on_purchase_platforms_pressed)
 	if next_button != null:
 		next_button.pressed.connect(_on_selection_next_pressed)
 	if cancel_selection_button != null:
@@ -165,47 +190,21 @@ func _ready() -> void:
 		EconomyManager.face_purchase_recorded.connect(_on_minimap_stats_dirty)
 	if not PurchaseManager.purchase_succeeded.is_connected(_on_minimap_stats_dirty):
 		PurchaseManager.purchase_succeeded.connect(_on_minimap_stats_dirty)
+	if Engine.has_singleton("OwnershipRemoteSync"):
+		if not OwnershipRemoteSync.ownership_updated.is_connected(_on_ownership_updated):
+			OwnershipRemoteSync.ownership_updated.connect(_on_ownership_updated)
+		if not OwnershipRemoteSync.ownership_sync_failed.is_connected(_on_ownership_sync_failed):
+			OwnershipRemoteSync.ownership_sync_failed.connect(_on_ownership_sync_failed)
+	_set_sync_status("sync: idle")
 
 	# ------------------------------------------------------------
-	# 3. Вычисляем высоту-гейт на основе GameState.
+	# 3–4. Высотный гейт = get_wall_height_gate() (тот же порог, что WallRenderer.handle_click).
+	# Красная линия и проверки кликов используют одно и то же gate_y; при возврате в CubeView
+	# после забега перечитываем GameState (см. _refresh_gate_line_from_gamestate).
 	# ------------------------------------------------------------
-	# Архитектурно здесь предполагается, что:
-	# - GameState хранит максимальную достигнутую высоту игрока в world-space.
-	# - Для упрощения считаем, что ось Y такая же, как в Level:
-	#   * чем МЕНЬШЕ y, тем ВЫШЕ игрок находится.
-	#   * max_height_reached / max_height_reached (у нас max_height_reached) —
-	#     минимальное значение y, которого достигал игрок (самая верхняя точка).
-	# В этом коде мы читаем поле GameState.max_height_reached через get().
-	# Если оно пока не задано или не является числом, просто ставим гейт
-	# немного выше центра (условное значение -200).
-	# ------------------------------------------------------------
-	var has_gs: bool = Engine.has_singleton("GameState")
-	if has_gs and GameState.has_method("get"):
-		# Тип v объявлен как Variant, т.к. метод get() может вернуть что угодно.
-		var v: Variant = GameState.get("max_height_reached")
-		if v is float or v is int:
-			gate_y = float(v)
-			_log("[CUBEVIEW] gate_y from GameState: %.1f" % gate_y)
-		else:
-			gate_y = -200.0
-			_log("[CUBEVIEW] gate_y default (GameState value invalid): %.1f" % gate_y)
-	else:
-		gate_y = -200.0
-		_log("[CUBEVIEW] gate_y default (no GameState): %.1f" % gate_y)
-
-	# В этом прототипе мы НИКАК не модифицируем GameState;
-	# предполагается, что игровая сцена уже обновляет max_height_reached.
-
-	# ------------------------------------------------------------
-	# 4. Размещаем визуальную линию-гейт.
-	# ------------------------------------------------------------
-	# Мы считаем, что GateLine — это Line2D под корнем CubeView
-	# с точками, заданными относительно её локальной позиции:
-	#   ( -10000, 0 ) .. ( 10000, 0 )
-	# Тогда её global Y = position.y. Мы просто ставим её на gate_y.
-	# ------------------------------------------------------------
-	if gate_line != null:
-		gate_line.position.y = gate_y
+	_refresh_gate_line_from_gamestate()
+	if not visibility_changed.is_connected(_on_cubeview_visibility_changed):
+		visibility_changed.connect(_on_cubeview_visibility_changed)
 
 	# ------------------------------------------------------------
 	# 5. Подключаем обработку кликов для покупки сегментов.
@@ -224,13 +223,40 @@ func _ready() -> void:
 	# ------------------------------------------------------------
 	# 7. Читаем активную сторону мегакуба из GameState.
 	# ------------------------------------------------------------
-	if Engine.has_singleton("GameState") and GameState.has_method("get_active_wall_side"):
-		current_side = GameState.get_active_wall_side()
+	var gs_ready: Node = _gs_node()
+	if gs_ready != null and gs_ready.has_method("get_active_wall_side"):
+		current_side = str(gs_ready.call("get_active_wall_side"))
 	
 	# ------------------------------------------------------------
 	# 8. Настраиваем мини-карту.
 	# ------------------------------------------------------------
 	_setup_minimap()
+
+
+func _refresh_gate_line_from_gamestate() -> void:
+	## Тот же порог, что `WallRenderer.handle_click` / `GameState.get_wall_height_gate()`.
+	var gs_gate: Node = _gs_node()
+	if gs_gate != null and gs_gate.has_method("get_wall_height_gate"):
+		gate_y = float(gs_gate.call("get_wall_height_gate"))
+		_log("[CUBEVIEW] gate_y (wall height gate): %.1f" % gate_y)
+	elif gs_gate != null:
+		var v: Variant = gs_gate.get("max_height_reached")
+		if v is float or v is int:
+			gate_y = float(v)
+			_log("[CUBEVIEW] gate_y (=max_height_reached fallback): %.1f" % gate_y)
+		else:
+			gate_y = -200.0
+			_log("[CUBEVIEW] gate_y default (GameState value invalid): %.1f" % gate_y)
+	else:
+		gate_y = -200.0
+		_log("[CUBEVIEW] gate_y default (no GameState): %.1f" % gate_y)
+	if gate_line != null:
+		gate_line.position.y = gate_y
+
+
+func _on_cubeview_visibility_changed() -> void:
+	if is_visible_in_tree():
+		_refresh_gate_line_from_gamestate()
 
 
 func _is_over_selection_ui(screen_pos: Vector2) -> bool:
@@ -271,8 +297,9 @@ func _setup_minimap() -> void:
 				call_deferred("_add_minimap_wall_visualization", minimap_viewport)
 		
 		# Обновляем подпись мини-карты базовой информацией о стороне
-		if minimap_label and Engine.has_singleton("GameState"):
-			var side := GameState.get_active_wall_side()
+		var gs_map: Node = _gs_node()
+		if minimap_label and gs_map != null and gs_map.has_method("get_active_wall_side"):
+			var side: String = str(gs_map.call("get_active_wall_side"))
 			minimap_label.text = "Мини-карта\nСторона: %s" % side
 	call_deferred("_refresh_minimap_ownership_label")
 
@@ -294,9 +321,16 @@ func _add_minimap_wall_visualization(minimap_viewport: SubViewport) -> void:
 			minimap_drawer.setup(wall_data)
 
 func _process(delta: float) -> void:
+	_minimap_sync_accum += delta
+	if _minimap_sync_accum < MINIMAP_SYNC_INTERVAL:
+		return
+	_minimap_sync_accum = 0.0
 	if minimap_camera:
 		var main_camera: Camera2D = get_node_or_null("Camera2D")
 		if main_camera:
+			if _last_main_cam_pos != Vector2.INF and main_camera.position.distance_to(_last_main_cam_pos) < 2.0:
+				return
+			_last_main_cam_pos = main_camera.position
 			minimap_camera.position = main_camera.position
 			var minimap_viewport = minimap_camera.get_parent()
 			if minimap_viewport:
@@ -304,16 +338,49 @@ func _process(delta: float) -> void:
 				if minimap_drawer and minimap_drawer.has_method("set_camera_position"):
 					minimap_drawer.set_camera_position(main_camera.position)
 
-	## [OPTIMIZATION] Тяжёлый обход wall_data.segments — не чаще MINIMAP_STATS_INTERVAL
-	_minimap_stats_timer += delta
-	if _minimap_stats_timer >= MINIMAP_STATS_INTERVAL:
-		_minimap_stats_timer = 0.0
-		_refresh_minimap_ownership_label()
-
 
 func _on_minimap_stats_dirty(_arg1 = null, _arg2 = null, _arg3 = null) -> void:
-	_minimap_stats_timer = MINIMAP_STATS_INTERVAL
+	_refresh_minimap_ownership_label()
 
+
+func _on_ownership_updated(_wall_changed: bool, _platform_changed: bool) -> void:
+	_refresh_minimap_ownership_label()
+	_update_sync_status_from_wall_conflicts()
+	if wall_instance == null:
+		return
+	if wall_instance.has_method("queue_redraw"):
+		wall_instance.queue_redraw()
+
+
+func _on_ownership_sync_failed(reason: String) -> void:
+	_set_sync_status("sync failed: %s" % reason)
+
+
+func _set_sync_status(text: String) -> void:
+	_last_sync_status = text
+	if sync_status_label != null:
+		sync_status_label.text = text
+
+
+func _update_sync_status_from_wall_conflicts() -> void:
+	if wall_instance == null or not wall_instance.has_node("WallData"):
+		return
+	var wall_data: WallData = wall_instance.get_node("WallData") as WallData
+	if wall_data == null:
+		return
+	var side: String = current_side
+	var gs_conf: Node = _gs_node()
+	if gs_conf != null and gs_conf.has_method("get_active_wall_side"):
+		side = str(gs_conf.call("get_active_wall_side"))
+	var conflicts: int = 0
+	for seg_id_any in wall_data.segments.keys():
+		var fd: Dictionary = wall_data.get_face_data(str(seg_id_any), side)
+		if str(fd.get("sync_status", "")) == "conflict":
+			conflicts += 1
+	if conflicts > 0:
+		_set_sync_status("sync conflict: %d" % conflicts)
+	elif _last_sync_status.find("failed") == -1:
+		_set_sync_status("sync: synced")
 
 func _refresh_minimap_ownership_label() -> void:
 	var minimap_panel = get_node_or_null("UILayer/MinimapPanel")
@@ -324,8 +391,9 @@ func _refresh_minimap_ownership_label() -> void:
 		return
 	var wall_data: WallData = wall_instance.get_node("WallData") as WallData
 	var side: String = current_side
-	if Engine.has_singleton("GameState"):
-		side = GameState.get_active_wall_side()
+	var gs_mm: Node = _gs_node()
+	if gs_mm != null and gs_mm.has_method("get_active_wall_side"):
+		side = str(gs_mm.call("get_active_wall_side"))
 	var owned_count: int = 0
 	var total_count: int = wall_data.segments.size()
 	for seg_id in wall_data.segments.keys():
@@ -417,7 +485,8 @@ func _input(event: InputEvent) -> void:
 			var camera: Camera2D = get_node_or_null("Camera2D")
 			var viewport: Viewport = get_viewport()
 			var world_pos: Vector2 = camera.get_global_mouse_position() if camera else viewport.get_global_mouse_position()
-			var click_data: Dictionary = wall_instance.handle_click(world_pos)
+			# В режиме выбора локации берём hit без внутреннего wall-гейта, гейт применяем единообразно ниже (seg_height >= gate_y).
+			var click_data: Dictionary = wall_instance.handle_click(world_pos, true)
 			if not click_data.is_empty():
 				var seg_height: float = float(click_data.get("height", 0.0))
 				if seg_height >= gate_y:
@@ -448,7 +517,8 @@ func _input(event: InputEvent) -> void:
 		var camera: Camera2D = get_node_or_null("Camera2D")
 		var viewport: Viewport = get_viewport()
 		var world_pos: Vector2 = camera.get_global_mouse_position() if camera else viewport.get_global_mouse_position()
-		var click_data: Dictionary = wall_instance.handle_click(world_pos)
+		# В режиме выбора локации берём hit без внутреннего wall-гейта, гейт применяем единообразно ниже (seg_height >= gate_y).
+		var click_data: Dictionary = wall_instance.handle_click(world_pos, true)
 		
 		if _bulk_selecting_location and _bulk_purchase_dialog:
 			if event.pressed:
@@ -487,7 +557,8 @@ func _input(event: InputEvent) -> void:
 		var camera: Camera2D = get_node_or_null("Camera2D")
 		var viewport: Viewport = get_viewport()
 		var world_pos: Vector2 = camera.get_global_mouse_position() if camera else viewport.get_global_mouse_position()
-		var click_data: Dictionary = wall_instance.handle_click(world_pos)
+		# В режиме выбора локации берём hit без внутреннего wall-гейта, гейт применяем единообразно ниже (seg_height >= gate_y).
+		var click_data: Dictionary = wall_instance.handle_click(world_pos, true)
 		if not click_data.is_empty():
 			var seg_height: float = float(click_data.get("height", 0.0))
 			if seg_height >= gate_y:
@@ -508,7 +579,8 @@ func _input(event: InputEvent) -> void:
 		var camera: Camera2D = get_node_or_null("Camera2D")
 		var viewport: Viewport = get_viewport()
 		var world_pos: Vector2 = camera.get_global_mouse_position() if camera else viewport.get_global_mouse_position()
-		var click_data: Dictionary = wall_instance.handle_click(world_pos)
+		# В режиме выбора локации берём hit без внутреннего wall-гейта, гейт применяем единообразно ниже (seg_height >= gate_y).
+		var click_data: Dictionary = wall_instance.handle_click(world_pos, true)
 		
 		if _bulk_selecting_location and _bulk_purchase_dialog:
 			if event.pressed:
@@ -543,7 +615,7 @@ func _input(event: InputEvent) -> void:
 
 func _create_purchase_dialog() -> void:
 	"""Создаёт и настраивает диалог покупки сегмента."""
-	var dialog_scene_path = "res://PurchaseDialog.tscn"
+	var dialog_scene_path = "res://scenes/dialogs/PurchaseDialog.tscn"
 	
 	# Проверяем, существует ли файл
 	if not ResourceLoader.exists(dialog_scene_path):
@@ -660,8 +732,69 @@ func _create_purchase_dialog() -> void:
 		print("CubeView: доступные сигналы: ", purchase_dialog.get_signal_list())
 
 func _on_purchase_segment_pressed() -> void:
-	"""Кнопка «Купить сегмент» → сразу открывает диалог покупки нескольких сегментов."""
+	"""Кнопка «Купить сторону сегмента» → сразу открывает диалог покупки нескольких сегментов."""
 	_show_bulk_purchase_dialog()
+
+
+func _on_purchase_platforms_pressed() -> void:
+	"""Кнопка «Купить платформы» → открыть PlatformPurchaseDialog (quantity-based purchase)."""
+	_show_platform_purchase_dialog()
+
+
+func _show_platform_purchase_dialog() -> void:
+	if Engine.has_singleton("OwnershipRemoteSync"):
+		OwnershipRemoteSync.pull_ownership_then_merge()
+	if _platform_purchase_dialog == null:
+		if ResourceLoader.exists("res://scenes/dialogs/PlatformPurchaseDialog.tscn"):
+			var scene = load("res://scenes/dialogs/PlatformPurchaseDialog.tscn") as PackedScene
+			if scene:
+				var inst = scene.instantiate()
+				if inst is AcceptDialog:
+					_platform_purchase_dialog = inst as AcceptDialog
+					get_tree().root.add_child(_platform_purchase_dialog)
+					if _platform_purchase_dialog.has_signal("purchase_confirmed"):
+						_platform_purchase_dialog.purchase_confirmed.connect(_on_platform_purchase_confirmed)
+	if _platform_purchase_dialog and _platform_purchase_dialog.has_method("setup"):
+		_platform_purchase_dialog.setup([])
+	var vp_size: Vector2 = get_viewport().get_visible_rect().size
+	var w: int = int(clampf(vp_size.x * 0.82, 500.0, 820.0))
+	# Высота по содержимому (без лишнего пустого поля снизу); ширина не уже min.
+	_platform_purchase_dialog.min_size = Vector2i(w, 0)
+	_platform_purchase_dialog.popup_centered(Vector2i(0, 0))
+
+
+func _on_platform_purchase_confirmed(
+	_platform_ids: Array,
+	platform_type: String,
+	platform_size: String,
+	image_path: String,
+	image_path_jump_down: String,
+	link: String,
+	quantity: int,
+	height_level: int,
+	duration_enabled: bool,
+	duration_days: int
+) -> void:
+	var qty: int = clampi(int(quantity), 1, 10)
+	var expires_ts: int = 0
+	if duration_enabled:
+		expires_ts = int(Time.get_unix_time_from_system()) + int(duration_days) * 86400
+	var ok: Dictionary = PurchaseManager.buy_platforms(
+		platform_type,
+		qty,
+		image_path,
+		link,
+		expires_ts,
+		platform_size,
+		height_level,
+		image_path,
+		image_path_jump_down,
+		duration_days if duration_enabled else 1
+	)
+	if not bool(ok.get("success", false)):
+		_log("[CUBEVIEW] platform purchase failed reason=%s" % str(ok.get("reason", "")))
+	else:
+		_log("[CUBEVIEW] platform purchase ok count=%d spent=%d" % [int(ok.get("count", 0)), int(ok.get("total_spent", 0))])
 
 func _on_selection_next_pressed() -> void:
 	"""Кнопка «Далее» — возврат из предпросмотра."""
@@ -718,8 +851,8 @@ func _push_bulk_dialog_wall_and_setup() -> void:
 func _show_bulk_purchase_dialog() -> void:
 	"""Показывает диалог покупки нескольких сегментов."""
 	if _bulk_purchase_dialog == null:
-		if ResourceLoader.exists("res://BulkPurchaseDialog.tscn"):
-			var scene = load("res://BulkPurchaseDialog.tscn") as PackedScene
+		if ResourceLoader.exists("res://scenes/dialogs/BulkPurchaseDialog.tscn"):
+			var scene = load("res://scenes/dialogs/BulkPurchaseDialog.tscn") as PackedScene
 			if scene:
 				var inst = scene.instantiate()
 				if inst is AcceptDialog:
@@ -741,6 +874,7 @@ func _show_bulk_purchase_dialog() -> void:
 func _on_bulk_location_selection_started() -> void:
 	"""Выбрать на карте: закрываем диалог, показываем карту, drag-выбор."""
 	if _bulk_purchase_dialog:
+		_suppress_bulk_hide_reset = true
 		_bulk_purchase_dialog.hide()
 	_bulk_selecting_location = true
 	_bulk_drag_active = false
@@ -791,6 +925,9 @@ func _on_bulk_selection_cancel_pressed() -> void:
 
 func _on_bulk_dialog_visibility_changed() -> void:
 	if _bulk_purchase_dialog and not _bulk_purchase_dialog.visible:
+		if _suppress_bulk_hide_reset:
+			_suppress_bulk_hide_reset = false
+			return
 		_bulk_selecting_location = false
 		_bulk_drag_active = false
 		if wall_instance:
@@ -805,6 +942,7 @@ func _on_bulk_preview_requested() -> void:
 	var ids: Array = _bulk_purchase_dialog.get_preview_segment_ids()
 	if ids.is_empty():
 		return
+	_suppress_bulk_hide_reset = true
 	_bulk_purchase_dialog.hide()
 	_bulk_preview_mode = true
 	_bulk_preview_mode_type = "all"  # По умолчанию показываем все сразу
@@ -938,8 +1076,8 @@ func _on_bulk_images_upload_requested() -> void:
 		_bulk_purchase_dialog.hide()
 	
 	if _bulk_image_upload_dialog == null:
-		if ResourceLoader.exists("res://BulkImageUploadDialog.tscn"):
-			var scene = load("res://BulkImageUploadDialog.tscn") as PackedScene
+		if ResourceLoader.exists("res://scenes/dialogs/BulkImageUploadDialog.tscn"):
+			var scene = load("res://scenes/dialogs/BulkImageUploadDialog.tscn") as PackedScene
 			if scene:
 				var inst = scene.instantiate()
 				if inst is AcceptDialog:
@@ -1013,41 +1151,55 @@ func _on_bulk_purchase_confirmed(segment_ids: Array, side: String, image_paths: 
 		_log("[CUBEVIEW] ERROR - wall_data is null")
 		return
 	
-	if not Engine.has_singleton("GameState"):
+	var gs_buy: Node = _gs_node()
+	if gs_buy == null:
 		push_error("CubeView: GameState недоступен для покупки!")
 		_log("[CUBEVIEW] ERROR - GameState недоступен")
 		return
 	
-	var buyer_uid: String = GameState.player_uid
+	var buyer_uid: String = str(gs_buy.get("player_uid")).strip_edges()
 	var tile_by_seg: Dictionary = {}
 	if _bulk_purchase_dialog != null and _bulk_purchase_dialog.has_method("get_tile_side_by_segment_id"):
 		tile_by_seg = _bulk_purchase_dialog.call("get_tile_side_by_segment_id")
-	var purchased_ids: Array[String] = PurchaseManager.commit_bulk_wall_segment_purchase(
-		segment_ids, side, wall_data, buyer_uid, tile_by_seg
+	var tx: Dictionary = _purchase_service.commit_bulk_purchase(
+		wall_instance, wall_data, segment_ids, side, buyer_uid, tile_by_seg
 	)
+	_log("[STORE] tx result success=%s reason=%s purchased=%s" % [
+		str(bool(tx.get("success", false))),
+		str(tx.get("reason", "")),
+		str(tx.get("purchased_ids", []))
+	])
+	var purchased_ids: Array[String] = []
+	for sid_any in tx.get("purchased_ids", []):
+		purchased_ids.append(str(sid_any))
 	if purchased_ids.is_empty() and segment_ids.size() > 0:
-		push_error("CubeView: покупка не выполнена (баланс, высота или сегменты недоступны).")
-		_log("[CUBEVIEW] ERROR - bulk purchase returned no segments")
+		var reason: String = str(tx.get("reason", "unknown"))
+		var conflicts: Array = tx.get("conflicts", [])
+		if reason == "conflict" or reason == "already_purchased_remote":
+			_set_sync_status("sync conflict: %d" % conflicts.size())
+		else:
+			_set_sync_status("purchase failed: %s" % reason)
+		push_error("CubeView: покупка не выполнена, reason=%s" % reason)
+		_log("[CUBEVIEW] ERROR - bulk purchase failed reason=%s conflicts=%s" % [reason, str(conflicts)])
 		return
-	
-	for sid in purchased_ids:
-		var tile_for_sid: String = str(tile_by_seg.get(str(sid), side))
-		if corporate_mode and wall_data.has_method("set_segment_corporate_info"):
-			wall_data.set_segment_corporate_info(sid, group_id, true)
-		if image_paths.has(sid) and str(image_paths[sid]) != "":
-			_copy_and_set_image(sid, tile_for_sid, str(image_paths[sid]), wall_data)
-		if links.has(sid) and str(links[sid]) != "":
-			wall_data.set_face_link(sid, tile_for_sid, str(links[sid]))
-		wall_instance.update_segment_visual(sid)
+	_purchase_service.apply_visuals_for_bulk_purchase(
+		wall_instance, wall_data, purchased_ids, side, tile_by_seg,
+		image_paths, links, corporate_mode, group_id, Callable(self, "_copy_and_set_image")
+	)
 	
 	_log("[CUBEVIEW] purchase complete: %d/%d segments purchased" % [purchased_ids.size(), segment_ids.size()])
+	_set_sync_status("sync: pending")
+	if Engine.has_singleton("OwnershipRemoteSync"):
+		OwnershipRemoteSync.request_push_all()
 	
 	# Проверяем, не пора ли открыть следующую сторону
 	_check_and_unlock_next_side(wall_data)
 	
-	# Убираем подсветку после покупки
+	# Убираем подсветку после покупки (preview), затем ещё раз пересобираем спрайты из WallData
 	if wall_instance:
 		wall_instance.clear_highlight()
+		if wall_instance.has_method("refresh_segment_textures"):
+			wall_instance.refresh_segment_textures()
 
 func _init_purchase_dialog_ui() -> void:
 	"""Инициализирует UI программно созданного диалога."""
@@ -1323,7 +1475,8 @@ func _on_purchase_confirmed(segment_id: String, side: String, image_path: String
 	if price == 0:
 		price = wall_data.get_segment_price(segment_id)
 	
-	var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
+	var gs_single: Node = _gs_node()
+	var buyer_uid: String = str(gs_single.get("player_uid")).strip_edges() if gs_single != null else ""
 	var wall_side: String = wall_instance.side_id if wall_instance else ""
 	var success: bool = PurchaseManager.commit_wall_face_purchase(
 		segment_id, side, wall_data, buyer_uid, price, wall_side
@@ -1343,6 +1496,8 @@ func _on_purchase_confirmed(segment_id: String, side: String, image_path: String
 		
 		# Визуальная обратная связь
 		print("Purchased segment: ", segment_id, " side: ", side)
+		if Engine.has_singleton("OwnershipRemoteSync"):
+			OwnershipRemoteSync.request_push_all()
 
 		# Проверяем, не пора ли открыть следующую сторону
 		_check_and_unlock_next_side(wall_data)
@@ -1391,7 +1546,9 @@ func _copy_and_set_image(segment_id: String, side: String, source_path: String, 
 	print("CubeView: Изображение сжато до 48x48 и сохранено: ", dest_path)
 	
 	# Устанавливаем путь к изображению в WallData
-	wall_data.set_face_image(segment_id, side, dest_path)
+	if not wall_data.set_face_image(segment_id, side, dest_path):
+		push_error("CubeView: set_face_image отклонён (нет грани «%s» у сегмента %s)" % [side, segment_id])
+		return
 
 
 func _check_and_unlock_next_side(wall_data: WallData) -> void:
@@ -1403,11 +1560,12 @@ func _check_and_unlock_next_side(wall_data: WallData) -> void:
 	if wall_data == null:
 		return
 
-	if not Engine.has_singleton("GameState"):
+	var gs_unlock: Node = _gs_node()
+	if gs_unlock == null:
 		return
 
 	# Считаем количество купленных лиц на активной стороне
-	var side: String = GameState.get_active_wall_side()
+	var side: String = str(gs_unlock.call("get_active_wall_side")) if gs_unlock.has_method("get_active_wall_side") else current_side
 	var owned_count: int = 0
 	for seg_id in wall_data.segments.keys():
 		var face_data: Dictionary = wall_data.get_face_data(seg_id, side)
@@ -1436,7 +1594,8 @@ func _try_purchase_segment(click_data: Dictionary) -> void:
 	if wall_data == null:
 		return
 	
-	var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
+	var gs_fallback: Node = _gs_node()
+	var buyer_uid: String = str(gs_fallback.get("player_uid")).strip_edges() if gs_fallback != null else ""
 	var wall_side_fb: String = wall_instance.side_id if wall_instance else ""
 	var success: bool = PurchaseManager.commit_wall_face_purchase(
 		segment_id, side, wall_data, buyer_uid, price, wall_side_fb
@@ -1448,6 +1607,10 @@ func _try_purchase_segment(click_data: Dictionary) -> void:
 
 func _on_purchase_manager_failed(item_id: String, reason: String) -> void:
 	_log("[CUBEVIEW] PurchaseManager failed id=%s reason=%s" % [item_id, reason])
+	if reason.find("conflict") != -1:
+		_set_sync_status("sync conflict")
+	else:
+		_set_sync_status("purchase failed: %s" % reason)
 
 
 func _on_purchase_coins_updated(new_balance: int) -> void:
@@ -1460,7 +1623,7 @@ func _on_back_button_pressed() -> void:
 	# или захардкожен/экспортирован в CubeView; в данном прототипе
 	# используем явный путь.
 	_log("[CUBEVIEW] back_button pressed")
-	var main_menu_path: String = "res://MainMenu.tscn"
+	var main_menu_path: String = "res://scenes/main_menu/MainMenu.tscn"
 	var err: int = get_tree().change_scene_to_file(main_menu_path)
 	if err != OK:
 		push_error("CubeView.gd: cannot load main menu: " + main_menu_path)

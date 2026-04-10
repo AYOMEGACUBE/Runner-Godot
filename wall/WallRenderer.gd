@@ -125,6 +125,33 @@ func _remember_tile_side(segment_id: String, side_name: String) -> void:
 	_last_known_tile_side[segment_id] = side_name
 
 
+## Покупка записана на грань тайла (front/back/…), а визуально мы крутим `_segment_sides`.
+## Без этого `get_face_data(visual_side)` часто пустой по owner — не видно ни заливки, ни картинки.
+func _effective_face_data_for_ownership(segment_id: String, visual_side: String) -> Dictionary:
+	if wall_data == null:
+		return {}
+	var fd: Dictionary = wall_data.get_face_data(segment_id, visual_side)
+	if str(fd.get("owner", "")).strip_edges() != "":
+		return fd
+	for s in SIDES:
+		var fd2: Dictionary = wall_data.get_face_data(segment_id, s)
+		if str(fd2.get("owner", "")).strip_edges() != "":
+			return fd2
+	return fd
+
+
+func _effective_image_side_for_texture(segment_id: String, visual_side: String) -> String:
+	if wall_data == null:
+		return visual_side
+	var p0: String = wall_data.get_face_image_path(segment_id, visual_side).strip_edges()
+	if p0 != "":
+		return visual_side
+	for s in SIDES:
+		if wall_data.get_face_image_path(segment_id, s).strip_edges() != "":
+			return s
+	return visual_side
+
+
 func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
 	## [OPTIMIZATION] Сжимаем окно к центру, если ячеек слишком много
 	var width: int = max_x - min_x + 1
@@ -197,7 +224,9 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			var pos: Vector2 = Vector2(x * SEGMENT_SIZE, y * SEGMENT_SIZE)
 			
 			# Генерируем РАНДОМНЫЕ параметры на основе segment_id
-			var seed_hash: int = int(hash(str(SeedManager.global_seed) + "::" + segment_id)) & 0x7FFFFFFF
+			var sm: Node = get_node_or_null("/root/SeedManager")
+			var gs_seed: int = int(sm.get("global_seed")) if sm != null else 0
+			var seed_hash: int = int(hash(str(gs_seed) + "::" + segment_id)) & 0x7FFFFFFF
 			_shared_rng.seed = seed_hash if seed_hash != 0 else 1
 			
 			# Восстанавливаем сторону из старого состояния или создаём новую
@@ -223,9 +252,8 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			_segment_sides[idx] = current_side
 			_remember_tile_side(segment_id, current_side)
 			
-			# Получаем данные сегмента для текущей стороны
-			var seg_data: Dictionary = wall_data.get_segment(segment_id)
-			var face_data: Dictionary = wall_data.get_face_data(segment_id, current_side)
+			# Данные грани: визуальная сторона + владение с любой купленной грани тайла
+			var face_data: Dictionary = _effective_face_data_for_ownership(segment_id, current_side)
 			
 			# Цвет сегмента по текущей стороне (визуализация смены сторон)
 			var color: Color = _get_segment_color_by_side(current_side, face_data, segment_id)
@@ -263,7 +291,9 @@ func _process(delta: float) -> void:
 		return
 	_process_side_changes(delta)
 	
-	if not GameState.wall_breathing_enabled:
+	var gs: Node = get_node_or_null("/root/GameState")
+	var breathing_enabled: bool = gs != null and bool(gs.get("wall_breathing_enabled"))
+	if not breathing_enabled:
 		# Если дыхание выключено, применяем базовые трансформы без смещения
 		for i in range(_multimesh.instance_count):
 			_multimesh.set_instance_transform_2d(i, _transforms[i])
@@ -327,7 +357,9 @@ func _process_side_changes(delta: float) -> void:
 					available_sides.append(side)
 			
 			if available_sides.size() > 0:
-				var seed_hash: int = int(hash(str(SeedManager.global_seed) + "::" + _segment_ids[i] + "::sidepick")) & 0x7FFFFFFF
+				var sm2: Node = get_node_or_null("/root/SeedManager")
+				var gs_seed2: int = int(sm2.get("global_seed")) if sm2 != null else 0
+				var seed_hash: int = int(hash(str(gs_seed2) + "::" + _segment_ids[i] + "::sidepick")) & 0x7FFFFFFF
 				_shared_rng.seed = seed_hash if seed_hash != 0 else 1
 				new_side = available_sides[_shared_rng.randi() % available_sides.size()]
 			
@@ -336,13 +368,15 @@ func _process_side_changes(delta: float) -> void:
 			
 			# Сбрасываем таймер и задаём новый интервал
 			var segment_id2: String = _segment_ids[i]
-			var seed_iv: int = int(hash(str(SeedManager.global_seed) + "::" + segment_id2 + "::interval")) & 0x7FFFFFFF
+			var sm3: Node = get_node_or_null("/root/SeedManager")
+			var gs_seed3: int = int(sm3.get("global_seed")) if sm3 != null else 0
+			var seed_iv: int = int(hash(str(gs_seed3) + "::" + segment_id2 + "::interval")) & 0x7FFFFFFF
 			_shared_rng.seed = seed_iv if seed_iv != 0 else 1
 			_side_change_intervals[i] = _shared_rng.randf_range(30.0, 90.0)
 			_side_change_timers[i] = 0.0
 			
-			# Обновляем цвет сегмента по новой стороне
-			var face_data: Dictionary = wall_data.get_face_data(segment_id2, new_side)
+			# Обновляем цвет сегмента по новой стороне (владение с любой грани тайла)
+			var face_data: Dictionary = _effective_face_data_for_ownership(segment_id2, new_side)
 			var color: Color = _get_segment_color_by_side(new_side, face_data, segment_id2)
 			_multimesh.set_instance_color(i, color)
 
@@ -365,22 +399,23 @@ func update_segment(segment_id: String) -> void:
 	if idx < 0 or idx >= _multimesh.instance_count:
 		return
 	
-	# Обновляем цвет сегмента по текущей стороне сегмента
+	# Обновляем цвет по текущей визуальной стороне; владение берём с купленной грани (если есть)
 	var current_side: String = _segment_sides[idx] if idx < _segment_sides.size() else side_id
-	var face_data: Dictionary = wall_data.get_face_data(segment_id, current_side)
+	var face_data: Dictionary = _effective_face_data_for_ownership(segment_id, current_side)
 	var color: Color = _get_segment_color_by_side(current_side, face_data, segment_id)
 	_multimesh.set_instance_color(idx, color)
 
-	# Обновляем (или создаём) спрайт изображения для этого сегмента
-	_update_single_image_sprite(segment_id, idx, current_side)
+	var img_side: String = _effective_image_side_for_texture(segment_id, current_side)
+	_update_single_image_sprite(segment_id, idx, img_side)
 
 func _get_segment_color_by_side(segment_side: String, face_data: Dictionary, segment_id: String = "") -> Color:
 	# Базовый цвет по стороне сегмента (не по side_id стены!)
 	var base_color: Color = _get_side_color(segment_side)
+	var face_image_path: String = str(face_data.get("image_path", "")).strip_edges()
 	
-	# Если куплено, подмешиваем зелёный
+	# Если куплено (на текущей визуальной грани или на любой другой — см. _effective_face_data_for_ownership)
 	var owner: String = str(face_data.get("owner", ""))
-	var is_owned: bool = owner != ""
+	var is_owned: bool = owner.strip_edges() != ""
 	if is_owned:
 		var owned_color: Color = Color(0.1, 0.8, 0.2)
 		base_color = base_color.lerp(owned_color, 0.3)
@@ -388,8 +423,15 @@ func _get_segment_color_by_side(segment_side: String, face_data: Dictionary, seg
 	# Затемнение чужих сегментов во время предпросмотра
 	if dim_other_segments and segment_id != "":
 		var is_highlighted: bool = segment_id in _highlighted_segment_ids
-		var buyer_uid: String = GameState.player_uid if Engine.has_singleton("GameState") else ""
+		var gs: Node = get_node_or_null("/root/GameState")
+		var buyer_uid: String = str(gs.get("player_uid")) if gs != null else ""
 		var is_my_segment: bool = owner == buyer_uid
+		if not is_my_segment and segment_id != "" and wall_data != null and buyer_uid != "":
+			for s in SIDES:
+				var ofd: Dictionary = wall_data.get_face_data(segment_id, s)
+				if str(ofd.get("owner", "")) == buyer_uid:
+					is_my_segment = true
+					break
 		
 		# Если это не выделенный сегмент и не мой — затемняем
 		if not is_highlighted and not is_my_segment:
@@ -400,6 +442,11 @@ func _get_segment_color_by_side(segment_side: String, face_data: Dictionary, seg
 	if segment_id != "" and segment_id in _highlighted_segment_ids:
 		var highlight_color: Color = Color(1.0, 1.0, 1.0, 0.8)
 		base_color = base_color.lerp(highlight_color, 0.5)
+
+	# Fail-safe: если у купленной грани есть изображение, убираем заливку,
+	# чтобы даже при нестандартном порядке рендера цвет не перекрывал Sprite2D.
+	if face_image_path != "":
+		base_color.a = 0.0
 	
 	return base_color
 
@@ -422,6 +469,10 @@ func set_highlighted_segments(segment_ids: Array) -> void:
 	for sid in new_ids:
 		update_segment(sid)
 
+func clear_texture_cache() -> void:
+	_texture_cache.clear()
+
+
 func clear_highlight() -> void:
 	"""Убирает подсветку со всех сегментов."""
 	if _highlighted_segment_ids.is_empty() and _preview_image_paths.is_empty():
@@ -432,6 +483,13 @@ func clear_highlight() -> void:
 	for sid in old_ids:
 		update_segment(sid)
 	_update_image_sprites()
+
+
+func refresh_images_from_wall_data() -> void:
+	## Вызывать после покупки / set_face_image — синхронизировать спрайты с WallData.
+	clear_texture_cache()
+	_update_image_sprites()
+	print("[APPLY] wall image sprites refreshed from WallData (visible instances=", _multimesh.instance_count, ")")
 
 func set_dim_other_segments(enabled: bool) -> void:
 	"""Включает/выключает затемнение чужих сегментов во время предпросмотра."""
@@ -503,9 +561,12 @@ func handle_click(global_pos: Vector2, for_price_preview: bool = false) -> Dicti
 	
 	var seg_height: float = wall_data.get_segment_height(segment_id)
 	## [FIX] Превью цены для тултипа — без высотного гейта; покупка по-прежнему режется в CubeView
-	if not for_price_preview and Engine.has_singleton("GameState"):
-		var max_height: float = float(GameState.max_height_reached)
-		if seg_height < max_height:
+	var gs2: Node = get_node_or_null("/root/GameState")
+	if not for_price_preview and gs2 != null:
+		var gate_y: float = float(gs2.get("max_height_reached"))
+		if gs2.has_method("get_wall_height_gate"):
+			gate_y = float(gs2.call("get_wall_height_gate"))
+		if seg_height < gate_y:
 			return {}
 	
 	var segment_side_name: String = side_id
@@ -514,10 +575,13 @@ func handle_click(global_pos: Vector2, for_price_preview: bool = false) -> Dicti
 		if ix >= 0 and ix < _segment_sides.size():
 			segment_side_name = str(_segment_sides[ix])
 	# Economy (offline): цены из economy.json; face_id стабилен при обновлении конфига
-	var listing_price: int = EconomyManager.get_listing_price_for_hit(
-		side_id, segment_id, segment_side_name, wall_data
-	)
-	var fid: int = EconomyManager.face_id_from_wall_segment(side_id, segment_id, segment_side_name)
+	var em: Node = get_node_or_null("/root/EconomyManager")
+	var listing_price: int = int(wall_data.get_segment_price(segment_id))
+	var fid: int = 0
+	if em != null and em.has_method("get_listing_price_for_hit"):
+		listing_price = int(em.call("get_listing_price_for_hit", side_id, segment_id, segment_side_name, wall_data))
+	if em != null and em.has_method("face_id_from_wall_segment"):
+		fid = int(em.call("face_id_from_wall_segment", side_id, segment_id, segment_side_name))
 	return {
 		"segment_id": segment_id,
 		"side": side_id,
@@ -592,23 +656,27 @@ func _update_image_sprites() -> void:
 		if i >= _segment_sides.size():
 			continue
 		var current_side: String = _segment_sides[i]
+		var img_side: String = _effective_image_side_for_texture(seg_id, current_side)
 		var img_path: String = ""
 		if _preview_image_paths.has(seg_id) and _preview_image_paths[seg_id] != "":
 			img_path = _preview_image_paths[seg_id]
 		elif wall_data != null:
-			img_path = wall_data.get_face_image_path(seg_id, current_side)
+			img_path = wall_data.get_face_image_path(seg_id, img_side)
 		if img_path == "":
 			# Если изображение было, но больше не нужно
 			if _segment_sprites.has(seg_id):
 				_release_sprite(seg_id)
 			continue
 
-		_update_single_image_sprite(seg_id, i, current_side)
+		_update_single_image_sprite(seg_id, i, img_side)
 
 func _load_texture_from_path(img_path: String) -> Texture2D:
 	"""Загружает текстуру из пути. Поддерживает res://, user:// и абсолютные пути (из нативного диалога). Все изображения автоматически сжимаются до 48x48 пикселей."""
 	if img_path.is_empty():
 		return null
+	var exists_user: bool = img_path.begins_with("user://") and FileAccess.file_exists(img_path)
+	if img_path.begins_with("user://"):
+		print("[TEXTURE] Loading: ", img_path, " exists=", exists_user)
 	
 	# Избегаем повторной загрузки/ресайза одного и того же пути каждый кадр.
 	if _texture_cache.has(img_path):
@@ -634,21 +702,28 @@ func _load_texture_from_path(img_path: String) -> Texture2D:
 					img = (tex as ImageTexture).get_image()
 				else:
 					# Для других типов текстур используем загруженный ресурс как есть
+					if img_path.begins_with("user://"):
+						print("[TEXTURE] SUCCESS (resource Texture2D): ", img_path)
 					return tex
 			elif resource is Image:
 				img = resource as Image
 			else:
 				push_warning("WallRenderer: не удалось загрузить изображение: " + img_path)
+				if img_path.begins_with("user://"):
+					print("[TEXTURE] FAIL: ", img_path)
 				return null
 	else:
 		# Абсолютный путь (Windows: C:\... или Unix: /...)
 		err = img.load(img_path)
 		if err != OK:
 			push_warning("WallRenderer: не удалось загрузить изображение: " + img_path + " (ошибка: " + str(err) + ")")
+			print("[TEXTURE] FAIL: ", img_path, " err=", err)
 			return null
 	
 	if img.is_empty():
 		push_warning("WallRenderer: изображение пустое: " + img_path)
+		if img_path.begins_with("user://"):
+			print("[TEXTURE] FAIL empty: ", img_path)
 		return null
 	
 	# Сжимаем до 48x48 пикселей (если размер отличается)
@@ -661,6 +736,8 @@ func _load_texture_from_path(img_path: String) -> Texture2D:
 	
 	var tex: ImageTexture = ImageTexture.create_from_image(img)
 	_texture_cache[img_path] = tex
+	if img_path.begins_with("user://"):
+		print("[TEXTURE] SUCCESS: ", img_path)
 	return tex
 
 func _update_single_image_sprite(segment_id: String, idx: int, segment_side: String) -> void:
@@ -685,14 +762,21 @@ func _update_single_image_sprite(segment_id: String, idx: int, segment_side: Str
 	var tex: Texture2D = _load_texture_from_path(img_path)
 	if tex == null:
 		push_warning("WallRenderer: не удалось загрузить текстуру: " + img_path)
+		print("[APPLY] FAIL texture segment=", segment_id, " path=", img_path)
+		if _segment_sprites.has(segment_id):
+			_release_sprite(segment_id)
 		return
+	if DEBUG_LOG:
+		print("[APPLY] Applying texture to segment: ", segment_id, " path=", img_path)
 
 	var sprite: Sprite2D = _get_or_create_sprite(segment_id)
 	sprite.texture = tex
 
 	# Устанавливаем позицию по текущему трансформу (с учётом дыхания)
 	var current_transform: Transform2D
-	if GameState.wall_breathing_enabled and idx < _multimesh.instance_count:
+	var gs3: Node = get_node_or_null("/root/GameState")
+	var breathing_enabled2: bool = gs3 != null and bool(gs3.get("wall_breathing_enabled"))
+	if breathing_enabled2 and idx < _multimesh.instance_count:
 		current_transform = _multimesh.get_instance_transform_2d(idx)
 	else:
 		current_transform = _transforms[idx]
