@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://pnkpfmiog8kr"]
+[gd_scene load_steps=2 format=3 uid="uid://dwvbrah2xlxdf"]
 
-[ext_resource type="Script" uid="uid://x4f0dpsn3ien" path="res://scripts/scenes/champions/Champions.gd" id="1_champions"]
+[ext_resource type="Script" path="res://Champions.gd" id="1_champions"]
 
 [node name="Champions" type="Control"]
 layout_mode = 3
@@ -13,9 +13,6 @@ script = ExtResource("1_champions")
 
 [node name="BackToMenuButton" type="Button" parent="."]
 layout_mode = 1
-anchors_preset = 0
-anchor_right = 0.0
-anchor_bottom = 0.0
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 240.0

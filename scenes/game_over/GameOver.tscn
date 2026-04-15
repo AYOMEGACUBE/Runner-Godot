@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://gvyvc4wckrsu"]
 
-[ext_resource type="Script" uid="uid://b706qiff7x4im" path="res://GameOver.gd" id="1"]
-[ext_resource type="Script" path="res://MobileUIScale.gd" id="2_mobile"]
+[ext_resource type="Script" uid="uid://b706qiff7x4im" path="res://scripts/scenes/game_over/GameOver.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/MobileUIScale.gd" id="2_mobile"]
 
 [node name="GameOver" type="CanvasLayer"]
 script = ExtResource("1")
@@ -48,6 +48,18 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Score: 0"
 
+[node name="CoinsLabel" type="Label" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Coins (this run): 0"
+
+[node name="WalletLabel" type="Label" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Wallet total: 0"
+
 [node name="Buttons" type="HBoxContainer" parent="Panel/VBox"]
 custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
@@ -70,4 +82,4 @@ text = "Restart Run"
 custom_minimum_size = Vector2(220, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "Main Menu"
+text = "Back to Menu"

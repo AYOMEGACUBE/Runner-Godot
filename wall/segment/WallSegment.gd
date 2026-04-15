@@ -19,7 +19,9 @@ func _vrng() -> RandomNumberGenerator:
 		var sid: String = str(segment_id).strip_edges()
 		if sid == "":
 			sid = "unset"
-		var s: int = int(hash(str(SeedManager.global_seed) + "::wallseg::" + sid)) & 0x7FFFFFFF
+		var sm: Node = get_node_or_null("/root/SeedManager")
+		var gs_seed: int = int(sm.get("global_seed")) if sm != null else 0
+		var s: int = int(hash(str(gs_seed) + "::wallseg::" + sid)) & 0x7FFFFFFF
 		_visual_rng.seed = s if s != 0 else 1
 	return _visual_rng
 

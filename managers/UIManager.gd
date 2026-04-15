@@ -15,7 +15,15 @@ func _ready() -> void:
 	_tooltip_root = ps.instantiate() as CanvasLayer
 	if _tooltip_root == null:
 		return
-	get_tree().root.add_child(_tooltip_root)
+	# Autoload _ready can run while the scene tree is still initializing children.
+	# Use deferred add to avoid "Parent node is busy setting up children".
+	get_tree().root.call_deferred("add_child", _tooltip_root)
+	call_deferred("_post_init_tooltip")
+
+
+func _post_init_tooltip() -> void:
+	if _tooltip_root == null:
+		return
 	_tooltip_root.hide()
 	_tooltip_label = _tooltip_root.find_child("PriceLabel", true, false) as Label
 

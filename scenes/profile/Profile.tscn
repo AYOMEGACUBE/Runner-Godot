@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dg133jef00bhu"]
 
-[ext_resource type="Script" uid="uid://ce7583hntybfd" path="res://Profile.gd" id="1_profile"]
+[ext_resource type="Script" uid="uid://ce7583hntybfd" path="res://scripts/scenes/profile/Profile.gd" id="1_profile"]
 
 [node name="Profile" type="Control"]
 layout_mode = 3
@@ -11,100 +11,174 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_profile")
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="BackToMenuButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 240.0
+offset_bottom = 56.0
+theme_override_font_sizes/font_size = 18
+text = "Back to Menu"
+
+[node name="ContentMargin" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = 64.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Panel" type="Panel" parent="CenterContainer"]
-custom_minimum_size = Vector2(900, 620)
+[node name="MainHBox" type="HBoxContainer" parent="ContentMargin"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 20
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Panel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = 24.0
-offset_right = -24.0
-offset_bottom = -24.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="LeftVBox" type="VBoxContainer" parent="ContentMargin/MainHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+size_flags_vertical = 3
+theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="ContentMargin/MainHBox/LeftVBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Profile"
+text = "Google Profile"
 
-[node name="NicknameEdit" type="LineEdit" parent="CenterContainer/Panel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 72)
+[node name="NicknameEdit" type="LineEdit" parent="ContentMargin/MainHBox/LeftVBox"]
+custom_minimum_size = Vector2(0, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
-placeholder_text = "Введите никнейм"
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+placeholder_text = "Никнейм (из Google или свой)"
 
-[node name="HeroSelector" type="HBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+[node name="CustomAvatarRow" type="VBoxContainer" parent="ContentMargin/MainHBox/LeftVBox"]
 layout_mode = 2
-theme_override_constants/separation = 16
-alignment = 1
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
 
-[node name="HeroLeftButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
-layout_mode = 2
-text = "<"
-
-[node name="HeroPreview" type="TextureRect" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
-custom_minimum_size = Vector2(110, 110)
-layout_mode = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="HeroRightButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
-layout_mode = 2
-text = ">"
-
-[node name="HeroNameLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer/HeroSelector"]
-layout_mode = 2
-text = "Runner AYO"
-
-[node name="CustomAvatarRow" type="VBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="CustomAvatarCheck" type="CheckBox" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
+[node name="CustomAvatarCheck" type="CheckBox" parent="ContentMargin/MainHBox/LeftVBox/CustomAvatarRow"]
 layout_mode = 2
 text = "Свой аватар (2 фото: jump0/jump1)"
 
-[node name="UploadJumpUpButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
-custom_minimum_size = Vector2(0, 58)
+[node name="UploadButtonsRow" type="HBoxContainer" parent="ContentMargin/MainHBox/LeftVBox/CustomAvatarRow"]
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="UploadJumpUpButton" type="Button" parent="ContentMargin/MainHBox/LeftVBox/CustomAvatarRow/UploadButtonsRow"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
 text = "Загрузить jump(0)"
 
-[node name="UploadJumpDownButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/CustomAvatarRow"]
-custom_minimum_size = Vector2(0, 58)
+[node name="UploadJumpDownButton" type="Button" parent="ContentMargin/MainHBox/LeftVBox/CustomAvatarRow/UploadButtonsRow"]
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
 text = "Загрузить jump(1)"
 
-[node name="WallBreathingCheck" type="CheckBox" parent="CenterContainer/Panel/VBoxContainer"]
+[node name="WallBreathingCheck" type="CheckBox" parent="ContentMargin/MainHBox/LeftVBox"]
 layout_mode = 2
 text = "Дыхание мира (анимация стены)"
 
-[node name="ButtonsRow" type="HBoxContainer" parent="CenterContainer/Panel/VBoxContainer"]
+[node name="SaveButton" type="Button" parent="ContentMargin/MainHBox/LeftVBox"]
+custom_minimum_size = Vector2(0, 56)
 layout_mode = 2
-theme_override_constants/separation = 16
-alignment = 1
-
-[node name="SaveButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/ButtonsRow"]
-custom_minimum_size = Vector2(240, 64)
-layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
 text = "Save"
 
-[node name="BackButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/ButtonsRow"]
-custom_minimum_size = Vector2(240, 64)
+[node name="AuthSectionLabel" type="Label" parent="ContentMargin/MainHBox/LeftVBox"]
 layout_mode = 2
-text = "Back"
+theme_override_font_sizes/font_size = 20
+text = "Аккаунт Google"
+
+[node name="GoogleSignInButton" type="Button" parent="ContentMargin/MainHBox/LeftVBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "Войти через Google"
+
+[node name="SignOutButton" type="Button" parent="ContentMargin/MainHBox/LeftVBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "Выйти"
+
+[node name="RightVBox" type="VBoxContainer" parent="ContentMargin/MainHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+alignment = 0
+
+[node name="HeroNavLabel" type="Label" parent="ContentMargin/MainHBox/RightVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = ""
+horizontal_alignment = 1
+
+[node name="HeroPreviewRow" type="HBoxContainer" parent="ContentMargin/MainHBox/RightVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="HeroLeftButton" type="Button" parent="ContentMargin/MainHBox/RightVBox/HeroPreviewRow"]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 28
+text = "<"
+
+[node name="HeroPreviewCenter" type="CenterContainer" parent="ContentMargin/MainHBox/RightVBox/HeroPreviewRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="SwipeArea" type="Control" parent="ContentMargin/MainHBox/RightVBox/HeroPreviewRow/HeroPreviewCenter"]
+custom_minimum_size = Vector2(240, 240)
+layout_mode = 2
+mouse_filter = 0
+
+[node name="HeroPreview" type="TextureRect" parent="ContentMargin/MainHBox/RightVBox/HeroPreviewRow/HeroPreviewCenter/SwipeArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+mouse_filter = 2
+
+[node name="HeroRightButton" type="Button" parent="ContentMargin/MainHBox/RightVBox/HeroPreviewRow"]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 28
+text = ">"
+
+[node name="HeroNameLabel" type="Label" parent="ContentMargin/MainHBox/RightVBox"]
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Runner AYO"
+horizontal_alignment = 1
 
 [node name="FileDialogJumpUp" type="FileDialog" parent="."]
 title = "Open a File"

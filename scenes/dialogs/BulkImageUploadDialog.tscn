@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bulk_image_upload_dialog"]
 
-[ext_resource type="Script" path="res://BulkImageUploadDialog.gd" id="1_bulk_img"]
+[ext_resource type="Script" path="res://scripts/scenes/dialogs/BulkImageUploadDialog.gd" id="1_bulk_img"]
 
 [node name="BulkImageUploadDialog" type="AcceptDialog"]
 initial_position = 2
@@ -111,3 +111,10 @@ layout_mode = 2
 size_flags_horizontal = 3
 disabled = true
 text = "Подтвердить"
+
+[node name="ImageFileDialog" type="FileDialog" parent="."]
+title = "Выберите изображение"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png ; PNG", "*.jpg,*.jpeg ; JPG", "*.webp ; WEBP")
+use_native_dialog = true

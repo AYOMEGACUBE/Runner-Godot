@@ -30,14 +30,16 @@ func _log(message: String) -> void:
 
 # Сколько секунд условие должно держаться, прежде чем вызвать _die()
 @export var FALL_DEATH_HOLD_SECONDS: float = 0.5
+## Debug-only: instant death without debounce. Keep disabled in release.
+@export var instant_death_debug_mode: bool = false
 
 # Включить/выключить подробный лог
 @export var DEBUG: bool = true
 
-@export_file("*.tscn") var main_menu_scene: String = "res://MainMenu.tscn"
+@export_file("*.tscn") var main_menu_scene: String = "res://scenes/main_menu/MainMenu.tscn"
 
 # Отдельная сцена для экрана Game Over.
-@export_file("*.tscn") var game_over_scene: String = "res://GameOver.tscn"
+@export_file("*.tscn") var game_over_scene: String = "res://scenes/game_over/GameOver.tscn"
 
 # ----------------------------------------------------------------------------
 # Ресурсы героев (настраиваются в инспекторе)
@@ -45,12 +47,14 @@ func _log(message: String) -> void:
 @export var frames_default: SpriteFrames
 @export var frames_monster: SpriteFrames
 @export var frames_red: SpriteFrames
+@export var frames_red2: SpriteFrames
 @export var frames_blue: SpriteFrames
 @export var frames_orange: SpriteFrames
 
 var move_dir: float = 0.0
 var jump_timer: float = 0.0
 var _was_touching_floor: bool = false
+var _touching_floor: bool = false
 
 # Кастом-аватар
 var _custom_tex_up: Texture2D = null
@@ -142,6 +146,8 @@ func _apply_visual_mode() -> void:
 	match hero_id:
 		"monster": target_frames = frames_monster
 		"red":     target_frames = frames_red
+		"red2":
+			target_frames = frames_red2 if frames_red2 != null else frames_red
 		"blue":    target_frames = frames_blue
 		"orange":  target_frames = frames_orange
 		_:         target_frames = frames_default
@@ -264,6 +270,7 @@ func _physics_process(delta: float) -> void:
 			_log("[PLAYER_JUMP] pos=%s jump_velocity=%.1f" % [global_position, JUMP_VELOCITY])
 
 	_was_touching_floor = touching_floor_now
+	_touching_floor = touching_floor_now
 
 	_update_jump_visual()
 
@@ -288,9 +295,26 @@ func _update_jump_visual() -> void:
 	if not anim.sprite_frames.has_animation("JUMP"):
 		return
 
-	anim.stop()
-	anim.animation = "JUMP"
-	anim.frame = 0 if going_up else 1
+	var jump_frame_count: int = anim.sprite_frames.get_frame_count("JUMP")
+
+	# До 2 кадров — старое поведение: «верх/низ» прыжка без проигрывания цикла.
+	if jump_frame_count <= 2:
+		anim.stop()
+		anim.animation = "JUMP"
+		if jump_frame_count == 1:
+			anim.frame = 0
+		else:
+			anim.frame = 0 if going_up else 1
+		return
+
+	# 3+ кадров (например RED 2): в воздухе реально проигрываем анимацию JUMP.
+	if _touching_floor:
+		anim.stop()
+		anim.animation = "JUMP"
+		anim.frame = 0
+	else:
+		if not anim.is_playing():
+			anim.play("JUMP")
 
 # ----------------------------------------------------------------------------
 # Обработка смерти с удержанием порога (debounce)
@@ -335,55 +359,19 @@ func _process_fall_death(delta: float) -> void:
 	if DEBUG and (fall_from_safe_condition or absolute_condition):
 		_log("[PLAYER_DEATH_CHECK] pos_y=%.1f death_y=%.1f last_safe_y=%.1f fall_from_safe=%s absolute=%s" % [global_position.y, death_y, last_safe_y, fall_from_safe_condition, absolute_condition])
 
-	# ----------------------------------------------------------------------------
-	# ВРЕМЕННЫЙ РЕЖИМ: МГНОВЕННАЯ СМЕРТЬ ДЛЯ ОТЛАДКИ GAME OVER → CUBEVIEW
-	# ----------------------------------------------------------------------------
-	# Сейчас нам нужно гарантированно и быстро попадать в Game Over,
-	# чтобы отладить связку:
-	#   смерть игрока -> GameState.is_game_over -> переход в меню/экран
-	#   -> последующий вход в CubeView и проверка высотного гейта.
-	#
-	# Поэтому мы ВРЕМЕННО отключаем "debounce" (удержание условия в течение
-	# FALL_DEATH_HOLD_SECONDS) и вызываем _die() сразу при выполнении
-	# одного из условий смерти.
-	#
-	# Архитектурно:
-	# - Вся логика смерти по‑прежнему сосредоточена в _process_fall_death().
-	# - Поле FALL_DEATH_HOLD_SECONDS и таймер _fall_death_timer остаются
-	#   и могут быть легко возвращены в игру — блок кода с debounce ниже
-	#   оставлен как готовый шаблон.
-	# - Остальной геймплей и стена не затронуты.
-	#
-	# Как вернуть debounce позже:
-	# 1. Закомментировать этот "мгновенный" блок.
-	# 2. Разкомментировать/включить блок ниже "DEBOUNCE‑ВЕРСИЯ".
-	#
-	# Это даёт:
-	# - Сейчас: предельно предсказуемую, мгновенную смерть для отладки.
-	# - В будущем: возможность мягко фильтровать ложные срабатывания
-	#   (например, при дрожании камеры или резких ускорениях), просто
-	#   вернув старую логику без переписывания функции.
-	if fall_from_safe_condition or absolute_condition:
-		_die()
+	if instant_death_debug_mode:
+		if fall_from_safe_condition or absolute_condition:
+			_die()
+			return
 		return
 
-	# ----------------------------------------------------------------------------
-	# DEBOUNCE‑ВЕРСИЯ (ИЗНАЧАЛЬНАЯ ЛОГИКА С УДЕРЖАНИЕМ УСЛОВИЯ)
-	# ----------------------------------------------------------------------------
-	# Оставлена как готовый шаблон на будущее — сейчас НЕ используется,
-	# потому что выше стоит мгновенный возврат.
-	# ----------------------------------------------------------------------------
-
-	# Прежний вариант:
-	# # Если хоть одно условие истинно — увеличиваем таймер удержания
-	# if fall_from_safe_condition or absolute_condition:
-	# 	_fall_death_timer += delta
-	# else:
-	# 	# Сбрасываем таймер при возврате в безопасную зону
-	# 	_fall_death_timer = 0.0
-	#
-	# # Если условие держалось достаточно долго — умираем
-	# if _fall_death_timer >= FALL_DEATH_HOLD_SECONDS:
+	# Debounced release-safe mode.
+	if fall_from_safe_condition or absolute_condition:
+		_fall_death_timer += delta
+	else:
+		_fall_death_timer = 0.0
+	if _fall_death_timer >= FALL_DEATH_HOLD_SECONDS:
+		_die()
 
 # ----------------------------------------------------------------------------
 # Смерть / смена сцены
@@ -421,6 +409,7 @@ func _die() -> void:
 	if gs_die != null:
 		GameState.last_run_score = GameState.score
 		GameState.last_run_max_height = GameState.max_height_reached
+		GameState.last_run_coin_bonus = GameState.run_coin_bonus
 		GameState.has_finished_run = true
 		if DEBUG:
 			_log("[PLAYER_DIE] saved run data: score=%d height=%.1f" % [GameState.last_run_score, GameState.last_run_max_height])

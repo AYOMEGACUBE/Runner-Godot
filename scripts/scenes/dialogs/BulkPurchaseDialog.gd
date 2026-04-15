@@ -32,6 +32,7 @@ var side_option: OptionButton
 
 var location_selection_mode: bool = false
 var selected_image_paths: Dictionary = {}  # segment_id -> image_path
+var _selected_tile_side_by_segment_id: Dictionary = {} # segment_id -> tile side captured at map selection time
 var _privacy_accepted: bool = false
 var corporate_mode_enabled: bool = false
 var corporate_group_id: String = ""
@@ -210,6 +211,7 @@ func setup(data: WallData = null, segment_purchase_side: String = "") -> void:
 	_apply_selected_side_to_ui()
 	start_segment_id = ""
 	selected_segment_ids.clear()
+	_selected_tile_side_by_segment_id.clear()
 	quantity = 1
 	_privacy_accepted = false
 	if selected_location_label:
@@ -259,10 +261,18 @@ func set_selected_location(segment_id: String, x: int, y: int) -> void:
 func set_selected_segments(segment_ids: Array) -> void:
 	"""Устанавливает выбранные сегменты (после drag-выбора)."""
 	selected_segment_ids.clear()
+	_selected_tile_side_by_segment_id.clear()
 	for id_val in segment_ids:
 		var s: String = str(id_val)
 		if s != "" and s not in selected_segment_ids:
 			selected_segment_ids.append(s)
+	if not selected_segment_ids.is_empty():
+		var wr: WallRenderer = _wall_renderer()
+		if wr != null and wr.has_method("get_visible_segment_side"):
+			for sid in selected_segment_ids:
+				var vis: String = str(wr.get_visible_segment_side(sid)).strip_edges().to_lower()
+				if vis != "":
+					_selected_tile_side_by_segment_id[sid] = vis
 	quantity = 1
 	if selected_segment_ids.size() > 0:
 		start_segment_id = selected_segment_ids[0]
@@ -336,6 +346,18 @@ func _wall_renderer() -> WallRenderer:
 ## Грань тайла в момент покупки: `WallRenderer` отдаёт живую грань или `_last_known_tile_side` после скролла.
 ## «back» только если id никогда не попадал в рендерер (нет в памяти) — не копируем грань первого выбранного.
 func _tile_side_for_segment_id(segment_id: String) -> String:
+	var sid: String = str(segment_id).strip_edges()
+	if sid == "":
+		return selected_side
+	if _selected_tile_side_by_segment_id.has(sid):
+		var saved: String = str(_selected_tile_side_by_segment_id[sid]).strip_edges().to_lower()
+		if saved != "":
+			return saved
+	var wr: WallRenderer = _wall_renderer()
+	if wr != null and wr.has_method("get_visible_segment_side"):
+		var vis: String = str(wr.get_visible_segment_side(sid)).strip_edges().to_lower()
+		if vis != "":
+			return vis
 	return selected_side
 
 
@@ -516,31 +538,19 @@ func _on_privacy_checkbox_toggled(button_pressed: bool) -> void:
 	_update_price_display()
 
 func _update_buttons_state() -> void:
-	"""Обновляет состояние всех кнопок в зависимости от согласия с политикой."""
-	if _privacy_accepted:
-		# Если согласие дано, деактивируем все кнопки кроме "Купить"
-		if select_location_button:
-			select_location_button.disabled = true
-		if preview_button:
-			preview_button.disabled = true
-		if upload_images_button:
-			upload_images_button.disabled = true
-		if link_line_edit:
-			link_line_edit.editable = false
-		if cancel_button:
-			cancel_button.disabled = true
-	else:
-		# Если согласие не дано, активируем все кнопки
-		if select_location_button:
-			select_location_button.disabled = false
-		if preview_button:
-			preview_button.disabled = not (selected_segment_ids.size() > 0 or start_segment_id != "")
-		if upload_images_button:
-			upload_images_button.disabled = selected_segment_ids.size() == 0
-		if link_line_edit:
-			link_line_edit.editable = true
-		if cancel_button:
-			cancel_button.disabled = false
+	"""Обновляет состояние кнопок без блокировки повторных покупок.
+	Согласие влияет только на возможность подтвердить покупку, но не на выбор сегментов/картинок.
+	"""
+	if select_location_button:
+		select_location_button.disabled = false
+	if preview_button:
+		preview_button.disabled = not (selected_segment_ids.size() > 0 or start_segment_id != "")
+	if upload_images_button:
+		upload_images_button.disabled = selected_segment_ids.size() == 0
+	if link_line_edit:
+		link_line_edit.editable = true
+	if cancel_button:
+		cancel_button.disabled = false
 
 func _on_purchase_pressed() -> void:
 	"""Обрабатывает нажатие кнопки 'Купить' - выполняет покупку сегментов."""

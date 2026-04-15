@@ -99,7 +99,7 @@ func setup(seg_id: String, price: int, data: WallData = null) -> void:
 	
 	# Проверяем баланс игрока
 	if Engine.has_singleton("GameState"):
-		var player_coins = GameState.score
+		var player_coins = GameState.get_coins()
 		if purchase_button:
 			if player_coins < price:
 				purchase_button.disabled = true

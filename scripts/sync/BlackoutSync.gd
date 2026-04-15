@@ -8,11 +8,16 @@ const STATUS_CONFLICT: String = "conflict"
 const STATUS_FAILED: String = "failed"
 
 var repo_root: String = ""
+## Legacy sync path. Disabled for release runtime in favor of RTDB ownership sync.
+@export var legacy_git_sync_enabled: bool = false
 
 func _ready() -> void:
 	repo_root = ProjectSettings.globalize_path("res://")
 
 func push_all(wall_data: WallData, platform_store: PlatformDataStore) -> String:
+	if not legacy_git_sync_enabled:
+		emit_signal("sync_status_changed", "all", STATUS_FAILED, "legacy git sync disabled")
+		return STATUS_FAILED
 	emit_signal("sync_status_changed", "all", STATUS_PENDING, "push started")
 	if not _write_repo_jsons(wall_data, platform_store):
 		emit_signal("sync_status_changed", "all", STATUS_FAILED, "write repo json failed")
@@ -25,6 +30,9 @@ func push_all(wall_data: WallData, platform_store: PlatformDataStore) -> String:
 	return STATUS_SYNCED
 
 func periodic_pull_and_merge(wall_data: WallData, platform_store: PlatformDataStore) -> String:
+	if not legacy_git_sync_enabled:
+		emit_signal("sync_status_changed", "all", STATUS_FAILED, "legacy git sync disabled")
+		return STATUS_FAILED
 	emit_signal("sync_status_changed", "all", STATUS_PENDING, "pull started")
 	if not _run_git(["fetch"]) or not _run_git(["pull", "--rebase"]):
 		emit_signal("sync_status_changed", "all", STATUS_FAILED, "git pull failed")

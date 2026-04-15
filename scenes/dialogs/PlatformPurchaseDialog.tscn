@@ -1,10 +1,11 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://PlatformPurchaseDialog.gd" id="1_dialog"]
+[ext_resource type="Script" path="res://scripts/scenes/dialogs/PlatformPurchaseDialog.gd" id="1_dialog"]
 
 [node name="PlatformPurchaseDialog" type="AcceptDialog"]
+title = "Покупка платформ"
 initial_position = 2
-dialog_text = "Покупка платформ"
+dialog_text = ""
 script = ExtResource("1_dialog")
 
 [node name="VBox" type="VBoxContainer" parent="."]
@@ -12,27 +13,32 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 16.0
-offset_right = -16.0
-offset_bottom = -16.0
+offset_left = 10.0
+offset_top = 8.0
+offset_right = -10.0
+offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 8
-
-[node name="TitleLabel" type="Label" parent="VBox"]
-layout_mode = 2
-text = "Покупка платформ"
-horizontal_alignment = 1
+theme_override_constants/separation = 4
 
 [node name="CountLabel" type="Label" parent="VBox"]
 layout_mode = 2
 text = "Выбрано платформ: 0"
 horizontal_alignment = 1
 
+[node name="BalanceLabel" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Баланс: 0"
+horizontal_alignment = 1
+
+[node name="CostLabel" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Стоимость: 0"
+horizontal_alignment = 1
+
 [node name="TypeContainer" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="TypeLabel" type="Label" parent="VBox/TypeContainer"]
 layout_mode = 2
@@ -42,9 +48,43 @@ text = "Тип:"
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ImageContainer" type="VBoxContainer" parent="VBox"]
+[node name="SizeContainer" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
 theme_override_constants/separation = 6
+
+[node name="SizeLabel" type="Label" parent="VBox/SizeContainer"]
+layout_mode = 2
+text = "Размер:"
+
+[node name="SizeOption" type="OptionButton" parent="VBox/SizeContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HeightContainer" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HeightLabel" type="Label" parent="VBox/HeightContainer"]
+layout_mode = 2
+text = "Высота:"
+
+[node name="HeightOption" type="OptionButton" parent="VBox/HeightContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AvailabilityLabel" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Доступность: нет данных"
+horizontal_alignment = 1
+
+[node name="QueueLabel" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Ваши платформы появятся через N платформ"
+horizontal_alignment = 1
+
+[node name="ImageContainer" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 3
 
 [node name="ImagePathLabel" type="Label" parent="VBox/ImageContainer"]
 layout_mode = 2
@@ -52,34 +92,54 @@ text = "Изображение: не выбрано"
 autowrap_mode = 2
 
 [node name="Preview" type="TextureRect" parent="VBox/ImageContainer"]
-custom_minimum_size = Vector2(200, 120)
+visible = false
+custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
+size_flags_vertical = 0
 expand_mode = 2
 stretch_mode = 5
 
 [node name="LoadImageButton" type="Button" parent="VBox/ImageContainer"]
 layout_mode = 2
-text = "Загрузить изображение"
+text = "Загрузить основное изображение"
 
-[node name="LinkContainer" type="VBoxContainer" parent="VBox"]
+[node name="ImagePathLabelJumpDown" type="Label" parent="VBox/ImageContainer"]
 layout_mode = 2
-theme_override_constants/separation = 4
+text = "Доп. изображение: не выбрано"
+autowrap_mode = 2
+
+[node name="PreviewJumpDown" type="TextureRect" parent="VBox/ImageContainer"]
+visible = false
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+size_flags_vertical = 0
+expand_mode = 2
+stretch_mode = 5
+
+[node name="LoadImageButtonJumpDown" type="Button" parent="VBox/ImageContainer"]
+layout_mode = 2
+text = "Загрузить дополнительное (опционально)"
+
+[node name="LinkContainer" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
 
 [node name="LinkLabel" type="Label" parent="VBox/LinkContainer"]
 layout_mode = 2
-text = "Ссылка (опционально):"
+text = "Ссылка (опц.):"
 
 [node name="LinkEdit" type="LineEdit" parent="VBox/LinkContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 placeholder_text = "https://example.com"
 
 [node name="DurationContainer" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="DurationToggle" type="CheckBox" parent="VBox/DurationContainer"]
 layout_mode = 2
-text = "Ограниченный срок"
+text = "Ограниченный срок (дней)"
 
 [node name="DurationDaysSpin" type="SpinBox" parent="VBox/DurationContainer"]
 layout_mode = 2
@@ -90,23 +150,23 @@ editable = false
 
 [node name="QuantityContainer" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="QuantityLabel" type="Label" parent="VBox/QuantityContainer"]
 layout_mode = 2
-text = "Количество:"
+text = "Количество (штук):"
 
 [node name="QuantitySpin" type="SpinBox" parent="VBox/QuantityContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 1.0
-max_value = 99999.0
+max_value = 10.0
 value = 1.0
 
 [node name="Buttons" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="CancelButton" type="Button" parent="VBox/Buttons"]
 layout_mode = 2
@@ -117,3 +177,17 @@ text = "Отмена"
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Купить"
+
+[node name="FileDialogJumpUp" type="FileDialog" parent="."]
+title = "Выберите изображение платформы"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png ; PNG", "*.jpg,*.jpeg ; JPG", "*.webp ; WEBP")
+use_native_dialog = true
+
+[node name="FileDialogJumpDown" type="FileDialog" parent="."]
+title = "Выберите jump(1) изображение платформы"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png ; PNG", "*.jpg,*.jpeg ; JPG", "*.webp ; WEBP")
+use_native_dialog = true

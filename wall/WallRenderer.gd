@@ -64,6 +64,13 @@ var dim_other_segments: bool = false
 ## Временные пути изображений для предпросмотра (segment_id -> path). В режиме предпросмотра отображаются вместо данных из WallData.
 var _preview_image_paths: Dictionary = {}
 var _texture_cache: Dictionary = {}  # image_path -> Texture2D
+var _texture_cache_order: Array[String] = [] # LRU: oldest -> newest
+const MAX_TEXTURE_CACHE_ENTRIES: int = 256
+var _texture_load_queue: Array[Dictionary] = []
+var _texture_load_queued_keys: Dictionary = {} # key -> true, защищает от дубликатов очереди
+const MAX_TEXTURE_LOADS_PER_FRAME_GAME: int = 2
+const MAX_TEXTURE_LOADS_PER_FRAME_VIEW: int = 24
+const MAX_TEXTURE_QUEUE_LENGTH: int = 2000
 @export var DEBUG_LOG: bool = false
 
 func _ready() -> void:
@@ -146,10 +153,24 @@ func _effective_image_side_for_texture(segment_id: String, visual_side: String) 
 	var p0: String = wall_data.get_face_image_path(segment_id, visual_side).strip_edges()
 	if p0 != "":
 		return visual_side
-	for s in SIDES:
-		if wall_data.get_face_image_path(segment_id, s).strip_edges() != "":
-			return s
+	# Важно: не показываем "картинку с любой грани" по умолчанию.
+	# Иначе выглядит так, будто сегмент перестал менять сторону (картинка липнет).
+	# Для предпросмотра используется _preview_image_paths.
 	return visual_side
+
+
+func _visual_face_data(segment_id: String, visual_side: String) -> Dictionary:
+	# Данные именно текущей визуальной грани (для цвета "видно что крутится").
+	if wall_data == null:
+		return {}
+	return wall_data.get_face_data(segment_id, visual_side)
+
+
+func _visual_face_image_path(segment_id: String, visual_side: String) -> String:
+	# Картинка именно текущей визуальной грани.
+	if wall_data == null:
+		return ""
+	return wall_data.get_face_image_path(segment_id, visual_side).strip_edges()
 
 
 func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
@@ -286,6 +307,7 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 	_update_image_sprites()
 
 func _process(delta: float) -> void:
+	_process_texture_load_queue()
 	## [OPTIMIZATION] При аномально большом числе инстансов — не дышим и не дергаем стороны (защита от фриза)
 	if _multimesh != null and _multimesh.instance_count > HEAVY_MESH_SKIP_PROCESS:
 		return
@@ -379,6 +401,7 @@ func _process_side_changes(delta: float) -> void:
 			var face_data: Dictionary = _effective_face_data_for_ownership(segment_id2, new_side)
 			var color: Color = _get_segment_color_by_side(new_side, face_data, segment_id2)
 			_multimesh.set_instance_color(i, color)
+			_request_image_sprite_update(segment_id2, i, new_side)
 
 # Обновление конкретного сегмента после покупки
 func update_segment(segment_id: String) -> void:
@@ -405,17 +428,70 @@ func update_segment(segment_id: String) -> void:
 	var color: Color = _get_segment_color_by_side(current_side, face_data, segment_id)
 	_multimesh.set_instance_color(idx, color)
 
-	var img_side: String = _effective_image_side_for_texture(segment_id, current_side)
-	_update_single_image_sprite(segment_id, idx, img_side)
+	# Картинку показываем только на текущей визуальной стороне (через очередь, без синхронных фризов).
+	_request_image_sprite_update(segment_id, idx, current_side)
+
+
+func force_segment_visual_side(segment_id: String, forced_side: String) -> void:
+	if wall_data == null or _multimesh == null:
+		return
+	var side_norm: String = str(forced_side).strip_edges().to_lower()
+	if side_norm == "" or side_norm not in SIDES:
+		return
+	_remember_tile_side(segment_id, side_norm)
+	if not _segment_index.has(segment_id):
+		return
+	var idx: int = int(_segment_index[segment_id])
+	if idx < 0 or idx >= _multimesh.instance_count:
+		return
+	if idx < _segment_sides.size():
+		_segment_sides[idx] = side_norm
+	# Чтобы грань не "прыгала" сразу после покупки.
+	if idx < _side_change_timers.size():
+		_side_change_timers[idx] = 0.0
+	var face_data: Dictionary = _effective_face_data_for_ownership(segment_id, side_norm)
+	var color: Color = _get_segment_color_by_side(side_norm, face_data, segment_id)
+	_multimesh.set_instance_color(idx, color)
+	_request_image_sprite_update(segment_id, idx, side_norm)
+
+
+func _request_image_sprite_update(segment_id: String, idx: int, segment_side: String) -> void:
+	if idx < 0 or idx >= _segment_ids.size():
+		return
+	var img_path: String = ""
+	if _preview_image_paths.has(segment_id) and _preview_image_paths[segment_id] != "":
+		img_path = _preview_image_paths[segment_id]
+	elif wall_data != null:
+		img_path = wall_data.get_face_image_path(segment_id, segment_side).strip_edges()
+	if img_path == "":
+		# ВАЖНО: иначе старый Sprite2D "зависает" при повороте стороны.
+		if _segment_sprites.has(segment_id):
+			_release_sprite(segment_id)
+		return
+	if _texture_cache.has(img_path):
+		_update_single_image_sprite(segment_id, idx, segment_side)
+		return
+	var qkey: String = "%s|%s" % [segment_id, img_path]
+	if not _texture_load_queued_keys.has(qkey):
+		_texture_load_queued_keys[qkey] = true
+		_texture_load_queue.append({
+			"segment_id": segment_id,
+			"idx": idx,
+			"segment_side": segment_side,
+			"img_path": img_path,
+			"qkey": qkey,
+		})
+		if _texture_load_queue.size() > MAX_TEXTURE_QUEUE_LENGTH:
+			var drop: Dictionary = _texture_load_queue.pop_front()
+			var dk: String = str(drop.get("qkey", ""))
+			if dk != "":
+				_texture_load_queued_keys.erase(dk)
 
 func _get_segment_color_by_side(segment_side: String, face_data: Dictionary, segment_id: String = "") -> Color:
-	# Базовый цвет по стороне сегмента (не по side_id стены!)
+	# Базовый цвет по стороне сегмента (как было раньше).
 	var base_color: Color = _get_side_color(segment_side)
-	var face_image_path: String = str(face_data.get("image_path", "")).strip_edges()
-	
-	# Если куплено (на текущей визуальной грани или на любой другой — см. _effective_face_data_for_ownership)
-	var owner: String = str(face_data.get("owner", ""))
-	var is_owned: bool = owner.strip_edges() != ""
+	var owner: String = str(face_data.get("owner", "")).strip_edges()
+	var is_owned: bool = owner != ""
 	if is_owned:
 		var owned_color: Color = Color(0.1, 0.8, 0.2)
 		base_color = base_color.lerp(owned_color, 0.3)
@@ -443,9 +519,10 @@ func _get_segment_color_by_side(segment_side: String, face_data: Dictionary, seg
 		var highlight_color: Color = Color(1.0, 1.0, 1.0, 0.8)
 		base_color = base_color.lerp(highlight_color, 0.5)
 
-	# Fail-safe: если у купленной грани есть изображение, убираем заливку,
-	# чтобы даже при нестандартном порядке рендера цвет не перекрывал Sprite2D.
-	if face_image_path != "":
+	# Если на текущей визуальной стороне есть картинка — делаем заливку прозрачной.
+	# Если картинки нет — остаётся стандартный цвет стороны.
+	var has_visual_image: bool = _visual_face_image_path(segment_id, segment_side) != ""
+	if has_visual_image:
 		base_color.a = 0.0
 	
 	return base_color
@@ -471,6 +548,9 @@ func set_highlighted_segments(segment_ids: Array) -> void:
 
 func clear_texture_cache() -> void:
 	_texture_cache.clear()
+	_texture_cache_order.clear()
+	_texture_load_queue.clear()
+	_texture_load_queued_keys.clear()
 
 
 func clear_highlight() -> void:
@@ -656,7 +736,8 @@ func _update_image_sprites() -> void:
 		if i >= _segment_sides.size():
 			continue
 		var current_side: String = _segment_sides[i]
-		var img_side: String = _effective_image_side_for_texture(seg_id, current_side)
+		# Показываем картинку только на текущей визуальной стороне (иначе выглядит как "стороны не крутятся").
+		var img_side: String = current_side
 		var img_path: String = ""
 		if _preview_image_paths.has(seg_id) and _preview_image_paths[seg_id] != "":
 			img_path = _preview_image_paths[seg_id]
@@ -668,7 +749,74 @@ func _update_image_sprites() -> void:
 				_release_sprite(seg_id)
 			continue
 
+		# Чтобы не ловить фризы, не грузим тяжелые текстуры всем списком в одном кадре.
+		# Если текстуры ещё нет в кэше — ставим в очередь дозагрузки (без дубликатов).
+		if not _texture_cache.has(img_path):
+			var qkey: String = "%s|%s" % [seg_id, img_path]
+			if not _texture_load_queued_keys.has(qkey):
+				_texture_load_queued_keys[qkey] = true
+				_texture_load_queue.append({
+					"segment_id": seg_id,
+					"idx": i,
+					"segment_side": img_side,
+					"img_path": img_path,
+					"qkey": qkey,
+				})
+				# Защита от раздувания очереди (если камера быстро движется и много уникальных путей).
+				if _texture_load_queue.size() > MAX_TEXTURE_QUEUE_LENGTH:
+					var drop: Dictionary = _texture_load_queue.pop_front()
+					var dk: String = str(drop.get("qkey", ""))
+					if dk != "":
+						_texture_load_queued_keys.erase(dk)
+			continue
 		_update_single_image_sprite(seg_id, i, img_side)
+
+
+func _touch_texture_cache_key(img_path: String) -> void:
+	# LRU: переносим ключ в конец списка
+	var ix: int = _texture_cache_order.find(img_path)
+	if ix >= 0:
+		_texture_cache_order.remove_at(ix)
+	_texture_cache_order.append(img_path)
+
+
+func _evict_texture_cache_if_needed() -> void:
+	while _texture_cache_order.size() > MAX_TEXTURE_CACHE_ENTRIES:
+		var oldest: String = _texture_cache_order.pop_front()
+		_texture_cache.erase(oldest)
+
+
+func _process_texture_load_queue() -> void:
+	if _texture_load_queue.is_empty():
+		return
+	var loads_left: int = MAX_TEXTURE_LOADS_PER_FRAME_VIEW if allow_purchases else MAX_TEXTURE_LOADS_PER_FRAME_GAME
+	while loads_left > 0 and not _texture_load_queue.is_empty():
+		var req: Dictionary = _texture_load_queue.pop_front()
+		var qkey0: String = str(req.get("qkey", ""))
+		if qkey0 != "":
+			_texture_load_queued_keys.erase(qkey0)
+		var seg_id: String = str(req.get("segment_id", ""))
+		var img_path: String = str(req.get("img_path", ""))
+		var idx: int = int(req.get("idx", -1))
+		var seg_side: String = str(req.get("segment_side", ""))
+		if seg_id == "" or img_path == "" or idx < 0:
+			continue
+		# Если сегмент уже ушёл из видимой области — не грузим
+		if not _segment_index.has(seg_id):
+			continue
+		# Если уже успели закэшировать — просто применим
+		if _texture_cache.has(img_path):
+			_touch_texture_cache_key(img_path)
+			_update_single_image_sprite(seg_id, idx, seg_side)
+			loads_left -= 1
+			continue
+		var tex: Texture2D = _load_texture_from_path(img_path)
+		if tex != null:
+			_texture_cache[img_path] = tex
+			_touch_texture_cache_key(img_path)
+			_evict_texture_cache_if_needed()
+			_update_single_image_sprite(seg_id, idx, seg_side)
+		loads_left -= 1
 
 func _load_texture_from_path(img_path: String) -> Texture2D:
 	"""Загружает текстуру из пути. Поддерживает res://, user:// и абсолютные пути (из нативного диалога). Все изображения автоматически сжимаются до 48x48 пикселей."""
@@ -676,12 +824,14 @@ func _load_texture_from_path(img_path: String) -> Texture2D:
 		return null
 	var exists_user: bool = img_path.begins_with("user://") and FileAccess.file_exists(img_path)
 	if img_path.begins_with("user://"):
-		print("[TEXTURE] Loading: ", img_path, " exists=", exists_user)
+		if DEBUG_LOG:
+			print("[TEXTURE] Loading: ", img_path, " exists=", exists_user)
 	
 	# Избегаем повторной загрузки/ресайза одного и того же пути каждый кадр.
 	if _texture_cache.has(img_path):
 		var cached: Texture2D = _texture_cache[img_path]
 		if cached != null:
+			_touch_texture_cache_key(img_path)
 			return cached
 	
 	const TARGET_SIZE: int = 48
@@ -703,27 +853,31 @@ func _load_texture_from_path(img_path: String) -> Texture2D:
 				else:
 					# Для других типов текстур используем загруженный ресурс как есть
 					if img_path.begins_with("user://"):
-						print("[TEXTURE] SUCCESS (resource Texture2D): ", img_path)
+						if DEBUG_LOG:
+							print("[TEXTURE] SUCCESS (resource Texture2D): ", img_path)
 					return tex
 			elif resource is Image:
 				img = resource as Image
 			else:
 				push_warning("WallRenderer: не удалось загрузить изображение: " + img_path)
 				if img_path.begins_with("user://"):
-					print("[TEXTURE] FAIL: ", img_path)
+					if DEBUG_LOG:
+						print("[TEXTURE] FAIL: ", img_path)
 				return null
 	else:
 		# Абсолютный путь (Windows: C:\... или Unix: /...)
 		err = img.load(img_path)
 		if err != OK:
 			push_warning("WallRenderer: не удалось загрузить изображение: " + img_path + " (ошибка: " + str(err) + ")")
-			print("[TEXTURE] FAIL: ", img_path, " err=", err)
+			if DEBUG_LOG:
+				print("[TEXTURE] FAIL: ", img_path, " err=", err)
 			return null
 	
 	if img.is_empty():
 		push_warning("WallRenderer: изображение пустое: " + img_path)
 		if img_path.begins_with("user://"):
-			print("[TEXTURE] FAIL empty: ", img_path)
+			if DEBUG_LOG:
+				print("[TEXTURE] FAIL empty: ", img_path)
 		return null
 	
 	# Сжимаем до 48x48 пикселей (если размер отличается)
@@ -736,8 +890,11 @@ func _load_texture_from_path(img_path: String) -> Texture2D:
 	
 	var tex: ImageTexture = ImageTexture.create_from_image(img)
 	_texture_cache[img_path] = tex
+	_touch_texture_cache_key(img_path)
+	_evict_texture_cache_if_needed()
 	if img_path.begins_with("user://"):
-		print("[TEXTURE] SUCCESS: ", img_path)
+		if DEBUG_LOG:
+			print("[TEXTURE] SUCCESS: ", img_path)
 	return tex
 
 func _update_single_image_sprite(segment_id: String, idx: int, segment_side: String) -> void:

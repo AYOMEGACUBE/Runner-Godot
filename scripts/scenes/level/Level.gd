@@ -3,8 +3,8 @@ extends Node2D
 @onready var player: CharacterBody2D = $Player
 @onready var platforms_root: Node2D = $Platforms
 
-var platform_scene: PackedScene = preload("res://Platform.tscn")
-var coin_scene: PackedScene = preload("res://Coin.tscn")
+var platform_scene: PackedScene = preload("res://scenes/platform/Platform.tscn")
+var coin_scene: PackedScene = preload("res://scenes/coin/Coin.tscn")
 const RunDebugOverlayScript = preload("res://scripts/debug/RunDebugOverlay.gd")
 const WorldSegmentGrid = preload("res://scripts/config/WorldSegmentGrid.gd")
 
@@ -23,10 +23,11 @@ var world_right: float = 0.0
 ## Один AABB на весь забег: ширина = world_right−world_left, высота = ось грани куба (153 600 px), задаётся один раз в _setup_world_bounds.
 var world_bounds: Dictionary = {}
 
-var platforms: Array[Node2D] = []
+var platforms: Array = []
 
 var path_selector: PathSelector = null
 var platform_pool: PlatformPool = null
+var _runtime_platform_store: PlatformDataStore = PlatformDataStore.new()
 
 var _active_layout: PathModel = null
 var _fallback_snapshot: PathModel = null
@@ -45,23 +46,38 @@ var _coin_spawn_chance: float = 0.3
 var _max_visible_platforms: int = 7
 var _fps_spawn_threshold: float = 50.0
 var _coin_height_offset: float = 80.0
+var _ownership_pull_accum: float = 0.0
+const OWNERSHIP_PULL_INTERVAL_SEC: float = 4.0
 
 var last_main_pos: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	PhysicsConfig.calculate_jump_metrics()
-	SeedManager.ensure_seed()
-	SeedManager.lock_seed(true)
+	var sm: Node = get_node_or_null("/root/SeedManager")
+	if sm != null:
+		sm.call("ensure_seed")
+		sm.call("lock_seed", true)
 
-	if not DataManager.is_data_ready:
-		await DataManager.load_completed
-
-	rules = DataManager.rules_data.duplicate(true)
+	var dm: Node = get_node_or_null("/root/DataManager")
+	if dm != null:
+		if not bool(dm.get("is_data_ready")):
+			await dm.load_completed
+		rules = (dm.get("rules_data") as Dictionary).duplicate(true)
+	else:
+		push_warning("Level.gd: DataManager autoload missing; using empty rules")
+		rules = {}
 	if not _validate_rules(rules):
 		push_error("Level.gd: platform_rules.json invalid or incomplete")
 		return
 
 	_apply_rules_to_fields(rules)
+	_runtime_platform_store.load_from_file()
+	var ors: Node = get_node_or_null("/root/OwnershipRemoteSync")
+	if ors != null:
+		if ors.has_signal("ownership_updated") and not ors.ownership_updated.is_connected(_on_ownership_updated):
+			ors.ownership_updated.connect(_on_ownership_updated)
+		if ors.has_method("pull_ownership_then_merge"):
+			ors.call_deferred("pull_ownership_then_merge")
 
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	viewport_width = viewport_size.x
@@ -92,10 +108,10 @@ func _ready() -> void:
 
 	var gs_sync: Node = get_node_or_null("/root/GameState")
 	if gs_sync != null:
-		GameState.run_start_player_x = player.global_position.x
-		GameState.run_start_player_y = player.global_position.y
-		GameState.max_height_reached = player.global_position.y
-		GameState.recompute_run_score()
+		gs_sync.set("run_start_player_x", player.global_position.x)
+		gs_sync.set("run_start_player_y", player.global_position.y)
+		gs_sync.set("max_height_reached", player.global_position.y)
+		gs_sync.call("recompute_run_score")
 
 	_setup_world_bounds()
 
@@ -213,6 +229,12 @@ func _burst_spawn_layout() -> void:
 			break
 
 func _physics_process(_delta: float) -> void:
+	_ownership_pull_accum += _delta
+	if _ownership_pull_accum >= OWNERSHIP_PULL_INTERVAL_SEC:
+		_ownership_pull_accum = 0.0
+		var ors: Node = get_node_or_null("/root/OwnershipRemoteSync")
+		if ors != null and ors.has_method("pull_ownership_then_merge"):
+			ors.call("pull_ownership_then_merge")
 	if _active_layout == null or platform_pool == null:
 		return
 
@@ -272,6 +294,7 @@ func _spawn_next_layout_slot() -> bool:
 		return false
 
 	_configure_platform(p, pos, seg, _layout_index, slot)
+	_apply_purchased_platform_override(p, pos, _layout_index)
 	_register_platform(p)
 	if not bool(slot.get("is_decoy", false)):
 		_try_spawn_loot(_layout_index, pos)
@@ -291,8 +314,13 @@ func _configure_platform(p: Node2D, pos: Vector2, seg: int, slot_idx: int, slot:
 	if decoy:
 		p.set("is_crumbling", false)
 	else:
-		var rng_lp: RandomNumberGenerator = SeedManager.get_rng_for("level_platform_crumble")
-		var p_crumb: float = PlatformSpawner.crumble_probability_at_y(pos.y, GameState.run_start_player_y)
+		var sm: Node = get_node_or_null("/root/SeedManager")
+		var rng_lp: RandomNumberGenerator = sm.call("get_rng_for", "level_platform_crumble") as RandomNumberGenerator if sm != null else null
+		if rng_lp == null:
+			rng_lp = RandomNumberGenerator.new()
+		var gs_crumb: Node = get_node_or_null("/root/GameState")
+		var run_start_y: float = float(gs_crumb.get("run_start_player_y")) if gs_crumb != null else player.global_position.y
+		var p_crumb: float = PlatformSpawner.crumble_probability_at_y(pos.y, run_start_y)
 		p.set("is_crumbling", rng_lp.randf() < p_crumb)
 	p.call("apply_size_to_shape")
 	var cs: Node = p.get_node_or_null("CollisionShape2D")
@@ -308,6 +336,70 @@ func _configure_platform(p: Node2D, pos: Vector2, seg: int, slot_idx: int, slot:
 	if p.has_signal("platform_lifecycle_ended") and not p.platform_lifecycle_ended.is_connected(_on_platform_lifecycle_ended):
 		p.platform_lifecycle_ended.connect(_on_platform_lifecycle_ended)
 
+
+func _height_level_for_platform_y(pos_y: float) -> int:
+	var gs: Node = get_node_or_null("/root/GameState")
+	var run_start_y: float = float(gs.get("run_start_player_y")) if gs != null else pos_y
+	var climb: float = maxf(0.0, run_start_y - pos_y)
+	var thresholds: Array = PurchaseManager.PLATFORM_LEVEL_HEIGHTS if Engine.has_singleton("PurchaseManager") else [1000, 5000, 10000, 20000, 50000, 100000, 200000]
+	var lvl: int = 1
+	for i in range(thresholds.size()):
+		if climb >= float(thresholds[i]):
+			lvl = i + 1
+	return clampi(lvl, 1, 7)
+
+
+func _apply_purchased_platform_override(p: Node2D, pos: Vector2, slot_idx: int) -> void:
+	if _runtime_platform_store == null:
+		return
+	var lvl: int = _height_level_for_platform_y(pos.y)
+	var pid: String = "h%d_slot_%d" % [lvl, slot_idx]
+	p.set_meta("__platform_purchase_id", pid)
+	if not _runtime_platform_store.platforms.has(pid):
+		return
+	var rec: Dictionary = _runtime_platform_store.get_platform(pid)
+	var owner: String = str(rec.get("owner_uid", "")).strip_edges()
+	if owner == "":
+		return
+	var exp: int = int(rec.get("expires_at_timestamp", 0))
+	if exp > 0 and exp <= int(Time.get_unix_time_from_system()):
+		return
+	# Purchased platform metadata must not break reachability in gameplay:
+	# keep generated physics/collision behavior unchanged and only apply visuals.
+	var up_path: String = str(rec.get("jump_image_up_path", rec.get("image_path", ""))).strip_edges()
+	var down_path: String = str(rec.get("jump_image_down_path", rec.get("image_path", ""))).strip_edges()
+	if p.has_method("set_runtime_images"):
+		p.call("set_runtime_images", up_path, down_path)
+
+
+func _on_ownership_updated(_wall_changed: bool, platform_changed: bool) -> void:
+	if not platform_changed:
+		return
+	_runtime_platform_store.load_from_file()
+	_refresh_spawned_platform_purchase_visuals()
+
+
+func _refresh_spawned_platform_purchase_visuals() -> void:
+	if platforms_root == null:
+		return
+	for n in platforms_root.get_children():
+		_refresh_purchase_for_node_recursive(n)
+
+
+func _refresh_purchase_for_node_recursive(n: Node) -> void:
+	if n is Node2D:
+		var p: Node2D = n as Node2D
+		if p.has_meta("__platform_purchase_id"):
+			var pid: String = str(p.get_meta("__platform_purchase_id"))
+			if _runtime_platform_store.platforms.has(pid):
+				var rec: Dictionary = _runtime_platform_store.get_platform(pid)
+				var up_path: String = str(rec.get("jump_image_up_path", rec.get("image_path", ""))).strip_edges()
+				var down_path: String = str(rec.get("jump_image_down_path", rec.get("image_path", ""))).strip_edges()
+				if p.has_method("set_runtime_images"):
+					p.call("set_runtime_images", up_path, down_path)
+	for c in n.get_children():
+		_refresh_purchase_for_node_recursive(c)
+
 func _on_platform_lifecycle_ended(p: Node2D) -> void:
 	release_platform_from_level(p)
 
@@ -316,7 +408,9 @@ func _try_spawn_loot(slot_idx: int, platform_center: Vector2) -> void:
 		return
 	if path_selector == null:
 		return
-	var h: int = int(abs(hash(str(SeedManager.global_seed) + ":" + str(path_selector.active_model_index) + ":" + str(slot_idx)))) % 10000
+	var sm: Node = get_node_or_null("/root/SeedManager")
+	var gs_seed: int = int(sm.get("global_seed")) if sm != null else 0
+	var h: int = int(abs(hash(str(gs_seed) + ":" + str(path_selector.active_model_index) + ":" + str(slot_idx)))) % 10000
 	if (float(h) / 10000.0) >= _coin_spawn_chance:
 		return
 	var c: Node2D = coin_scene.instantiate() as Node2D
@@ -471,6 +565,8 @@ func _center_to_next_edge_is_reachable(target_center: Vector2, next_half_width: 
 	return edge_dx <= reach
 
 func _log(message: String) -> void:
-	FileLogger.write_log(message)
+	var fl: Node = get_node_or_null("/root/FileLogger")
+	if fl != null and fl.has_method("write_log"):
+		fl.call("write_log", message)
 	if DEBUG_LOG:
 		print(message)

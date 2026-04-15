@@ -25,6 +25,7 @@ var corporate_group_id: String = ""
 @onready var separate_images_list: VBoxContainer = $VBoxContainer/SeparateImagesContainer/ScrollContainer/ImageList
 @onready var confirm_button: Button = $VBoxContainer/ButtonsContainer/ConfirmButton
 @onready var cancel_button: Button = $VBoxContainer/ButtonsContainer/CancelButton
+@onready var image_file_dialog: FileDialog = get_node_or_null("ImageFileDialog")
 
 var _current_editing_segment_id: String = ""
 
@@ -42,6 +43,9 @@ func _ready() -> void:
 		confirm_button.pressed.connect(_on_confirm_pressed)
 	if cancel_button:
 		cancel_button.pressed.connect(_on_cancel_pressed)
+	if image_file_dialog and not image_file_dialog.file_selected.is_connected(_on_file_selected):
+		image_file_dialog.file_selected.connect(_on_file_selected)
+		image_file_dialog.use_native_dialog = true
 
 func setup(seg_ids: Array, side_id: String = "front") -> void:
 	segment_ids.clear()
@@ -198,6 +202,9 @@ func _on_segment_image_load_pressed(seg_id: String) -> void:
 	_show_native_file_dialog()
 
 func _show_native_file_dialog() -> void:
+	if image_file_dialog:
+		image_file_dialog.popup_centered_ratio(0.85)
+		return
 	var filters: PackedStringArray = PackedStringArray(["*.png", "*.jpg", "*.jpeg", "*.webp"])
 	DisplayServer.file_dialog_show(
 		"Выберите изображение",

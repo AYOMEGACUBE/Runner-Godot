@@ -17,7 +17,13 @@ func _init(platform_scene: PackedScene, platforms_root: Node2D, initial_count: i
 	_prebuild(mini(initial_count, MAX_POOL_SIZE))
 
 func _log(msg: String) -> void:
-	FileLogger.write_log(msg)
+	var ml: MainLoop = Engine.get_main_loop()
+	if ml is SceneTree:
+		var fl: Node = (ml as SceneTree).root.get_node_or_null("/root/FileLogger")
+		if fl != null and fl.has_method("write_log"):
+			fl.call("write_log", msg)
+			return
+	print(msg)
 
 func _prebuild(count: int) -> void:
 	var n: int = clampi(count, 0, MAX_POOL_SIZE)

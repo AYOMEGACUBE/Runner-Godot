@@ -652,7 +652,7 @@ func _create_purchase_dialog() -> void:
 		purchase_dialog.name = "PurchaseDialog"
 		
 		# Загружаем скрипт и применяем его
-		var script_path = "res://PurchaseDialog.gd"
+		var script_path = "res://scripts/scenes/dialogs/PurchaseDialog.gd"
 		if ResourceLoader.exists(script_path):
 			var script = load(script_path) as GDScript
 			if script:
@@ -754,7 +754,10 @@ func _show_platform_purchase_dialog() -> void:
 					get_tree().root.add_child(_platform_purchase_dialog)
 					if _platform_purchase_dialog.has_signal("purchase_confirmed"):
 						_platform_purchase_dialog.purchase_confirmed.connect(_on_platform_purchase_confirmed)
-	if _platform_purchase_dialog and _platform_purchase_dialog.has_method("setup"):
+	if _platform_purchase_dialog == null:
+		push_warning("CubeView: PlatformPurchaseDialog unavailable")
+		return
+	if _platform_purchase_dialog.has_method("setup"):
 		_platform_purchase_dialog.setup([])
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size
 	var w: int = int(clampf(vp_size.x * 0.82, 500.0, 820.0))
@@ -1051,6 +1054,8 @@ func _on_preview_next_segment_pressed() -> void:
 	"""Переход к следующему сегменту в режиме 'по очереди'."""
 	if _bulk_purchase_dialog and _bulk_purchase_dialog.has_method("get_preview_segment_ids"):
 		var ids: Array = _bulk_purchase_dialog.get_preview_segment_ids()
+		if ids.is_empty():
+			return
 		_bulk_preview_current_index = (_bulk_preview_current_index + 1) % ids.size()
 		if wall_instance:
 			var current_id: String = str(ids[_bulk_preview_current_index])
@@ -1483,6 +1488,8 @@ func _on_purchase_confirmed(segment_id: String, side: String, image_path: String
 	)
 	
 	if success:
+		if wall_instance and wall_instance.has_method("force_segment_visual_side"):
+			wall_instance.force_segment_visual_side(segment_id, side)
 		# Обрабатываем изображение
 		if not image_path.is_empty():
 			_copy_and_set_image(segment_id, side, image_path, wall_data)
@@ -1503,50 +1510,10 @@ func _on_purchase_confirmed(segment_id: String, side: String, image_path: String
 		_check_and_unlock_next_side(wall_data)
 
 func _copy_and_set_image(segment_id: String, side: String, source_path: String, wall_data: WallData) -> void:
-	"""Копирует изображение в user://wall_images/, сжимает до 48x48 пикселей и устанавливает его для сегмента."""
-	# Создаём директорию для изображений если её нет
-	var images_dir = "user://wall_images"
-	if not DirAccess.dir_exists_absolute(images_dir):
-		DirAccess.open("user://").make_dir("wall_images")
-	
-	# Загружаем исходное изображение
-	var source_image = Image.new()
-	var load_error = source_image.load(source_path)
-	if load_error != OK:
-		push_error("CubeView: не удалось загрузить изображение: " + source_path + " (ошибка: " + str(load_error) + ")")
-		return
-	
-	# Сжимаем изображение до 48x48 пикселей
-	const TARGET_SIZE: int = 48
-	source_image.resize(TARGET_SIZE, TARGET_SIZE, Image.INTERPOLATE_LANCZOS)
-	
-	# Генерируем уникальное имя файла
-	var ext: String = source_path.get_extension()
-	if ext.is_empty():
-		ext = "png"
-	var file_name = segment_id + "_" + side + "_" + str(Time.get_unix_time_from_system()) + "." + ext
-	var dest_path = images_dir + "/" + file_name
-	
-	# Сохраняем сжатое изображение
-	var save_error: Error
-	if ext.to_lower() == "png":
-		save_error = source_image.save_png(dest_path)
-	elif ext.to_lower() in ["jpg", "jpeg"]:
-		save_error = source_image.save_jpg(dest_path, 0.9)
-	elif ext.to_lower() == "webp":
-		save_error = source_image.save_webp(dest_path)
-	else:
-		# По умолчанию сохраняем как PNG
-		save_error = source_image.save_png(dest_path)
-	
-	if save_error != OK:
-		push_error("CubeView: не удалось сохранить сжатое изображение: " + dest_path + " (ошибка: " + str(save_error) + ")")
-		return
-	
-	print("CubeView: Изображение сжато до 48x48 и сохранено: ", dest_path)
-	
-	# Устанавливаем путь к изображению в WallData
-	if not wall_data.set_face_image(segment_id, side, dest_path):
+	"""Устанавливает изображение для сегмента.
+	Подготовка (resize/hash/cache/save) выполняется внутри WallData один раз на source_path.
+	"""
+	if not wall_data.set_face_image(segment_id, side, source_path):
 		push_error("CubeView: set_face_image отклонён (нет грани «%s» у сегмента %s)" % [side, segment_id])
 		return
 
@@ -1602,6 +1569,8 @@ func _try_purchase_segment(click_data: Dictionary) -> void:
 	)
 	
 	if success:
+		if wall_instance and wall_instance.has_method("force_segment_visual_side"):
+			wall_instance.force_segment_visual_side(segment_id, side)
 		wall_instance.update_segment_visual(segment_id)
 
 

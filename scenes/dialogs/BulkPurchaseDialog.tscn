@@ -1,10 +1,10 @@
 [gd_scene load_steps=2 format=3 uid="uid://bulk_purchase_dialog"]
 
-[ext_resource type="Script" path="res://BulkPurchaseDialog.gd" id="1_bulk"]
+[ext_resource type="Script" path="res://scripts/scenes/dialogs/BulkPurchaseDialog.gd" id="1_bulk"]
 
 [node name="BulkPurchaseDialog" type="AcceptDialog"]
 initial_position = 2
-dialog_text = "Покупка сегментов"
+dialog_text = ""
 script = ExtResource("1_bulk")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
@@ -28,27 +28,9 @@ horizontal_alignment = 1
 [node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
 layout_mode = 2
 
-[node name="QuantityContainer" type="HBoxContainer" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="QuantityLabel" type="Label" parent="VBoxContainer/QuantityContainer"]
-layout_mode = 2
-size_flags_horizontal = 0
-text = "Количество сегментов:"
-vertical_alignment = 1
-
-[node name="QuantitySpinBox" type="SpinBox" parent="VBoxContainer/QuantityContainer"]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 1.0
-max_value = 1000.0
-value = 1.0
-step = 1.0
-
 [node name="InfoLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-text = "Выберите количество сегментов для покупки"
+text = "Выберите сегмент(ы) для покупки"
 autowrap_mode = 2
 horizontal_alignment = 1
 
@@ -76,6 +58,18 @@ layout_mode = 2
 text = "Локация не выбрана"
 autowrap_mode = 2
 horizontal_alignment = 1
+
+[node name="SideContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SideLabel" type="Label" parent="VBoxContainer/SideContainer"]
+layout_mode = 2
+text = "Сторона сегмента:"
+
+[node name="SideOptionButton" type="OptionButton" parent="VBoxContainer/SideContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="ImageContainer" type="VBoxContainer" parent="VBoxContainer"]
 layout_mode = 2

@@ -25,31 +25,38 @@ func _log(message: String) -> void:
 # ============================================================================
 
 @export_file("*.tscn")
-var main_menu_scene: String = "res://MainMenu.tscn"
+var main_menu_scene: String = "res://scenes/main_menu/MainMenu.tscn"
 
-@onready var nickname_edit: LineEdit = $CenterContainer/Panel/VBoxContainer/NicknameEdit
-@onready var save_button: Button = $CenterContainer/Panel/VBoxContainer/ButtonsRow/SaveButton
-@onready var back_button: Button = $CenterContainer/Panel/VBoxContainer/ButtonsRow/BackButton
+@onready var back_to_menu_button: Button = $BackToMenuButton
+@onready var title_label: Label = $ContentMargin/MainHBox/LeftVBox/TitleLabel
+@onready var nickname_edit: LineEdit = $ContentMargin/MainHBox/LeftVBox/NicknameEdit
+@onready var save_button: Button = $ContentMargin/MainHBox/LeftVBox/SaveButton
 
-@onready var hero_left_button: Button = $CenterContainer/Panel/VBoxContainer/HeroSelector/HeroLeftButton
-@onready var hero_right_button: Button = $CenterContainer/Panel/VBoxContainer/HeroSelector/HeroRightButton
-@onready var hero_preview: TextureRect = $CenterContainer/Panel/VBoxContainer/HeroSelector/HeroPreview
-@onready var hero_name_label: Label = $CenterContainer/Panel/VBoxContainer/HeroSelector/HeroNameLabel
+@onready var hero_left_button: Button = $ContentMargin/MainHBox/RightVBox/HeroPreviewRow/HeroLeftButton
+@onready var hero_right_button: Button = $ContentMargin/MainHBox/RightVBox/HeroPreviewRow/HeroRightButton
+@onready var hero_preview: TextureRect = $ContentMargin/MainHBox/RightVBox/HeroPreviewRow/HeroPreviewCenter/SwipeArea/HeroPreview
+@onready var hero_title_label: Label = $ContentMargin/MainHBox/RightVBox/HeroNavLabel
+@onready var hero_name_label: Label = $ContentMargin/MainHBox/RightVBox/HeroNameLabel
+@onready var swipe_area: Control = $ContentMargin/MainHBox/RightVBox/HeroPreviewRow/HeroPreviewCenter/SwipeArea
 
-@onready var custom_avatar_check: CheckBox = $CenterContainer/Panel/VBoxContainer/CustomAvatarRow/CustomAvatarCheck
-@onready var wall_breathing_check: CheckBox = $CenterContainer/Panel/VBoxContainer/WallBreathingCheck
-@onready var upload_jump_up_button: Button = $CenterContainer/Panel/VBoxContainer/CustomAvatarRow/UploadJumpUpButton
-@onready var upload_jump_down_button: Button = $CenterContainer/Panel/VBoxContainer/CustomAvatarRow/UploadJumpDownButton
+@onready var custom_avatar_check: CheckBox = $ContentMargin/MainHBox/LeftVBox/CustomAvatarRow/CustomAvatarCheck
+@onready var wall_breathing_check: CheckBox = $ContentMargin/MainHBox/LeftVBox/WallBreathingCheck
+@onready var upload_jump_up_button: Button = $ContentMargin/MainHBox/LeftVBox/CustomAvatarRow/UploadButtonsRow/UploadJumpUpButton
+@onready var upload_jump_down_button: Button = $ContentMargin/MainHBox/LeftVBox/CustomAvatarRow/UploadButtonsRow/UploadJumpDownButton
 
 @onready var file_dialog_jump_up: FileDialog = $FileDialogJumpUp
 @onready var file_dialog_jump_down: FileDialog = $FileDialogJumpDown
 
 @onready var warn_dialog: AcceptDialog = $WarnDialog
 
+@onready var google_signin_button: Button = $ContentMargin/MainHBox/LeftVBox/GoogleSignInButton
+@onready var sign_out_button: Button = $ContentMargin/MainHBox/LeftVBox/SignOutButton
+
 const HEROES: Array = [
 	{"id": "default", "name": "Runner AYO", "preview_png": "res://heroes/hero_default.png"},
 	{"id": "monster", "name": "Monster",    "preview_png": "res://heroes/hero_monster.png"},
 	{"id": "red",     "name": "Red",        "preview_png": "res://heroes/hero_red.png"},
+	{"id": "red2",    "name": "RED 2",      "preview_png": "res://heroes/hero_red2.png"},
 	{"id": "blue", "name": "Blue",   	 	"preview_png": "res://heroes/hero_blue.png"},
 	{"id": "orange", "name": "Orange",  	"preview_png": "res://heroes/hero_orange.png"}
 ]
@@ -60,21 +67,26 @@ const AVATAR_DOWN_PNG: String = "user://avatars/custom_jump_down.png"
 
 # Целевой размер пользовательских аватарок (то, что загрузил игрок)
 const AVATAR_TARGET_SIZE_PX: int = 64
+const SWIPE_MIN_PX: float = 48.0
 
 var _hero_index: int = 0
+var _swipe_start: Vector2 = Vector2.ZERO
+var _swipe_tracking: bool = false
 
 func _ready() -> void:
-	# --- nickname ---
+	if title_label:
+		title_label.text = "Google Profile"
+
+	if back_to_menu_button and not back_to_menu_button.pressed.is_connected(_on_back_to_menu_pressed):
+		back_to_menu_button.pressed.connect(_on_back_to_menu_pressed)
+
+	_sync_nickname_field_from_state()
 	if nickname_edit:
-		nickname_edit.text = GameState.get_nickname()
-		nickname_edit.grab_focus()
+		nickname_edit.call_deferred("grab_focus")
 
 	# --- buttons ---
 	if save_button and not save_button.pressed.is_connected(_on_save_pressed):
 		save_button.pressed.connect(_on_save_pressed)
-
-	if back_button and not back_button.pressed.is_connected(_on_back_pressed):
-		back_button.pressed.connect(_on_back_pressed)
 
 	# --- heroes ---
 	if hero_left_button and not hero_left_button.pressed.is_connected(_on_hero_left_pressed):
@@ -118,11 +130,26 @@ func _ready() -> void:
 	if file_dialog_jump_down:
 		file_dialog_jump_down.use_native_dialog = true
 
+	if google_signin_button and not google_signin_button.pressed.is_connected(_on_google_signin_pressed):
+		google_signin_button.pressed.connect(_on_google_signin_pressed)
+	if sign_out_button and not sign_out_button.pressed.is_connected(_on_sign_out_pressed):
+		sign_out_button.pressed.connect(_on_sign_out_pressed)
+	if not AuthService.login_failed.is_connected(_on_auth_login_failed):
+		AuthService.login_failed.connect(_on_auth_login_failed)
+	if not AuthService.login_succeeded.is_connected(_on_auth_login_succeeded):
+		AuthService.login_succeeded.connect(_on_auth_login_succeeded)
+	if not AuthService.logout_done.is_connected(_on_auth_logout_done):
+		AuthService.logout_done.connect(_on_auth_logout_done)
+
+	if swipe_area and not swipe_area.gui_input.is_connected(_on_swipe_area_gui_input):
+		swipe_area.gui_input.connect(_on_swipe_area_gui_input)
+
 	_update_custom_avatar_buttons_state()
+	_refresh_auth_ui()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		_on_back_pressed()
+		_on_back_to_menu_pressed()
 
 # ---------------- HERO SELECTOR ----------------
 
@@ -150,6 +177,8 @@ func _apply_hero_to_ui() -> void:
 		return
 
 	var hero_display_name: String = str(hero.get("name", "Hero"))
+	if hero_title_label:
+		hero_title_label.text = hero_display_name
 	if hero_name_label:
 		hero_name_label.text = hero_display_name
 
@@ -188,6 +217,38 @@ func _on_hero_right_pressed() -> void:
 	_log("[PROFILE] hero right pressed, index=%d" % _hero_index)
 	_apply_hero_to_ui()
 	_save_current_hero_to_gamestate()
+
+
+func _on_swipe_area_gui_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.index != 0:
+			return
+		if event.pressed:
+			_swipe_start = event.position
+			_swipe_tracking = true
+		else:
+			if _swipe_tracking:
+				var dx: float = event.position.x - _swipe_start.x
+				if absf(dx) >= SWIPE_MIN_PX:
+					if dx < 0.0:
+						_on_hero_right_pressed()
+					else:
+						_on_hero_left_pressed()
+			_swipe_tracking = false
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_swipe_start = event.position
+			_swipe_tracking = true
+		else:
+			if _swipe_tracking:
+				var dx2: float = event.position.x - _swipe_start.x
+				if absf(dx2) >= SWIPE_MIN_PX:
+					if dx2 < 0.0:
+						_on_hero_right_pressed()
+					else:
+						_on_hero_left_pressed()
+			_swipe_tracking = false
 
 # ---------------- CUSTOM AVATAR ----------------
 
@@ -300,10 +361,10 @@ func _on_save_pressed() -> void:
 			_show_warn("Кастом-аватар включён, но jump(0) или jump(1) не загружены.")
 			return
 
-	_on_back_pressed()
+	_on_back_to_menu_pressed()
 
-func _on_back_pressed() -> void:
-	_log("[PROFILE] back pressed, scene=%s" % main_menu_scene)
+func _on_back_to_menu_pressed() -> void:
+	_log("[PROFILE] back to menu, scene=%s" % main_menu_scene)
 	var err := get_tree().change_scene_to_file(main_menu_scene)
 	if err != OK:
 		push_error("Profile.gd: не удалось вернуться в меню: " + main_menu_scene)
@@ -315,6 +376,50 @@ func _show_warn(text: String) -> void:
 		warn_dialog.popup_centered()
 	else:
 		push_warning("WARN: " + text)
+
+
+func _sync_nickname_field_from_state() -> void:
+	if nickname_edit == null:
+		return
+	var g: String = GameState.auth_display_name.strip_edges()
+	if g != "":
+		nickname_edit.text = g
+	else:
+		nickname_edit.text = GameState.get_nickname()
+
+
+func _refresh_auth_ui() -> void:
+	if google_signin_button:
+		google_signin_button.disabled = AuthService.is_signed_in()
+	if sign_out_button:
+		sign_out_button.disabled = not AuthService.is_signed_in()
+
+
+func _on_google_signin_pressed() -> void:
+	_log("[PROFILE] google sign-in pressed")
+	AuthService.start_google_sign_in_ui(self)
+
+
+func _on_sign_out_pressed() -> void:
+	_log("[PROFILE] sign out pressed")
+	AuthService.sign_out()
+
+
+func _on_auth_login_failed(msg: String) -> void:
+	_log("[PROFILE] auth failed: %s" % msg)
+	_show_warn(str(msg))
+
+
+func _on_auth_login_succeeded() -> void:
+	_log("[PROFILE] auth ok")
+	_sync_nickname_field_from_state()
+	_refresh_auth_ui()
+
+
+func _on_auth_logout_done() -> void:
+	_log("[PROFILE] auth logout")
+	_sync_nickname_field_from_state()
+	_refresh_auth_ui()
 
 # ---------------- IMAGE HELPERS ----------------
 

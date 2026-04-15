@@ -59,8 +59,11 @@ func commit_bulk_wall_purchase(
 		wall_side = str(gs.call("get_active_wall_side"))
 	if wall_side.is_empty():
 		wall_side = "front"
+	var effective_buyer_uid: String = _resolve_effective_buyer_uid(buyer_uid)
 
 	var segment_prices: Dictionary = {}
+	var conflict_ids: Array = []
+	var valid_segment_ids: Array = []
 	for seg_id_raw in segment_ids:
 		var sid: String = str(seg_id_raw).strip_edges()
 		if sid.is_empty():
@@ -68,27 +71,37 @@ func commit_bulk_wall_purchase(
 		var tile_side: String = str(tile_side_by_segment_id.get(sid, default_tile_side)).strip_edges()
 		if tile_side.is_empty():
 			tile_side = default_tile_side
+		var local_fd: Dictionary = wall_data.get_face_data(sid, tile_side)
+		var local_owner: String = str(local_fd.get("owner", "")).strip_edges()
+		var is_local_self_repurchase: bool = (local_owner != "" and local_owner == effective_buyer_uid)
 		# Best-effort first-come-first-served guard against stale local state.
 		var ors: Node = _root_node("/root/OwnershipRemoteSync")
 		if ors != null and ors.has_method("is_segment_side_available_remote"):
-			if not bool(ors.call("is_segment_side_available_remote", sid, tile_side)):
-				result["reason"] = "already_purchased_remote"
-				result["conflicts"] = [sid]
-				return result
+			if not is_local_self_repurchase and not bool(ors.call("is_segment_side_available_remote", sid, tile_side)):
+				conflict_ids.append(sid)
+				continue
 		var em: Node = _root_node("/root/EconomyManager")
 		if em != null and em.has_method("get_listing_price_for_hit"):
 			segment_prices[sid] = int(em.call("get_listing_price_for_hit", wall_side, sid, tile_side, wall_data))
 		else:
 			segment_prices[sid] = int(wall_data.get_segment_price(sid))
+		valid_segment_ids.append(sid)
+
+	if not conflict_ids.is_empty():
+		result["reason"] = "already_purchased_remote"
+		result["conflicts"] = conflict_ids
+		return result
+	if valid_segment_ids.is_empty():
+		result["reason"] = "empty_selection"
+		return result
 
 	var purchase_ts: int = int(Time.get_unix_time_from_system())
-	var effective_buyer_uid: String = _resolve_effective_buyer_uid(buyer_uid)
 	_log_store(
 		"commit_bulk start count=%d wall_side=%s default_tile_side=%s buyer_uid=%s"
-		% [segment_ids.size(), wall_side, default_tile_side, effective_buyer_uid]
+		% [valid_segment_ids.size(), wall_side, default_tile_side, effective_buyer_uid]
 	)
 	result = wall_data.buy_sides_atomic(
-		segment_ids,
+		valid_segment_ids,
 		default_tile_side,
 		effective_buyer_uid,
 		purchase_ts,

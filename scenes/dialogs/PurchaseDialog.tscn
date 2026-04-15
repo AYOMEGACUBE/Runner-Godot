@@ -1,13 +1,13 @@
-[gd_scene load_steps=2 format=3 uid="uid://purchase_dialog_tscn"]
+[gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://PurchaseDialog.gd" id="1_purchase"]
+[ext_resource type="Script" path="res://scripts/scenes/dialogs/PurchaseDialog.gd" id="1_purchase"]
 
 [node name="PurchaseDialog" type="AcceptDialog"]
 initial_position = 2
 dialog_text = "Покупка сегмента стены"
 script = ExtResource("1_purchase")
 
-[node name="VBoxContainer" type="VBoxContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

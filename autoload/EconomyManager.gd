@@ -97,11 +97,16 @@ func _apply_economy_dict(data: Dictionary) -> void:
 
 
 static func _version_compare(a: String, b: String) -> int:
-	var c: int = a.casecmp_to(b)
-	if c < 0:
-		return -1
-	if c > 0:
-		return 1
+	var pa: PackedStringArray = a.strip_edges().split(".")
+	var pb: PackedStringArray = b.strip_edges().split(".")
+	var n: int = maxi(pa.size(), pb.size())
+	for i in range(n):
+		var av: int = int(pa[i]) if i < pa.size() else 0
+		var bv: int = int(pb[i]) if i < pb.size() else 0
+		if av < bv:
+			return -1
+		if av > bv:
+			return 1
 	return 0
 
 
@@ -206,10 +211,8 @@ func buy_face(face_id: int, price: int) -> bool:
 		return false
 	if not Engine.has_singleton("GameState"):
 		return false
-	if GameState.score < price:
+	if not GameState.spend_wallet_coins(price):
 		return false
-	GameState.score -= price
-	GameState.save_scores()
 	record_face_purchase(face_id, price)
 	return true
 

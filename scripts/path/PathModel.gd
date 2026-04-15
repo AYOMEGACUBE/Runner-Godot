@@ -334,7 +334,16 @@ func bake_from_steps(
 
 	smooth_path(plat_h * 0.25)
 	resolve_platform_overlaps(rules, bounds, tile_w, plat_h)
-	FileLogger.write_log("[PATHMODEL] bake model_id=%d slots=%d" % [model_id, platforms.size()])
+	_log("[PATHMODEL] bake model_id=%d slots=%d" % [model_id, platforms.size()])
+
+func _log(msg: String) -> void:
+	var ml: MainLoop = Engine.get_main_loop()
+	if ml is SceneTree:
+		var fl: Node = (ml as SceneTree).root.get_node_or_null("/root/FileLogger")
+		if fl != null and fl.has_method("write_log"):
+			fl.call("write_log", msg)
+			return
+	print(msg)
 
 func smooth_path(min_dy_merge: float) -> void:
 	if platforms.size() < 3:

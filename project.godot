@@ -8,6 +8,11 @@
 
 config_version=5
 
+[3301_temp_pre_release]
+
+wallet_boost_enabled=true
+wallet_boost_amount=1000000
+
 [application]
 
 config/name="EndlessRunnerAYO"
@@ -27,6 +32,8 @@ EconomyManager="*res://autoload/EconomyManager.gd"
 SegmentManager="*res://managers/SegmentManager.gd"
 UIManager="*res://managers/UIManager.gd"
 PurchaseManager="*res://scripts/purchase/PurchaseManager.gd"
+EconomyRemoteSync="*res://scripts/sync/EconomyRemoteSync.gd"
+OwnershipRemoteSync="*res://scripts/sync/OwnershipRemoteSync.gd"
 
 [display]
 

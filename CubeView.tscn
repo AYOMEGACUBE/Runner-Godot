@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://c6cevoyndu48v"]
+[gd_scene load_steps=2 format=3 uid="uid://belmdkjsb62r1"]
 
-[ext_resource type="Script" uid="uid://bogcbofaxwviv" path="res://scripts/scenes/cube_view/CubeView.gd" id="1_k3bv4"]
+[ext_resource type="Script" path="res://CubeView.gd" id="1_k3bv4"]
 
 [node name="CubeView" type="Node2D"]
 script = ExtResource("1_k3bv4")
@@ -45,11 +45,6 @@ text = "Купить сторону сегмента"
 [node name="PurchasePlatformButton" type="Button" parent="UILayer/Panel/VBoxContainer"]
 layout_mode = 2
 text = "Купить платформы"
-
-[node name="SyncStatusLabel" type="Label" parent="UILayer/Panel/VBoxContainer"]
-layout_mode = 2
-text = "sync: idle"
-autowrap_mode = 2
 
 [node name="SelectionOverlay" type="Panel" parent="UILayer"]
 visible = false

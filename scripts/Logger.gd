@@ -1,10 +1,10 @@
 extends Node
-## Autoload: узел `FileLogger`. По умолчанию пишет в `res://3301_LOG.txt` (файл в корне проекта).
+## Autoload: узел `FileLogger`. По умолчанию пишет в `res://3301_/3301_LOG.txt`.
 ## В экспортированной сборке запись в res:// недоступна — тогда используется user://3301_LOG.txt.
 ## При каждом запуске игры файл **очищается** (новая сессия); дальше записи идут подряд в тот же открытый файл.
 
 const ENABLE_LOGGER := true
-const LOG_FILE_PATH_PROJECT: String = "res://3301_LOG.txt"
+const LOG_FILE_PATH_PROJECT: String = "res://3301_/3301_LOG.txt"
 const LOG_FILE_PATH_FALLBACK: String = "user://3301_LOG.txt"
 
 var _file: FileAccess = null
@@ -98,7 +98,7 @@ func _process(_delta: float) -> void:
 	if not ENABLE_LOGGER or _file == null:
 		return
 	_flush_accumulator += _delta
-	if _flush_accumulator >= 2.0:
+	if _flush_accumulator >= 7.0:
 		_file.flush()
 		_flush_accumulator = 0.0
 

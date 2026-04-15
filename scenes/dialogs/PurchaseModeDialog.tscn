@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://purchase_mode_dialog"]
 
-[ext_resource type="Script" path="res://PurchaseModeDialog.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/scenes/dialogs/PurchaseModeDialog.gd" id="1_script"]
 
 [node name="PurchaseModeDialog" type="AcceptDialog"]
 initial_position = 2

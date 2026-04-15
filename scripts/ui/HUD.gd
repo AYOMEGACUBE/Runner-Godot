@@ -9,28 +9,29 @@ func _log(message: String) -> void:
 		print(message)
 
 @export_file("*.tscn")
-var main_menu_scene: String = "res://MainMenu.tscn"
+var main_menu_scene: String = "res://scenes/main_menu/MainMenu.tscn"
 
 @onready var score_label: Label = $VBoxContainer/ScoreLabel
 @onready var name_label: Label = $VBoxContainer/NameLabel
 @onready var back_button: Button = $BackButton
+var _refresh_timer: Timer = null
 
 func _ready() -> void:
 	if back_button != null and not back_button.pressed.is_connected(_on_back_button_pressed):
 		back_button.pressed.connect(_on_back_button_pressed)
 	_refresh_labels()
-
-func _process(_delta: float) -> void:
-	_refresh_labels()
+	_refresh_timer = Timer.new()
+	_refresh_timer.one_shot = false
+	_refresh_timer.wait_time = 0.1
+	add_child(_refresh_timer)
+	_refresh_timer.timeout.connect(_refresh_labels)
+	_refresh_timer.start()
 
 func _refresh_labels() -> void:
-	var pn := GameState.player_name
-	if pn == "" or pn == "NoName":
-		pn = "NoName"
 	var alt_pts: int = GameState.get_altitude_points()
 	var coins: int = GameState.run_coin_bonus
-	score_label.text = "Height pts: %d | Coins: %d | Total: %d" % [alt_pts, coins, GameState.score]
-	name_label.text = "Player: " + pn
+	score_label.text = "Height pts: %d | Coins: %d" % [alt_pts, coins]
+	name_label.text = "Player: " + GameState.get_hud_display_name()
 
 func _on_back_button_pressed() -> void:
 	if not Engine.is_editor_hint():

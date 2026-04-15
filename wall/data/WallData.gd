@@ -35,6 +35,7 @@ const WALL_IMAGES_DIR: String = "user://wall_images"
 
 # Флаг автоматического сохранения
 var auto_save_enabled: bool = true
+var _prepared_image_cache: Dictionary = {} # source_path -> prepared payload dict
 
 
 func _ensure_wall_images_dir() -> void:
@@ -75,6 +76,38 @@ func _materialize_face_image_payload(face_data: Dictionary) -> Dictionary:
 			f.close()
 	face_data["image_path"] = local_path
 	return face_data
+
+
+func _prepare_image_for_face(source_path: String) -> Dictionary:
+	var src_path: String = source_path.strip_edges()
+	if src_path == "":
+		return {}
+	if _prepared_image_cache.has(src_path):
+		return (_prepared_image_cache[src_path] as Dictionary).duplicate(true)
+	var img: Image = Image.new()
+	var load_err: Error = img.load(src_path)
+	if load_err != OK or img.is_empty():
+		return {}
+	img.resize(48, 48, Image.INTERPOLATE_LANCZOS)
+	var png_bytes: PackedByteArray = img.save_png_to_buffer()
+	if png_bytes.is_empty():
+		return {}
+	var sha: String = _sha256_hex(png_bytes)
+	var local_path: String = "%s/%s.png" % [WALL_IMAGES_DIR, sha]
+	if not FileAccess.file_exists(local_path):
+		_ensure_wall_images_dir()
+		var f: FileAccess = FileAccess.open(local_path, FileAccess.WRITE)
+		if f != null:
+			f.store_buffer(png_bytes)
+			f.close()
+	var prepared: Dictionary = {
+		"image_path": local_path,
+		"image_payload_b64": Marshalls.raw_to_base64(png_bytes),
+		"image_ext": "png",
+		"image_sha256": sha,
+	}
+	_prepared_image_cache[src_path] = prepared.duplicate(true)
+	return prepared
 
 # ---------------------------------------------------------------------------
 
@@ -188,9 +221,14 @@ func buy_side(segment_id: String, side: String, buyer_uid: String, coin_cost: in
 		return false
 	
 	var face_data: Dictionary = faces[side]
+	var buyer_uid_norm: String = buyer_uid.strip_edges()
+	if buyer_uid_norm.is_empty():
+		return false
 	
-	# Уже куплено
-	if str(face_data.get("owner", "")) != "":
+	# Уже куплено другим владельцем -> отказ.
+	# Текущему владельцу разрешаем повторную покупку (перепокупку) той же стороны.
+	var owner_now: String = str(face_data.get("owner", "")).strip_edges()
+	if owner_now != "" and owner_now != buyer_uid_norm:
 		return false
 	
 	# Списываем с кошелька (не с очков забега)
@@ -200,13 +238,13 @@ func buy_side(segment_id: String, side: String, buyer_uid: String, coin_cost: in
 			return false
 	
 	# Покупаем
-	face_data["owner"] = buyer_uid
+	face_data["owner"] = buyer_uid_norm
 	face_data["purchase_date"] = Time.get_unix_time_from_system()
 	face_data["sync_status"] = "pending"
 	
 	# Сохраняем первого владельца
 	if seg.get("first_owner", "") == "":
-		seg["first_owner"] = buyer_uid
+		seg["first_owner"] = buyer_uid_norm
 		seg["purchase_date"] = Time.get_unix_time_from_system()
 	
 	faces[side] = face_data
@@ -265,7 +303,9 @@ func buy_sides_atomic(
 			conflicts.append(sid2)
 			continue
 		var fd: Dictionary = faces[side]
-		if str(fd.get("owner", "")).strip_edges() != "":
+		var owner_now2: String = str(fd.get("owner", "")).strip_edges()
+		# Разрешаем перепокупку своей стороны, блокируем только чужую.
+		if owner_now2 != "" and owner_now2 != buyer_uid_norm:
 			conflicts.append(sid2)
 			continue
 		var seg_h: float = float(seg.get("height", 0.0))
@@ -377,24 +417,12 @@ func set_face_image(segment_id: String, side: String, image_path: String) -> boo
 	var face_data: Dictionary = faces[side]
 	face_data["image_path"] = src_path
 	if src_path != "":
-		var img: Image = Image.new()
-		var load_err: Error = img.load(src_path)
-		if load_err == OK and not img.is_empty():
-			img.resize(48, 48, Image.INTERPOLATE_LANCZOS)
-			var png_bytes: PackedByteArray = img.save_png_to_buffer()
-			if not png_bytes.is_empty():
-				var sha: String = _sha256_hex(png_bytes)
-				var local_path: String = "%s/%s.png" % [WALL_IMAGES_DIR, sha]
-				if not FileAccess.file_exists(local_path):
-					_ensure_wall_images_dir()
-					var f: FileAccess = FileAccess.open(local_path, FileAccess.WRITE)
-					if f != null:
-						f.store_buffer(png_bytes)
-						f.close()
-				face_data["image_path"] = local_path
-				face_data["image_payload_b64"] = Marshalls.raw_to_base64(png_bytes)
-				face_data["image_ext"] = "png"
-				face_data["image_sha256"] = sha
+		var prepared: Dictionary = _prepare_image_for_face(src_path)
+		if not prepared.is_empty():
+			face_data["image_path"] = str(prepared.get("image_path", src_path))
+			face_data["image_payload_b64"] = str(prepared.get("image_payload_b64", ""))
+			face_data["image_ext"] = str(prepared.get("image_ext", "png"))
+			face_data["image_sha256"] = str(prepared.get("image_sha256", ""))
 	faces[side] = face_data
 	seg["faces"] = faces
 	segments[segment_id] = seg
@@ -552,6 +580,12 @@ func merge_from_dict(remote_data: Dictionary) -> Dictionary:
 					result["changed"] = true
 					result["conflicts"].append("%s:%s" % [sid, side])
 				elif rt > lt:
+					lf["sync_status"] = "conflict"
+					local_faces[side] = lf
+					faces_changed = true
+					result["conflicts"].append("%s:%s" % [sid, side])
+				elif rt == lt and rt > 0 and ro != lo:
+					# Одинаковый timestamp, но разные владельцы: фиксируем конфликт без перезаписи.
 					lf["sync_status"] = "conflict"
 					local_faces[side] = lf
 					faces_changed = true

@@ -7,6 +7,9 @@ var _label: RichTextLabel = null
 var _btn: Button = null
 var _seed_edit: LineEdit = null
 
+func _seed_manager() -> Node:
+	return get_node_or_null("/root/SeedManager")
+
 func _ready() -> void:
 	_level = get_node_or_null(level_path)
 	var panel := PanelContainer.new()
@@ -25,7 +28,8 @@ func _ready() -> void:
 	v.add_child(_label)
 	_seed_edit = LineEdit.new()
 	_seed_edit.placeholder_text = "run seed (int)"
-	_seed_edit.text = str(SeedManager.global_seed)
+	var sm: Node = _seed_manager()
+	_seed_edit.text = str(int(sm.get("global_seed")) if sm != null else 0)
 	v.add_child(_seed_edit)
 	_btn = Button.new()
 	_btn.text = "Restart same seed"
@@ -51,14 +55,19 @@ func _process(_delta: float) -> void:
 		if ps != null and ps.active_model != null:
 			path_id = str(ps.active_model_index) + " (id=" + str(ps.active_model.model_id) + ")"
 	var fps: float = Engine.get_frames_per_second()
+	var sm2: Node = _seed_manager()
+	var seed_now: int = int(sm2.get("global_seed")) if sm2 != null else 0
+	var locked: bool = bool(sm2.call("is_seed_locked")) if sm2 != null and sm2.has_method("is_seed_locked") else false
 	_label.text = "[b]Run debug[/b]\nseed=%s locked=%s\npath=%s platforms=%d pool avail=%d total=%d\nFPS=%.1f" % [
-		SeedManager.global_seed, SeedManager.is_seed_locked(), path_id, pl, pool_a, pool_t, fps
+		seed_now, locked, path_id, pl, pool_a, pool_t, fps
 	]
 
 func _on_restart_same_seed() -> void:
 	var t: String = _seed_edit.text.strip_edges()
 	if t.is_valid_int():
-		SeedManager.lock_seed(false)
-		SeedManager.assign_run_seed(int(t))
-		SeedManager.lock_seed(true)
+		var sm: Node = _seed_manager()
+		if sm != null:
+			sm.call("lock_seed", false)
+			sm.call("assign_run_seed", int(t))
+			sm.call("lock_seed", true)
 	get_tree().reload_current_scene()

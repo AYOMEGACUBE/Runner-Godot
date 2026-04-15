@@ -35,6 +35,8 @@ static func parse_sign_in_response(json_text: String) -> Dictionary:
 		"id_token": str(d.get("idToken", "")),
 		"refresh_token": str(d.get("refreshToken", "")),
 		"email": str(d.get("email", "")),
+		# Identity Toolkit / Google: имя (displayName или fullName)
+		"display_name": _extract_display_name(d),
 		"expires_in": str(d.get("expiresIn", "")),
 	}
 
@@ -56,6 +58,13 @@ static func parse_refresh_response(json_text: String) -> Dictionary:
 		"refresh_token": str(d.get("refresh_token", "")),
 		"expires_in": str(d.get("expires_in", "")),
 	}
+
+
+static func _extract_display_name(d: Dictionary) -> String:
+	var dn: String = str(d.get("displayName", d.get("display_name", ""))).strip_edges()
+	if dn.is_empty():
+		dn = str(d.get("fullName", d.get("full_name", ""))).strip_edges()
+	return dn
 
 
 static func _uri_component_encode(s: String) -> String:

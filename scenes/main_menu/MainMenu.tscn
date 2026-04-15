@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dhfx3og1cf0cj"]
 
-[ext_resource type="Script" uid="uid://bccj45bqt7cxy" path="res://MainMenu.gd" id="1_nsm8v"]
+[ext_resource type="Script" uid="uid://bccj45bqt7cxy" path="res://scripts/scenes/main_menu/MainMenu.gd" id="1_nsm8v"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -98,18 +98,6 @@ offset_right = 360.0
 offset_bottom = -24.0
 grow_vertical = 2
 theme_override_constants/separation = 12
-
-[node name="GoogleSignInButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
-custom_minimum_size = Vector2(0, 52)
-layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Войти через Google"
-
-[node name="SignOutButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
-custom_minimum_size = Vector2(0, 52)
-layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Выйти"
 
 [node name="PlayButton" type="Button" parent="RootHBox/LeftPanel/VBoxButtons"]
 custom_minimum_size = Vector2(0, 80)

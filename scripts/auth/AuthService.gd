@@ -61,6 +61,10 @@ func _load_config() -> void:
 		_log("web_api_key missing or placeholder in %s — вставьте ключ из Firebase → Project settings → Web API key" % path)
 
 
+func get_rtdb_base_url() -> String:
+	return _rtdb_url.strip_edges().trim_suffix("/")
+
+
 func is_configured() -> bool:
 	return not _web_api_key.is_empty()
 
@@ -74,6 +78,9 @@ func get_auth_status_line() -> String:
 		return "Google: config/firebase_web_config.json или user://… (см. firebase_web_config.example.json)"
 	if not is_signed_in():
 		return "Google: не выполнен вход"
+	var dn: String = GameState.auth_display_name.strip_edges()
+	if dn != "":
+		return "Google: %s" % dn
 	var em: String = GameState.auth_email.strip_edges()
 	if em != "":
 		return "Google: %s" % em
@@ -86,7 +93,7 @@ func start_google_sign_in_ui(parent_ui: Control) -> void:
 		login_failed.emit("Нет web_api_key. Скопируйте config/firebase_web_config.example.json → config/firebase_web_config.json и вставьте ключ из Firebase (Web API key).")
 		return
 	if OS.get_name() == "Android":
-		login_failed.emit("Android: нужен нативный Google Sign-In → см. addons/android_google_signin/README.md")
+		login_failed.emit("Android: нужен нативный Google Sign-In → см. res://3301_/3301_ADDON_ANDROID_GOOGLE_SIGNIN.md")
 		return
 	if not OS.is_debug_build():
 		login_failed.emit("Вход с ПК: только отладочная сборка или реализуйте OAuth в браузере.")
@@ -142,6 +149,7 @@ func sign_out() -> void:
 	GameState.auth_provider = ""
 	GameState.auth_token = ""
 	GameState.auth_email = ""
+	GameState.auth_display_name = ""
 	GameState.firebase_refresh_token = ""
 	GameState.firebase_token_saved_at_unix = 0
 	GameState.save_scores()
@@ -194,6 +202,8 @@ func _apply_firebase_session(parsed: Dictionary) -> void:
 	GameState.auth_token = str(parsed.get("id_token", ""))
 	GameState.firebase_refresh_token = str(parsed.get("refresh_token", ""))
 	GameState.auth_email = str(parsed.get("email", ""))
+	var disp: String = str(parsed.get("display_name", "")).strip_edges()
+	GameState.auth_display_name = disp
 	GameState.auth_provider = "google"
 	GameState.firebase_token_saved_at_unix = Time.get_unix_time_from_system()
 	GameState.save_scores()

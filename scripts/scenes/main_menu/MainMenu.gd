@@ -17,16 +17,16 @@ func _log(message: String) -> void:
 # ============================================================================
 
 @export_file("*.tscn")
-var game_scene: String = "res://level.tscn"
+var game_scene: String = "res://scenes/level/Level.tscn"
 
 @export_file("*.tscn")
-var champions_scene: String = "res://Champions.tscn"
+var champions_scene: String = "res://scenes/champions/Champions.tscn"
 
 @export_file("*.tscn")
-var profile_scene: String = "res://Profile.tscn"
+var profile_scene: String = "res://scenes/profile/Profile.tscn"
 
 @export_file("*.tscn")
-var cube_view_scene: String = "res://CubeView.tscn"
+var cube_view_scene: String = "res://scenes/cube_view/CubeView.tscn"
 
 ## Проверка связи с Firebase Realtime Database (см. `3301_PROJECT_STATE.md`). В релизе можно выключить.
 @export var firebase_rtdb_ping_on_ready: bool = true
@@ -43,8 +43,6 @@ var _rtdb_put_after_get: bool = false
 @onready var coins_label: Label = $RootHBox/LeftPanel/CoinsLabel
 
 @onready var auth_status_label: Label = $RootHBox/LeftPanel/AuthStatusLabel
-@onready var google_signin_button: Button = $RootHBox/LeftPanel/VBoxButtons/GoogleSignInButton
-@onready var sign_out_button: Button = $RootHBox/LeftPanel/VBoxButtons/SignOutButton
 
 @onready var play_button: Button = $RootHBox/LeftPanel/VBoxButtons/PlayButton
 @onready var champions_button: Button = $RootHBox/LeftPanel/VBoxButtons/ChampionsButton
@@ -59,6 +57,7 @@ const HERO_PREVIEWS := {
 	"default": "res://heroes/hero_default.png",
 	"monster": "res://heroes/hero_monster.png",
 	"red": "res://heroes/hero_red.png",
+	"red2": "res://heroes/hero_red2.png",
 	"blue": "res://heroes/hero_blue.png",
 	"orange": "res://heroes/hero_orange.png"
 }
@@ -69,10 +68,6 @@ func _ready() -> void:
 		FileLogger.error("MainMenu: TitleLabel node missing")
 	if coins_label == null:
 		FileLogger.error("MainMenu: CoinsLabel node missing")
-	if google_signin_button and not google_signin_button.pressed.is_connected(_on_google_signin_pressed):
-		google_signin_button.pressed.connect(_on_google_signin_pressed)
-	if sign_out_button and not sign_out_button.pressed.is_connected(_on_sign_out_pressed):
-		sign_out_button.pressed.connect(_on_sign_out_pressed)
 
 	if not AuthService.login_failed.is_connected(_on_auth_login_failed):
 		AuthService.login_failed.connect(_on_auth_login_failed)
@@ -94,13 +89,11 @@ func _ready() -> void:
 		cubeview_button.pressed.connect(_on_cubeview_pressed)
 
 	_refresh_ui()
+	if not PurchaseManager.coins_updated.is_connected(_on_coins_updated):
+		PurchaseManager.coins_updated.connect(_on_coins_updated)
 
 	if firebase_rtdb_ping_on_ready:
 		call_deferred("_firebase_rtdb_start_ping")
-
-func _process(_delta: float) -> void:
-	# лёгкий refresh (тут нет тяжёлых операций)
-	_refresh_ui()
 
 func _refresh_ui() -> void:
 	if title_label:
@@ -116,8 +109,6 @@ func _refresh_ui() -> void:
 
 	if auth_status_label:
 		auth_status_label.text = AuthService.get_auth_status_line()
-	if sign_out_button:
-		sign_out_button.disabled = not AuthService.is_signed_in()
 
 	# Показываем превью аватара:
 	# - если кастом включён и есть файл jump0 -> показываем его
@@ -198,16 +189,6 @@ func _show_warn(text: String) -> void:
 		warn_dialog.popup_centered()
 
 
-func _on_google_signin_pressed() -> void:
-	_log("[MAINMENU] google sign-in pressed")
-	AuthService.start_google_sign_in_ui(self)
-
-
-func _on_sign_out_pressed() -> void:
-	_log("[MAINMENU] sign out pressed")
-	AuthService.sign_out()
-
-
 func _on_auth_login_failed(msg: String) -> void:
 	_log("[MAINMENU] auth failed: %s" % msg)
 	_show_warn(str(msg))
@@ -215,10 +196,21 @@ func _on_auth_login_failed(msg: String) -> void:
 
 func _on_auth_login_succeeded() -> void:
 	_log("[MAINMENU] auth ok")
+	_refresh_ui()
 
 
 func _on_auth_logout_done() -> void:
 	_log("[MAINMENU] auth logout")
+	_refresh_ui()
+
+
+func _on_coins_updated(_new_balance: int) -> void:
+	_refresh_ui()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_refresh_ui()
 
 
 func _firebase_rtdb_start_ping() -> void:

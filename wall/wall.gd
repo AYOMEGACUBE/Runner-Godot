@@ -66,6 +66,10 @@ var _vis_cache_vp: Vector2 = Vector2.ZERO
 var _vis_cache_valid: bool = false
 var _ownership_pull_accum: float = 0.0
 const OWNERSHIP_PULL_INTERVAL_SEC: float = 4.0
+var _last_cache_clear_cam: Vector2 = Vector2.INF
+var _disk_reload_pending: bool = false
+var _disk_reload_debounce_left: float = 0.0
+const DISK_RELOAD_DEBOUNCE_SEC: float = 0.2
 
 
 func _ready() -> void:
@@ -125,13 +129,13 @@ func _on_wall_segments_disk_updated() -> void:
 	## Другой экран (CubeView) сохранил wall_segments.json — перечитать, иначе Level остаётся со старым WallData в памяти.
 	if wall_data == null:
 		return
-	wall_data.load_from_file()
-	if wall_renderer != null and wall_renderer.has_method("clear_texture_cache"):
-		wall_renderer.clear_texture_cache()
-	_vis_cache_valid = false
-	_update_visible_segments(true)
-	refresh_segment_textures()
-	_log("[LOAD] wall reloaded from disk (wall_segments_disk_updated) segments=%d" % wall_data.segments.size())
+	# В CubeView (allow_purchases=true) это чаще всего локальная же запись.
+	# Повторный полный load JSON на ~11k сегментов здесь только добавляет лаг.
+	if allow_purchases:
+		return
+	# Дребезг: при пачке save-событий выполняем только одну перезагрузку.
+	_disk_reload_pending = true
+	_disk_reload_debounce_left = DISK_RELOAD_DEBOUNCE_SEC
 
 
 func _process(delta: float) -> void:
@@ -139,6 +143,17 @@ func _process(delta: float) -> void:
 	if gs2 != null and bool(gs2.get("disable_wall")):
 		clear_wall()
 		return
+	if _disk_reload_pending:
+		_disk_reload_debounce_left -= delta
+		if _disk_reload_debounce_left <= 0.0:
+			_disk_reload_pending = false
+			wall_data.load_from_file()
+			if wall_renderer != null and wall_renderer.has_method("clear_texture_cache"):
+				wall_renderer.clear_texture_cache()
+			_vis_cache_valid = false
+			_update_visible_segments(true)
+			refresh_segment_textures()
+			_log("[LOAD] wall reloaded from disk (debounced) segments=%d" % wall_data.segments.size())
 
 	_debug_update_timer += delta
 	_ownership_pull_accum += delta
@@ -176,6 +191,18 @@ func _process(delta: float) -> void:
 
 	if not need_update:
 		return
+
+	# В игровом режиме держим кэш изображений "в пределах одного экрана".
+	# При уходе камеры дальше, чем один экран, очищаем кэш текстур, чтобы не накапливать тысячи уникальных картинок и не фризить.
+	if not allow_purchases and wall_renderer != null and wall_renderer.has_method("clear_texture_cache"):
+		var cam_now: Vector2 = camera.global_position
+		var vp: Vector2 = get_viewport().get_visible_rect().size
+		var screen_diag: float = max(vp.x, vp.y)
+		if _last_cache_clear_cam == Vector2.INF:
+			_last_cache_clear_cam = cam_now
+		elif cam_now.distance_to(_last_cache_clear_cam) > screen_diag:
+			wall_renderer.clear_texture_cache()
+			_last_cache_clear_cam = cam_now
 
 	update_counter += 1
 	_log("[WALL] update triggered counter=%d camera_pos=%s" % [update_counter, camera.global_position if camera else "null"])
@@ -326,6 +353,11 @@ func refresh_segment_textures() -> void:
 	## После записи image_path в WallData — перерисовать спрайты в CubeView / Level.
 	if wall_renderer and wall_renderer.has_method("refresh_images_from_wall_data"):
 		wall_renderer.refresh_images_from_wall_data()
+
+
+func force_segment_visual_side(segment_id: String, side: String) -> void:
+	if wall_renderer and wall_renderer.has_method("force_segment_visual_side"):
+		wall_renderer.force_segment_visual_side(segment_id, side)
 
 # Подсветка сегмента (для CubeView)
 func set_highlighted_segment(segment_id: String) -> void:

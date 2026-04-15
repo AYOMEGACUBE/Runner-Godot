@@ -69,7 +69,12 @@ var _preload_logged: bool = false
 func _ready() -> void:
 	_leg_builder = LegBuilder.new(_registry, _scaler)
 	_sync_leg_builder_from_rules()
-	_rng = SeedManager.get_rng_for("path_legs")
+	var sm: Node = get_node_or_null("/root/SeedManager")
+	if sm != null and sm.has_method("get_rng_for"):
+		_rng = sm.call("get_rng_for", "path_legs")
+	else:
+		_rng = RandomNumberGenerator.new()
+		_rng.randomize()
 	_registry.debug_load = debug_log or trace_chunk_selection
 	_registry.reload()
 	if auto_start:
@@ -77,7 +82,8 @@ func _ready() -> void:
 
 
 func _sync_leg_builder_from_rules() -> void:
-	var r: Dictionary = DataManager.rules_data
+	var dm: Node = get_node_or_null("/root/DataManager")
+	var r: Dictionary = dm.get("rules_data") as Dictionary if dm != null else {}
 	if r.is_empty():
 		_leg_builder.jump_reach_fraction = 0.8
 		_leg_builder.safe_margin_x = 32.0
@@ -205,9 +211,11 @@ func _prebuild_next_leg() -> void:
 		print("[PathManager] Building leg %d with %d chunks (registry=%d models)" % [current_leg_index + 1, chunks_per_leg, _registry.size()])
 	var built: Array = _leg_builder.build_leg(anchor, next_leg_direction, chunks_per_leg, _rng)
 	if built.is_empty():
+		push_warning("PathManager: prebuild produced empty next leg (leg=%d dir=%d registry=%d)" % [current_leg_index + 1, next_leg_direction, _registry.size()])
 		return
 	if not _current_leg_chunk_data.is_empty():
 		_leg_builder.validate_transition_adjust_landing_chunk(_current_leg_chunk_data[_current_leg_chunk_data.size() - 1], built[0])
+		_ensure_leg_to_leg_reachable(_current_leg_chunk_data[_current_leg_chunk_data.size() - 1], built)
 	if debug_log and not _preload_logged:
 		_preload_logged = true
 		var arrow: String = "→" if next_leg_direction > 0 else "←"
@@ -217,6 +225,62 @@ func _prebuild_next_leg() -> void:
 	next_leg_container = _spawner.spawn_leg(built, _platforms_parent, _run_start_player_y, _rng)
 	if hide_next_leg_until_handoff:
 		next_leg_container.visible = false
+
+
+func _ensure_leg_to_leg_reachable(prev_last_chunk: Dictionary, next_leg_chunks: Array) -> void:
+	if next_leg_chunks.is_empty():
+		return
+	if prev_last_chunk.is_empty() or typeof(next_leg_chunks[0]) != TYPE_DICTIONARY:
+		return
+	var landing_chunk: Dictionary = next_leg_chunks[0] as Dictionary
+	var last_plat: Dictionary = _leg_builder._last_support_slot(prev_last_chunk)
+	var first_plat: Dictionary = _leg_builder._first_support_slot(landing_chunk)
+	if last_plat.is_empty() or first_plat.is_empty():
+		return
+	# ΔsurfaceY = (landing_y - 32) - (takeoff_y - 32) = landing_y - takeoff_y
+	var delta_surf: float = float(first_plat.get("y", 0.0)) - float(last_plat.get("y", 0.0))
+	var v0: float = PhysicsConfig.JUMP_VELOCITY
+	var g: float = PhysicsConfig.GRAVITY
+	var disc: float = v0 * v0 + 2.0 * g * delta_surf
+	if disc >= 0.0:
+		pass
+	# Pull the whole next leg down so disc becomes valid.
+	if disc < 0.0:
+		var max_h: float = (v0 * v0) / (2.0 * g)
+		var target_delta: float = clampf(delta_surf, -max_h * 0.92, max_h * 0.78)
+		var dy: float = target_delta - delta_surf
+		if absf(dy) > 0.01:
+			for ch in next_leg_chunks:
+				if typeof(ch) == TYPE_DICTIONARY:
+					_leg_builder._apply_y_shift_to_chunk(ch as Dictionary, dy)
+			_leg_builder.validate_transition_adjust_landing_chunk(prev_last_chunk, landing_chunk)
+
+	# After Y correction, ensure the horizontal edge gap is within reach by shifting the whole next leg in X if needed.
+	last_plat = _leg_builder._last_support_slot(prev_last_chunk)
+	first_plat = _leg_builder._first_support_slot(landing_chunk)
+	if last_plat.is_empty() or first_plat.is_empty():
+		return
+	delta_surf = float(first_plat.get("y", 0.0)) - float(last_plat.get("y", 0.0))
+	var reach: float = PhysicsConfig.horizontal_reach_with_fraction(delta_surf, _leg_builder.jump_reach_fraction)
+	var dx_centers: float = absf(float(first_plat.get("x", 0.0)) - float(last_plat.get("x", 0.0)))
+	var edge_gap: float = dx_centers - _leg_builder._half_width_from_center(last_plat) - _leg_builder._half_width_from_center(first_plat)
+	edge_gap = maxf(0.0, edge_gap)
+	var max_gap: float = reach - _leg_builder.safe_margin_x
+	if edge_gap > max_gap + 0.01:
+		var excess: float = edge_gap - max_gap
+		var dir_to_takeoff: float = -signf(float(first_plat.get("x", 0.0)) - float(last_plat.get("x", 0.0)))
+		var dx: float = dir_to_takeoff * excess
+		for ch in next_leg_chunks:
+			if typeof(ch) != TYPE_DICTIONARY:
+				continue
+			var dch: Dictionary = ch as Dictionary
+			var plats: Array = dch.get("platforms", []) as Array
+			for pv in plats:
+				if typeof(pv) != TYPE_DICTIONARY:
+					continue
+				var pd: Dictionary = pv as Dictionary
+				pd["x"] = float(pd.get("x", 0.0)) + dx
+		_leg_builder.validate_transition_adjust_landing_chunk(prev_last_chunk, landing_chunk)
 
 
 func _should_handoff() -> bool:
@@ -315,4 +379,6 @@ func _log(msg: String) -> void:
 		return
 	var line: String = "[PathManager] " + msg
 	print(line)
-	FileLogger.write_log(line)
+	var fl: Node = get_node_or_null("/root/FileLogger")
+	if fl != null and fl.has_method("write_log"):
+		fl.call("write_log", line)

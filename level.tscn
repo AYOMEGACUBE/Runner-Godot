@@ -1,15 +1,15 @@
-[gd_scene load_steps=13 format=3 uid="uid://dqjhrv658k7px"]
+[gd_scene load_steps=14 format=3 uid="uid://lssbghs3jeli"]
 
-[ext_resource type="Script" uid="uid://dxqe2jj8fpgu4" path="res://scripts/scenes/level/Level.gd" id="1_dp35j"]
+[ext_resource type="Script" path="res://scripts/scenes/level/Level.gd" id="1_dp35j"]
 [ext_resource type="Script" uid="uid://coj5gcxv71np" path="res://scripts/managers/PathManager.gd" id="1_pathmgr"]
 [ext_resource type="Script" uid="uid://d2qhqiwwdgihd" path="res://scripts/Player.gd" id="2_hc4jq"]
 [ext_resource type="SpriteFrames" uid="uid://c0nyy5461gg26" path="res://heroes/hero_default_jump_frames.tres" id="3_default_frames"]
-[ext_resource type="Script" uid="uid://yfnnihpjke51" path="res://scripts/ui/HUD.gd" id="4_kqdme"]
+[ext_resource type="Script" path="res://scripts/ui/HUD.gd" id="4_kqdme"]
 [ext_resource type="SpriteFrames" uid="uid://blt1544junb0x" path="res://heroes/hero_monster_jump_frames.tres" id="4_mtnfr"]
 [ext_resource type="SpriteFrames" uid="uid://keh6xhe2lv" path="res://heroes/hero_red_jump_frames.tres" id="5_tdk6w"]
-[ext_resource type="SpriteFrames" path="res://heroes/hero_red2_frames.tres" id="5_red2"]
 [ext_resource type="SpriteFrames" uid="uid://b5liyg33sbvg0" path="res://heroes/hero_blue_jump_frames.tres" id="6_km5ld"]
 [ext_resource type="SpriteFrames" uid="uid://cpcmabbbk00du" path="res://heroes/hero_orange_jump_frames.tres" id="7_i2t4f"]
+[ext_resource type="SpriteFrames" uid="uid://b040lf4av6sdp" path="res://heroes/hero_red2_frames.tres" id="8_2orkt"]
 [ext_resource type="PackedScene" uid="uid://dpol13adfo7g3" path="res://wall/wall.tscn" id="8_wall"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_oqtl3"]
@@ -29,7 +29,6 @@ use_path_leg_streaming = true
 
 [node name="PathLegStream" type="Node" parent="."]
 script = ExtResource("1_pathmgr")
-trace_chunk_selection = true
 
 [node name="Platforms" type="Node2D" parent="."]
 
@@ -40,10 +39,11 @@ position = Vector2(200, 250)
 up_direction = Vector2(0, 1)
 script = ExtResource("2_hc4jq")
 main_menu_scene = "uid://dhfx3og1cf0cj"
+game_over_scene = "uid://gvyvc4wckrsu"
 frames_default = ExtResource("3_default_frames")
 frames_monster = ExtResource("4_mtnfr")
 frames_red = ExtResource("5_tdk6w")
-frames_red2 = ExtResource("5_red2")
+frames_red2 = ExtResource("8_2orkt")
 frames_blue = ExtResource("6_km5ld")
 frames_orange = ExtResource("7_i2t4f")
 
@@ -92,9 +92,6 @@ layout_mode = 2
 
 [node name="BackButton" type="Button" parent="HUDLayer/HUD"]
 layout_mode = 1
-anchors_preset = 0
-anchor_right = 0.0
-anchor_bottom = 0.0
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 200.0

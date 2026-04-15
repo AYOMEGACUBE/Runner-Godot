@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://loading_level_scene"]
 
-[ext_resource type="Script" path="res://LoadingLevel.gd" id="1_loading"]
+[ext_resource type="Script" path="res://scenes/loading/LoadingLevel.gd" id="1_loading"]
 
 [node name="LoadingLevel" type="Control"]
 layout_mode = 3

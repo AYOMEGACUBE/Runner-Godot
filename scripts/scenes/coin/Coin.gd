@@ -54,10 +54,10 @@ func _on_body_entered(body: Node) -> void:
 		return
 	if body is CharacterBody2D and body.name == "Player":
 		_collected = true
-		var old_score: int = GameState.score
-		# Добавляем очки
-		GameState.add_coin(value)
-		_log("[COIN_COLLECTED] pos=%s value=%d score=%d->%d" % [global_position, value, old_score, GameState.score])
+		var gs: Node = get_node_or_null("/root/GameState")
+		if gs != null:
+			gs.call("add_coin", value)
+		_log("[COIN_COLLECTED] pos=%s value=%d" % [global_position, value])
 		# Исчезаем
 		queue_free()
 	else:

@@ -13,7 +13,7 @@ func _log(message: String) -> void:
 # ОБЯЗАННОСТИ:
 # - Показать результаты прошедшего забега:
 #   * максимальная достигнутая высота (GameState.max_height_reached)
-#   * набранные очки (GameState.score)
+#   * набранные очки забега (last_run_score), монеты за забег (last_run_coin_bonus), кошелёк (get_coins)
 # - Дать игроку три варианта:
 #   * View Cube    → перейти в CubeView.tscn для просмотра мегакуба
 #   * Restart Run  → начать новый забег (Level.tscn)
@@ -28,16 +28,18 @@ func _log(message: String) -> void:
 # ============================================================================
 
 @export_file("*.tscn")
-var level_scene: String = "res://level.tscn"
+var level_scene: String = "res://scenes/level/Level.tscn"
 
 @export_file("*.tscn")
-var main_menu_scene: String = "res://MainMenu.tscn"
+var main_menu_scene: String = "res://scenes/main_menu/MainMenu.tscn"
 
 @export_file("*.tscn")
-var cube_view_scene: String = "res://CubeView.tscn"
+var cube_view_scene: String = "res://scenes/cube_view/CubeView.tscn"
 
 @onready var label_height: Label = $Panel/VBox/HeightLabel
 @onready var label_score: Label = $Panel/VBox/ScoreLabel
+@onready var label_coins: Label = $Panel/VBox/CoinsLabel
+@onready var label_wallet: Label = $Panel/VBox/WalletLabel
 
 @onready var button_view_cube: Button = $Panel/VBox/Buttons/ViewCubeButton
 @onready var button_restart: Button = $Panel/VBox/Buttons/RestartButton
@@ -87,6 +89,16 @@ func _update_stats_labels() -> void:
 	if label_score != null:
 		label_score.text = "Score: " + str(score_val)
 
+	var coins_run: int = 0
+	if "last_run_coin_bonus" in GameState:
+		coins_run = int(GameState.last_run_coin_bonus)
+	if label_coins != null:
+		label_coins.text = "Coins (this run): " + str(coins_run)
+
+	var wallet_bal: int = GameState.get_coins()
+	if label_wallet != null:
+		label_wallet.text = "Wallet total: " + str(wallet_bal)
+
 	# 2) HEIGHT (максимальная достигнутая высота)
 	# Предпочитаем last_run_max_height, если есть; иначе max_height_reached.
 	var height_val: float = 0.0
@@ -99,7 +111,7 @@ func _update_stats_labels() -> void:
 	# height_val останется 0. Это честный fallback.
 	if label_height != null:
 		label_height.text = "Height: " + str(int(abs(height_val)))
-	_log("[GAMEOVER] stats updated: score=%d height=%.1f" % [score_val, height_val])
+	_log("[GAMEOVER] stats updated: score=%d height=%.1f coins_run=%d wallet=%d" % [score_val, height_val, coins_run, wallet_bal])
 
 
 func _on_view_cube_pressed() -> void:

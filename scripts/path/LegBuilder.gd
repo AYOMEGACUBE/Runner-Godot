@@ -33,6 +33,15 @@ var path_slope_origin_x: float = 0.0
 var path_slope_deg: float = 0.0
 
 
+func _trace_chunk_pick(message: String) -> void:
+	print(message)
+	var ml: MainLoop = Engine.get_main_loop()
+	if ml is SceneTree:
+		var fl: Node = (ml as SceneTree).root.get_node_or_null("/root/FileLogger")
+		if fl != null and fl.has_method("write_log"):
+			fl.call("write_log", message)
+
+
 func _init(p_registry: ChunkRegistry = null, p_scaler: DifficultyScaler = null) -> void:
 	registry = p_registry
 	scaler = p_scaler
@@ -78,7 +87,7 @@ func build_leg(start_pos: Vector2, direction: int, chunk_count: int, rng: Random
 			push_warning("[LegBuilder] Empty chunk at index %d — registry size=%d" % [i, registry.size()])
 			continue
 		if trace_chunk_selection:
-			print("[PathManager][chunks] Leg %d | chunk %d/%d | model_id=%s | dir=%d" % [trace_leg_index, i + 1, chunk_count, str(raw.get("model_id", "?")), direction])
+			_trace_chunk_pick("[PathManager][chunks] Leg %d | chunk %d/%d | model_id=%s | dir=%d" % [trace_leg_index, i + 1, chunk_count, str(raw.get("model_id", "?")), direction])
 		var chunk: Dictionary = raw.duplicate(true)
 		var ref_y: float = _first_support_y(chunk)
 		var anchor: Vector2
