@@ -1,25 +1,28 @@
 extends Node2D
 class_name WallRenderer
 # ============================================================================
-# WallRenderer.gd
-# Оптимизированный рендерер стены на основе MultiMeshInstance2D
+# WallRenderer.gd — Оптимизированный рендерер стены (MultiMeshInstance2D)
 # ============================================================================
-# Вместо тысяч нод использует один MultiMesh для батч-отрисовки
-# Данные берутся из WallData, клики обрабатываются по координатам
-# ============================================================================
-# THREAD-АРХИТЕКТУРА загрузки текстур:
-#   ЭТАП 1 (Thread): Image.load() + resize → Image готов
-#   ЭТАП 2 (Main): ImageTexture.create_from_image() + запись кэша + Sprite2D
+# THREAD-АРХИТЕКТУРА:
+#   ЭТАП 1 (Thread) : Image.load() + resize → Image
+#   ЭТАП 2 (Main)   : ImageTexture.create_from_image() + кэш + Sprite2D
+#
+# STREAM CONTROL:
+#   • Приоритетная очередь (priority = dist к камере)
+#   • MAX_ACTIVE_LOADING одновременно в потоке
+#   • MAX_STREAM_QUEUE_SIZE  — ограничение очереди
+#   • MAX_TEXTURES_IN_MEMORY — LRU eviction
+#   • UNLOAD_IDLE_SEC       — выгрузка неиспользуемых текстур
+#   • MAX_APPLY_PER_FRAME   — бюджет применения за кадр
 # ============================================================================
 
 const WorldSegmentGrid = preload("res://scripts/config/WorldSegmentGrid.gd")
-const SEGMENT_SIZE: int = WorldSegmentGrid.SEGMENT_SIZE_PX
+const SEGMENT_SIZE: int    = WorldSegmentGrid.SEGMENT_SIZE_PX
 const SEGMENTS_PER_SIDE: int = WorldSegmentGrid.SEGMENTS_PER_FACE_AXIS
 
 var multimesh_instance: MultiMeshInstance2D = null
-
-var wall_data: WallData = null
-var side_id: String = "front"
+var wall_data: WallData   = null
+var side_id: String       = "front"
 var allow_purchases: bool = false
 
 # Видимая область (в сегментах)
@@ -28,83 +31,102 @@ var visible_max_x: int = 0
 var visible_min_y: int = 0
 var visible_max_y: int = 0
 
-# Пул трансформ для переиспользования
+# Пул трансформ
 var _transforms: Array[Transform2D] = []
-var _segment_ids: Array[String] = []
-var _multimesh: MultiMesh = null
+var _segment_ids: Array[String]     = []
+var _multimesh: MultiMesh           = null
 
-# Параметры дыхания для каждого сегмента (независимые)
+# Дыхание сегментов
 var _breathing_params: Array[Dictionary] = []
-var _breathing_time: float = 0.0
-const BASE_BREATHING_AMPLITUDE: float = 1.2
-const BASE_BREATHING_SPEED: float = PI * 0.4
+var _breathing_time: float               = 0.0
+const BASE_BREATHING_AMPLITUDE: float   = 1.2
+const BASE_BREATHING_SPEED: float       = PI * 0.4
 
-# Смена сторон сегментов
-var _segment_sides: Array[String] = []
-var _side_change_timers: Array[float] = []
+# Смена сторон
+var _segment_sides: Array[String]      = []
+var _side_change_timers: Array[float]  = []
 var _side_change_intervals: Array[float] = []
 const SIDES: Array[String] = ["front", "back", "left", "right", "top", "bottom"]
-## Потолок инстансов MultiMesh — защита от отдаления камеры
-const MAX_VISIBLE_INSTANCES: int = 10000
+const MAX_VISIBLE_INSTANCES: int  = 10000
 const HEAVY_MESH_SKIP_PROCESS: int = 500000
 
-## Один RNG на весь кадр обновления видимой области / смены сторон
 var _shared_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
-# Отображение изображений поверх MultiMesh
-var _images_layer: Node2D = null
-var _segment_sprites: Dictionary = {}        # segment_id -> Sprite2D
-var _sprite_pool: Array[Sprite2D] = []
-var _segment_index: Dictionary = {}          # segment_id -> индекс в массивах
+# Спрайты поверх MultiMesh
+var _images_layer: Node2D          = null
+var _segment_sprites: Dictionary   = {}   # segment_id -> Sprite2D
+var _sprite_pool: Array[Sprite2D]  = []
+var _segment_index: Dictionary     = {}   # segment_id -> индекс
 var _last_known_tile_side: Dictionary = {}
 
-# Подсветка выбранных сегментов
+# Подсветка / предпросмотр
 var _highlighted_segment_ids: Array[String] = []
-var pause_side_switching: bool = false
-var dim_other_segments: bool = false
+var pause_side_switching: bool  = false
+var dim_other_segments: bool    = false
 var _preview_image_paths: Dictionary = {}
 
 # ─────────────────────────────────────────────────────────────────────────────
-# КЭШИ ТЕКСТУР (LRU)
+# КЭШИ ТЕКСТУР — LRU
 # ─────────────────────────────────────────────────────────────────────────────
-var _texture_cache: Dictionary = {}          # img_path -> Texture2D
-var _texture_cache_order: Array[String] = [] # LRU: oldest -> newest
-const MAX_TEXTURE_CACHE_ENTRIES: int = 256
+var _texture_cache: Dictionary       = {}   # img_path -> Texture2D
+var _texture_cache_order: Array[String] = [] # LRU: oldest → newest
+## Время последнего использования каждой текстуры (img_path -> float)
+var _texture_last_used: Dictionary   = {}
+const MAX_TEXTURES_IN_MEMORY: int    = 384   # Memory Guard
+const UNLOAD_IDLE_SEC: float         = 30.0  # выгружать если не использована N сек
+var _unload_timer: float             = 0.0
+const UNLOAD_CHECK_INTERVAL: float   = 5.0
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ОЧЕРЕДЬ ЗАДАЧ ДЛЯ MAIN-ПОТОКА (те же поля что и раньше — совместимость)
+# СОВМЕСТИМАЯ ОЧЕРЕДЬ (main-thread feeder → thread)
 # ─────────────────────────────────────────────────────────────────────────────
-var _texture_load_queue: Array[Dictionary] = []
-var _texture_load_queued_keys: Dictionary = {}  # qkey -> true, защита от дублей
-const MAX_TEXTURE_LOADS_PER_FRAME_GAME: int = 2
-const MAX_TEXTURE_LOADS_PER_FRAME_VIEW: int = 24
-const MAX_TEXTURE_QUEUE_LENGTH: int = 2000
+var _texture_load_queue: Array[Dictionary]    = []
+var _texture_load_queued_keys: Dictionary     = {} # qkey -> true
+const MAX_TEXTURE_LOADS_PER_FRAME_GAME: int  = 2
+const MAX_TEXTURE_LOADS_PER_FRAME_VIEW: int  = 24
+const MAX_TEXTURE_QUEUE_LENGTH: int          = 500  # Stream Control: hard cap
 
 # ─────────────────────────────────────────────────────────────────────────────
-# THREAD-АРХИТЕКТУРА
+# STREAM CONTROL
 # ─────────────────────────────────────────────────────────────────────────────
-## Очередь задач для потока: [{path, key}]
+const MAX_ACTIVE_LOADING: int   = 8    # одновременно в потоке
+const MAX_STREAM_QUEUE_SIZE: int = 500  # лимит приоритетной очереди потока
+const MAX_APPLY_PER_FRAME: int  = 8    # бюджет ImageTexture.create в кадр
+
+## Текущая позиция камеры для вычисления приоритетов (px)
+var _camera_position: Vector2 = Vector2.ZERO
+## Сколько задач сейчас находятся в потоке (не получили результат)
+var _active_loading_count: int = 0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THREAD
+# ─────────────────────────────────────────────────────────────────────────────
+## Приоритетная очередь задач: [{path, key, priority}]
 var _thread_queue: Array = []
-## Очередь результатов из потока: [{key, image, success}]
+## Результаты из потока: [{key, image, success}]
 var _thread_results: Array = []
-## Пути, уже отправленные в поток (защита от дублей на уровне пути)
+## Пути, уже отправленные в поток
 var _thread_queued_paths: Dictionary = {}
 
-var _thread_mutex: Mutex = Mutex.new()
-var _results_mutex: Mutex = Mutex.new()
-var _loader_thread: Thread = null
-var _thread_stop: bool = false
-## Семафор: сигнализирует потоку, что появились задачи
+var _thread_mutex: Mutex    = Mutex.new()
+var _results_mutex: Mutex   = Mutex.new()
+var _loader_thread: Thread  = null
+var _thread_stop: bool      = false
 var _thread_semaphore: Semaphore = Semaphore.new()
-## Максимум задач на одну итерацию потока
-const MAX_THREAD_TASKS_PER_ITER: int = 6
-## Максимум результатов, применяемых за один _process (создание ImageTexture в main)
-const MAX_RESULTS_PER_FRAME: int = 8
+const MAX_THREAD_TASKS_PER_ITER: int = 4
 
+# ─────────────────────────────────────────────────────────────────────────────
+# DEBUG
+# ─────────────────────────────────────────────────────────────────────────────
 @export var DEBUG_LOG: bool = false
+var _dbg_cache_hits: int   = 0
+var _dbg_cache_misses: int = 0
+var _dbg_dropped: int      = 0
+var _dbg_log_timer: float  = 0.0
+const DBG_LOG_INTERVAL: float = 5.0
 
-# Кэш ссылки на GameState
-var _gs_cache: Node = null
+# Кэш GameState
+var _gs_cache: Node        = null
 var _breathing_was_enabled: bool = false
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -125,14 +147,12 @@ func _ready() -> void:
 	arrays.resize(Mesh.ARRAY_MAX)
 	var half_size: float = SEGMENT_SIZE * 0.5
 	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([
-		Vector3(-half_size, -half_size, 0),
-		Vector3(half_size, -half_size, 0),
-		Vector3(half_size, half_size, 0),
-		Vector3(-half_size, half_size, 0)
+		Vector3(-half_size, -half_size, 0), Vector3(half_size, -half_size, 0),
+		Vector3(half_size, half_size, 0),   Vector3(-half_size, half_size, 0)
 	])
-	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 0, 2, 3])
+	arrays[Mesh.ARRAY_INDEX]  = PackedInt32Array([0, 1, 2, 0, 2, 3])
 	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([
-		Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)
+		Vector2(0,0), Vector2(1,0), Vector2(1,1), Vector2(0,1)
 	])
 	array_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	_multimesh.mesh = array_mesh
@@ -143,43 +163,41 @@ func _ready() -> void:
 	_images_layer.z_index = -9
 	add_child(_images_layer)
 
-	# Запускаем фоновый поток загрузки
 	_thread_stop = false
 	_loader_thread = Thread.new()
 	_loader_thread.start(_thread_load_loop)
-	print("[THREAD] WallRenderer texture loader thread started")
+	print("[THREAD] WallRenderer texture loader thread STARTED")
 
 
 func _exit_tree() -> void:
-	# Корректная остановка потока
 	_thread_stop = true
-	_thread_semaphore.post()  # разбудить поток, чтобы он проверил флаг и вышел
+	_thread_semaphore.post()
 	if _loader_thread != null and _loader_thread.is_started():
 		_loader_thread.wait_to_finish()
 		_loader_thread = null
-	print("[THREAD] WallRenderer texture loader thread stopped")
+	print("[THREAD] WallRenderer texture loader thread STOPPED")
 
 
 func setup(data: WallData, side: String, purchases_enabled: bool = false) -> void:
-	wall_data = data
-	side_id = side
+	wall_data       = data
+	side_id         = side
 	allow_purchases = purchases_enabled
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# THREAD LOOP — выполняется в фоновом потоке
-# Разрешено: Image.load, Image.resize, чтение файлов
-# Запрещено: Node, ImageTexture, любые Godot-объекты владеющие GPU
+# THREAD LOOP
+# Разрешено: Image.load, Image.resize, FileAccess
+# Запрещено: Node, ImageTexture, GPU-объекты
 # ─────────────────────────────────────────────────────────────────────────────
 func _thread_load_loop() -> void:
 	while true:
-		_thread_semaphore.wait()  # спим пока нет задач
+		_thread_semaphore.wait()
 		if _thread_stop:
 			break
 
-		# Берём пачку задач
 		_thread_mutex.lock()
 		var tasks: Array = []
+		# Берём задачи с наибольшим приоритетом (очередь уже сортирована по убыванию)
 		var take: int = mini(_thread_queue.size(), MAX_THREAD_TASKS_PER_ITER)
 		for _i in range(take):
 			tasks.append(_thread_queue.pop_front())
@@ -189,11 +207,11 @@ func _thread_load_loop() -> void:
 			if _thread_stop:
 				break
 			var path: String = str(task.get("path", ""))
-			var key: String = str(task.get("key", ""))
+			var key: String  = str(task.get("key",  ""))
 			if path.is_empty() or key.is_empty():
 				continue
 			if DEBUG_LOG:
-				print("[THREAD] loading image: ", path)
+				print("[THREAD] loading: ", path)
 			var result: Dictionary = _thread_load_image(path)
 			result["key"] = key
 			_results_mutex.lock()
@@ -202,27 +220,23 @@ func _thread_load_loop() -> void:
 
 
 func _thread_load_image(img_path: String) -> Dictionary:
-	## THREAD: загружает Image и делает resize. Возвращает {image, success}.
 	const TARGET_SIZE: int = 48
 	var img: Image = Image.new()
 	var err: Error
 
 	if img_path.begins_with("res://") or img_path.begins_with("user://"):
 		err = img.load(img_path)
+		if err != OK and img_path.begins_with("user://") and FileAccess.file_exists(img_path):
+			var f: FileAccess = FileAccess.open(img_path, FileAccess.READ)
+			if f != null:
+				var bytes: PackedByteArray = f.get_buffer(f.get_length())
+				f.close()
+				err = img.load_png_from_buffer(bytes)
+				if err != OK:
+					err = img.load_jpg_from_buffer(bytes)
 		if err != OK:
-			# Файл есть, но не PNG — пробуем через raw bytes (только user://)
-			if img_path.begins_with("user://") and FileAccess.file_exists(img_path):
-				var f: FileAccess = FileAccess.open(img_path, FileAccess.READ)
-				if f != null:
-					var bytes: PackedByteArray = f.get_buffer(f.get_length())
-					f.close()
-					err = img.load_png_from_buffer(bytes)
-					if err != OK:
-						err = img.load_jpg_from_buffer(bytes)
-			if err != OK:
-				return {"image": null, "success": false}
+			return {"image": null, "success": false}
 	else:
-		# Абсолютный путь
 		err = img.load(img_path)
 		if err != OK:
 			return {"image": null, "success": false}
@@ -230,102 +244,196 @@ func _thread_load_image(img_path: String) -> Dictionary:
 	if img.is_empty():
 		return {"image": null, "success": false}
 
-	var src_w: int = img.get_width()
-	var src_h: int = img.get_height()
-	if src_w != TARGET_SIZE or src_h != TARGET_SIZE:
+	var sw: int = img.get_width()
+	var sh: int = img.get_height()
+	if sw != TARGET_SIZE or sh != TARGET_SIZE:
 		img.resize(TARGET_SIZE, TARGET_SIZE, Image.INTERPOLATE_LANCZOS)
-		if DEBUG_LOG:
-			print("[THREAD] resized ", img_path, " from ", src_w, "x", src_h, " to 48x48")
 
 	return {"image": img, "success": true}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ПОСТАНОВКА ЗАДАЧИ В THREAD
+# STREAM CONTROL: постановка задачи в Thread с приоритетом
 # ─────────────────────────────────────────────────────────────────────────────
-func _enqueue_thread_load(img_path: String) -> void:
+func _enqueue_thread_load(img_path: String, priority: float = 0.0) -> void:
 	if _thread_stop or img_path.is_empty():
 		return
 	if _texture_cache.has(img_path):
-		return  # уже закэшировано
+		return
 	_thread_mutex.lock()
 	var already: bool = _thread_queued_paths.has(img_path)
 	if not already:
+		if _thread_queue.size() >= MAX_STREAM_QUEUE_SIZE:
+			# Вытесняем задачу с минимальным приоритетом (последняя — наименее приоритетная)
+			var min_idx: int = _thread_queue.size() - 1
+			var dropped_path: String = str(_thread_queue[min_idx].get("key", ""))
+			_thread_queue.remove_at(min_idx)
+			if dropped_path != "":
+				_thread_queued_paths.erase(dropped_path)
+			_dbg_dropped += 1
 		_thread_queued_paths[img_path] = true
-		_thread_queue.append({"path": img_path, "key": img_path})
+		# Вставляем в позицию по приоритету (очередь отсортирована: 0=наивысший)
+		var inserted: bool = false
+		for i in range(_thread_queue.size()):
+			if float(_thread_queue[i].get("priority", 0.0)) < priority:
+				_thread_queue.insert(i, {"path": img_path, "key": img_path, "priority": priority})
+				inserted = true
+				break
+		if not inserted:
+			_thread_queue.append({"path": img_path, "key": img_path, "priority": priority})
+		_active_loading_count += 1
 	_thread_mutex.unlock()
 	if not already:
-		_thread_semaphore.post()  # будим поток
+		_thread_semaphore.post()
+
+
+func _calc_priority(seg_id: String) -> float:
+	## Ближе к камере = выше приоритет. Видимые сегменты получают +большой бонус.
+	var coords: PackedStringArray = seg_id.split("_")
+	if coords.size() < 2:
+		return 0.0
+	var wx: float = float(int(coords[0])) * SEGMENT_SIZE
+	var wy: float = float(int(coords[1])) * SEGMENT_SIZE
+	var dist: float = _camera_position.distance_to(Vector2(wx, wy))
+	var is_visible: bool = _segment_index.has(seg_id)
+	var base: float = 1.0 / (1.0 + dist * 0.001)
+	return base + (1.0 if is_visible else 0.0)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ПРИМЕНЕНИЕ РЕЗУЛЬТАТОВ ИЗ ПОТОКА — вызывается в _process (main thread)
+# ПРИМЕНЕНИЕ РЕЗУЛЬТАТОВ ИЗ ПОТОКА (Main Thread)
 # ─────────────────────────────────────────────────────────────────────────────
 func _apply_thread_results() -> void:
 	if _thread_results.is_empty():
 		return
-
 	_results_mutex.lock()
 	var batch: Array = []
-	var take: int = mini(_thread_results.size(), MAX_RESULTS_PER_FRAME)
+	var take: int = mini(_thread_results.size(), MAX_APPLY_PER_FRAME)
 	for _i in range(take):
 		batch.append(_thread_results.pop_front())
 	_results_mutex.unlock()
 
 	for res in batch:
 		var key: String = str(res.get("key", ""))
-		# Убираем из "в процессе загрузки"
 		_thread_mutex.lock()
 		_thread_queued_paths.erase(key)
+		_active_loading_count = maxi(0, _active_loading_count - 1)
 		_thread_mutex.unlock()
 
 		if not res.get("success", false):
 			if DEBUG_LOG:
-				print("[THREAD] FAIL image: ", key)
+				print("[THREAD] FAIL: ", key)
 			continue
-
 		var img: Image = res.get("image", null)
 		if img == null or img.is_empty():
 			continue
 
-		# MAIN THREAD: создаём ImageTexture (GPU-объект, нельзя в потоке)
+		# MAIN THREAD: только здесь создаём GPU-объект
 		var tex: ImageTexture = ImageTexture.create_from_image(img)
 		_texture_cache[key] = tex
+		_texture_last_used[key] = Time.get_ticks_msec() * 0.001
 		_touch_texture_cache_key(key)
 		_evict_texture_cache_if_needed()
 		if DEBUG_LOG:
-			print("[MAIN] texture created and cached: ", key)
-
-		# Применяем ко всем видимым сегментам, которым нужна эта текстура
+			print("[MAIN] texture ready: ", key)
 		_apply_texture_to_segments_by_path(key)
 
 
 func _apply_texture_to_segments_by_path(img_path: String) -> void:
-	## Находим все видимые сегменты с нужным путём и применяем текстуру.
 	for i in range(_segment_ids.size()):
 		if i >= _segment_sides.size():
 			continue
-		var seg_id: String = _segment_ids[i]
-		var current_side: String = _segment_sides[i]
-
+		var seg_id: String      = _segment_ids[i]
+		var cur_side: String    = _segment_sides[i]
 		var path_for_seg: String = ""
 		if _preview_image_paths.has(seg_id) and _preview_image_paths[seg_id] != "":
 			path_for_seg = _preview_image_paths[seg_id]
 		elif wall_data != null:
-			path_for_seg = wall_data.get_face_image_path(seg_id, current_side)
-
+			path_for_seg = wall_data.get_face_image_path(seg_id, cur_side)
 		if path_for_seg == img_path:
-			_update_single_image_sprite(seg_id, i, current_side)
+			_update_single_image_sprite(seg_id, i, cur_side)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEXTURE UNLOADING — выгрузка давно неиспользуемых текстур
+# ─────────────────────────────────────────────────────────────────────────────
+func _process_texture_unload(delta: float) -> void:
+	_unload_timer += delta
+	if _unload_timer < UNLOAD_CHECK_INTERVAL:
+		return
+	_unload_timer = 0.0
+	var now: float = Time.get_ticks_msec() * 0.001
+	# Собираем активные пути (видимые сегменты + preview)
+	var active_paths: Dictionary = {}
+	for i in range(_segment_ids.size()):
+		if i >= _segment_sides.size():
+			continue
+		var seg_id: String   = _segment_ids[i]
+		var cur_side: String = _segment_sides[i]
+		var p: String = ""
+		if _preview_image_paths.has(seg_id):
+			p = _preview_image_paths[seg_id]
+		elif wall_data != null:
+			p = wall_data.get_face_image_path(seg_id, cur_side)
+		if p != "":
+			active_paths[p] = true
+
+	var to_evict: Array[String] = []
+	for path in _texture_last_used.keys():
+		if active_paths.has(path):
+			continue  # текстура активна — не трогаем
+		var last: float = float(_texture_last_used[path])
+		if now - last > UNLOAD_IDLE_SEC:
+			to_evict.append(path)
+
+	for path in to_evict:
+		_texture_cache.erase(path)
+		_texture_last_used.erase(path)
+		var ix: int = _texture_cache_order.find(path)
+		if ix >= 0:
+			_texture_cache_order.remove_at(ix)
+	if to_evict.size() > 0 and DEBUG_LOG:
+		print("[UNLOAD] evicted ", to_evict.size(), " idle textures")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEBUG LOG
+# ─────────────────────────────────────────────────────────────────────────────
+func _process_debug_log(delta: float) -> void:
+	if not DEBUG_LOG:
+		return
+	_dbg_log_timer += delta
+	if _dbg_log_timer < DBG_LOG_INTERVAL:
+		return
+	_dbg_log_timer = 0.0
+	_thread_mutex.lock()
+	var tq: int = _thread_queue.size()
+	var al: int = _active_loading_count
+	_thread_mutex.unlock()
+	_results_mutex.lock()
+	var rq: int = _thread_results.size()
+	_results_mutex.unlock()
+	var mem_est: int = _texture_cache.size() * 48 * 48 * 4 / 1024  # KB (RGBA 48x48)
+	print("[DBG] cache=%d/%d  queue_main=%d  thread_q=%d  active=%d  results=%d  mem~%dKB  hits=%d  miss=%d  dropped=%d" % [
+		_texture_cache.size(), MAX_TEXTURES_IN_MEMORY,
+		_texture_load_queue.size(), tq, al, rq,
+		mem_est, _dbg_cache_hits, _dbg_cache_misses, _dbg_dropped
+	])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ОСНОВНОЙ _process
 # ─────────────────────────────────────────────────────────────────────────────
 func _process(delta: float) -> void:
-	# 1. Применяем результаты из потока (main thread)
 	_apply_thread_results()
-	# 2. Старая очередь: отправляем задачи в поток (вместо синхронного load)
 	_process_texture_load_queue()
+	_process_texture_unload(delta)
+	_process_debug_log(delta)
+
+	# Обновляем позицию камеры для приоритетов
+	var cam: Camera2D = get_viewport().get_camera_2d() if get_viewport() != null else null
+	if cam != null:
+		_camera_position = cam.global_position
 
 	if _multimesh != null and _multimesh.instance_count > HEAVY_MESH_SKIP_PROCESS:
 		return
@@ -350,23 +458,23 @@ func _process(delta: float) -> void:
 	for i in range(cnt2):
 		if i >= _breathing_params.size():
 			continue
-		var base_transform: Transform2D = _transforms[i]
-		var params: Dictionary = _breathing_params[i]
-		var phase_x: float = _breathing_time * BASE_BREATHING_SPEED * params.speed_factor + params.phase + params.offset_x
-		var phase_y: float = _breathing_time * BASE_BREATHING_SPEED * params.speed_factor + params.phase + params.offset_y
-		var final_transform: Transform2D = base_transform
-		final_transform.origin += Vector2(sin(phase_x) * params.amplitude_x, cos(phase_y) * params.amplitude_y)
-		_multimesh.set_instance_transform_2d(i, final_transform)
+		var base_t: Transform2D   = _transforms[i]
+		var params: Dictionary    = _breathing_params[i]
+		var px: float = _breathing_time * BASE_BREATHING_SPEED * params.speed_factor + params.phase + params.offset_x
+		var py: float = _breathing_time * BASE_BREATHING_SPEED * params.speed_factor + params.phase + params.offset_y
+		var final_t: Transform2D  = base_t
+		final_t.origin += Vector2(sin(px) * params.amplitude_x, cos(py) * params.amplitude_y)
+		_multimesh.set_instance_transform_2d(i, final_t)
 		if i < _segment_ids.size():
 			var seg_id := _segment_ids[i]
 			if _segment_sprites.has(seg_id):
 				var sprite: Sprite2D = _segment_sprites[seg_id]
 				if sprite:
-					sprite.position = final_transform.origin
+					sprite.position = final_t.origin
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ОЧЕРЕДЬ ЗАГРУЗКИ — теперь отправляет в Thread вместо синхронного load
+# ОЧЕРЕДЬ ЗАГРУЗКИ → Thread (Frame budget: MAX_TEXTURE_LOADS_PER_FRAME_*)
 # ─────────────────────────────────────────────────────────────────────────────
 func _process_texture_load_queue() -> void:
 	if _texture_load_queue.is_empty():
@@ -374,31 +482,35 @@ func _process_texture_load_queue() -> void:
 	var budget: int = MAX_TEXTURE_LOADS_PER_FRAME_VIEW if allow_purchases else MAX_TEXTURE_LOADS_PER_FRAME_GAME
 	while budget > 0 and not _texture_load_queue.is_empty():
 		var req: Dictionary = _texture_load_queue.pop_front()
-		var qkey0: String = str(req.get("qkey", ""))
+		var qkey0: String   = str(req.get("qkey", ""))
 		if qkey0 != "":
 			_texture_load_queued_keys.erase(qkey0)
-		var seg_id: String = str(req.get("segment_id", ""))
+		var seg_id: String   = str(req.get("segment_id", ""))
 		var img_path: String = str(req.get("img_path", ""))
-		var idx: int = int(req.get("idx", -1))
+		var idx: int         = int(req.get("idx", -1))
 		var seg_side: String = str(req.get("segment_side", ""))
 		if seg_id == "" or img_path == "" or idx < 0:
 			continue
 		if not _segment_index.has(seg_id):
-			continue  # сегмент ушёл из видимости
+			continue  # сегмент вне видимости
 		if _texture_cache.has(img_path):
+			_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
 			_touch_texture_cache_key(img_path)
 			_update_single_image_sprite(seg_id, idx, seg_side)
+			_dbg_cache_hits += 1
 			budget -= 1
 			continue
-		# Отправляем в Thread (не синхронный load)
-		_enqueue_thread_load(img_path)
+		_dbg_cache_misses += 1
+		# Проверяем лимит одновременных загрузок
+		_thread_mutex.lock()
+		var al: int = _active_loading_count
+		_thread_mutex.unlock()
+		if al < MAX_ACTIVE_LOADING:
+			_enqueue_thread_load(img_path, _calc_priority(seg_id))
 		budget -= 1
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (без изменения публичного API)
-# ─────────────────────────────────────────────────────────────────────────────
-
 func _remember_tile_side(segment_id: String, side_name: String) -> void:
 	if segment_id.is_empty() or side_name.strip_edges().is_empty():
 		return
@@ -421,8 +533,7 @@ func _effective_face_data_for_ownership(segment_id: String, visual_side: String)
 func _effective_image_side_for_texture(segment_id: String, visual_side: String) -> String:
 	if wall_data == null:
 		return visual_side
-	var p0: String = wall_data.get_face_image_path(segment_id, visual_side).strip_edges()
-	if p0 != "":
+	if wall_data.get_face_image_path(segment_id, visual_side).strip_edges() != "":
 		return visual_side
 	return visual_side
 
@@ -440,84 +551,75 @@ func _visual_face_image_path(segment_id: String, visual_side: String) -> String:
 
 
 func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
-	var width: int = max_x - min_x + 1
+	var width: int  = max_x - min_x + 1
 	var height: int = max_y - min_y + 1
 	var total_segments: int = width * height
 	if total_segments > MAX_VISIBLE_INSTANCES:
 		var scale: float = sqrt(float(MAX_VISIBLE_INSTANCES) / float(total_segments))
 		var cx: float = (float(min_x) + float(max_x)) * 0.5
 		var cy: float = (float(min_y) + float(max_y)) * 0.5
-		var half_w: float = (float(width) * 0.5) * scale
+		var half_w: float = (float(width)  * 0.5) * scale
 		var half_h: float = (float(height) * 0.5) * scale
 		min_x = int(floor(cx - half_w))
-		max_x = int(ceil(cx + half_w))
+		max_x = int(ceil(cx  + half_w))
 		min_y = int(floor(cy - half_h))
-		max_y = int(ceil(cy + half_h))
+		max_y = int(ceil(cy  + half_h))
 		if min_x > max_x:
-			var tmp: int = min_x; min_x = max_x; max_x = tmp
+			var t: int = min_x; min_x = max_x; max_x = t
 		if min_y > max_y:
-			var tmp2: int = min_y; min_y = max_y; max_y = tmp2
-		width = max_x - min_x + 1
+			var t2: int = min_y; min_y = max_y; max_y = t2
+		width  = max_x - min_x + 1
 		height = max_y - min_y + 1
 		total_segments = width * height
 
-	visible_min_x = min_x
-	visible_max_x = max_x
-	visible_min_y = min_y
-	visible_max_y = max_y
+	visible_min_x = min_x;  visible_max_x = max_x
+	visible_min_y = min_y;  visible_max_y = max_y
 
-	var old_sides: Dictionary = {}
-	var old_timers: Dictionary = {}
+	var old_sides: Dictionary     = {}
+	var old_timers: Dictionary    = {}
 	var old_intervals: Dictionary = {}
 	for i in range(_segment_ids.size()):
 		if i < _segment_sides.size():
-			old_sides[_segment_ids[i]] = _segment_sides[i]
+			old_sides[_segment_ids[i]]     = _segment_sides[i]
 		if i < _side_change_timers.size():
-			old_timers[_segment_ids[i]] = _side_change_timers[i]
+			old_timers[_segment_ids[i]]    = _side_change_timers[i]
 		if i < _side_change_intervals.size():
 			old_intervals[_segment_ids[i]] = _side_change_intervals[i]
 
 	_multimesh.instance_count = total_segments
-	_transforms.clear()
-	_segment_ids.clear()
-	_breathing_params.clear()
-	_segment_sides.clear()
-	_side_change_timers.clear()
-	_side_change_intervals.clear()
+	_transforms.clear();        _segment_ids.clear()
+	_breathing_params.clear();  _segment_sides.clear()
+	_side_change_timers.clear(); _side_change_intervals.clear()
 	_segment_index.clear()
-	_transforms.resize(total_segments)
-	_segment_ids.resize(total_segments)
-	_breathing_params.resize(total_segments)
-	_segment_sides.resize(total_segments)
-	_side_change_timers.resize(total_segments)
-	_side_change_intervals.resize(total_segments)
+	_transforms.resize(total_segments);       _segment_ids.resize(total_segments)
+	_breathing_params.resize(total_segments); _segment_sides.resize(total_segments)
+	_side_change_timers.resize(total_segments); _side_change_intervals.resize(total_segments)
 
-	var _sm_cached: Node = get_node_or_null("/root/SeedManager")
-	var _gs_seed_cached: int = int(_sm_cached.get("global_seed")) if _sm_cached != null else 0
+	var _sm: Node    = get_node_or_null("/root/SeedManager")
+	var _gs_seed: int = int(_sm.get("global_seed")) if _sm != null else 0
 	var idx: int = 0
 	for y in range(min_y, max_y + 1):
 		for x in range(min_x, max_x + 1):
 			var segment_id: String = "%d_%d" % [x, y]
-			var pos: Vector2 = Vector2(x * SEGMENT_SIZE, y * SEGMENT_SIZE)
-			var seed_hash: int = int(hash(str(_gs_seed_cached) + "::" + segment_id)) & 0x7FFFFFFF
+			var pos: Vector2       = Vector2(x * SEGMENT_SIZE, y * SEGMENT_SIZE)
+			var seed_hash: int = int(hash(str(_gs_seed) + "::" + segment_id)) & 0x7FFFFFFF
 			_shared_rng.seed = seed_hash if seed_hash != 0 else 1
 
 			var current_side: String
 			if old_sides.has(segment_id):
-				current_side = old_sides[segment_id]
-				_side_change_timers[idx] = old_timers.get(segment_id, 0.0)
-				_side_change_intervals[idx] = old_intervals.get(segment_id, _shared_rng.randf_range(30.0, 90.0))
+				current_side               = old_sides[segment_id]
+				_side_change_timers[idx]   = old_timers.get(segment_id, 0.0)
+				_side_change_intervals[idx]= old_intervals.get(segment_id, _shared_rng.randf_range(30.0, 90.0))
+			elif _last_known_tile_side.has(segment_id):
+				current_side = str(_last_known_tile_side[segment_id])
+				var ci_r: float = _shared_rng.randf_range(30.0, 90.0)
+				_side_change_intervals[idx] = ci_r
+				_side_change_timers[idx]    = _shared_rng.randf_range(0.0, ci_r * 0.3)
 			else:
-				if _last_known_tile_side.has(segment_id):
-					current_side = str(_last_known_tile_side[segment_id])
-					var ci_r: float = _shared_rng.randf_range(30.0, 90.0)
-					_side_change_intervals[idx] = ci_r
-					_side_change_timers[idx] = _shared_rng.randf_range(0.0, ci_r * 0.3)
-				else:
-					current_side = SIDES[_shared_rng.randi() % SIDES.size()]
-					var ci: float = _shared_rng.randf_range(30.0, 90.0)
-					_side_change_intervals[idx] = ci
-					_side_change_timers[idx] = _shared_rng.randf_range(0.0, ci * 0.3)
+				current_side = SIDES[_shared_rng.randi() % SIDES.size()]
+				var ci: float = _shared_rng.randf_range(30.0, 90.0)
+				_side_change_intervals[idx] = ci
+				_side_change_timers[idx]    = _shared_rng.randf_range(0.0, ci * 0.3)
 
 			_segment_sides[idx] = current_side
 			_remember_tile_side(segment_id, current_side)
@@ -526,16 +628,16 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			var color: Color = _get_segment_color_by_side(current_side, face_data, segment_id)
 			var transform: Transform2D = Transform2D.IDENTITY
 			transform.origin = pos
-			_transforms[idx] = transform
-			_segment_ids[idx] = segment_id
+			_transforms[idx]     = transform
+			_segment_ids[idx]    = segment_id
 			_segment_index[segment_id] = idx
 			_breathing_params[idx] = {
-				"phase": _shared_rng.randf() * TAU,
+				"phase":        _shared_rng.randf() * TAU,
 				"speed_factor": _shared_rng.randf_range(0.6, 1.4),
-				"amplitude_x": _shared_rng.randf_range(0.3, 0.8) * BASE_BREATHING_AMPLITUDE,
-				"amplitude_y": _shared_rng.randf_range(0.5, 1.2) * BASE_BREATHING_AMPLITUDE,
-				"offset_x": _shared_rng.randf_range(-0.5, 0.5),
-				"offset_y": _shared_rng.randf_range(-0.5, 0.5)
+				"amplitude_x":  _shared_rng.randf_range(0.3, 0.8) * BASE_BREATHING_AMPLITUDE,
+				"amplitude_y":  _shared_rng.randf_range(0.5, 1.2) * BASE_BREATHING_AMPLITUDE,
+				"offset_x":     _shared_rng.randf_range(-0.5, 0.5),
+				"offset_y":     _shared_rng.randf_range(-0.5, 0.5)
 			}
 			_multimesh.set_instance_transform_2d(idx, transform)
 			_multimesh.set_instance_color(idx, color)
@@ -552,33 +654,32 @@ func _process_side_changes(delta: float) -> void:
 			continue
 		_side_change_timers[i] += delta
 		if _side_change_timers[i] >= _side_change_intervals[i]:
-			var current_side: String = _segment_sides[i]
-			var new_side: String = current_side
-			var available_sides: Array[String] = []
-			for side in SIDES:
-				if side != current_side:
-					available_sides.append(side)
-			if available_sides.size() > 0:
+			var cur_side: String = _segment_sides[i]
+			var new_side: String = cur_side
+			var avail: Array[String] = []
+			for s in SIDES:
+				if s != cur_side:
+					avail.append(s)
+			if avail.size() > 0:
 				if _gs_cache == null:
 					_gs_cache = get_node_or_null("/root/GameState")
-				var sm2: Node = get_node_or_null("/root/SeedManager")
-				var gs_seed2: int = int(sm2.get("global_seed")) if sm2 != null else 0
-				var seed_hash: int = int(hash(str(gs_seed2) + "::" + _segment_ids[i] + "::sidepick")) & 0x7FFFFFFF
-				_shared_rng.seed = seed_hash if seed_hash != 0 else 1
-				new_side = available_sides[_shared_rng.randi() % available_sides.size()]
+				var sm2: Node    = get_node_or_null("/root/SeedManager")
+				var gs2: int     = int(sm2.get("global_seed")) if sm2 != null else 0
+				var sh: int      = int(hash(str(gs2) + "::" + _segment_ids[i] + "::sidepick")) & 0x7FFFFFFF
+				_shared_rng.seed = sh if sh != 0 else 1
+				new_side         = avail[_shared_rng.randi() % avail.size()]
 			_segment_sides[i] = new_side
 			_remember_tile_side(_segment_ids[i], new_side)
-			var segment_id2: String = _segment_ids[i]
-			var sm3: Node = get_node_or_null("/root/SeedManager")
-			var gs_seed3: int = int(sm3.get("global_seed")) if sm3 != null else 0
-			var seed_iv: int = int(hash(str(gs_seed3) + "::" + segment_id2 + "::interval")) & 0x7FFFFFFF
-			_shared_rng.seed = seed_iv if seed_iv != 0 else 1
+			var seg_id2: String = _segment_ids[i]
+			var sm3: Node    = get_node_or_null("/root/SeedManager")
+			var gs3: int     = int(sm3.get("global_seed")) if sm3 != null else 0
+			var sh2: int     = int(hash(str(gs3) + "::" + seg_id2 + "::interval")) & 0x7FFFFFFF
+			_shared_rng.seed = sh2 if sh2 != 0 else 1
 			_side_change_intervals[i] = _shared_rng.randf_range(30.0, 90.0)
-			_side_change_timers[i] = 0.0
-			var face_data: Dictionary = _effective_face_data_for_ownership(segment_id2, new_side)
-			var color: Color = _get_segment_color_by_side(new_side, face_data, segment_id2)
-			_multimesh.set_instance_color(i, color)
-			_request_image_sprite_update(segment_id2, i, new_side)
+			_side_change_timers[i]    = 0.0
+			var fd: Dictionary = _effective_face_data_for_ownership(seg_id2, new_side)
+			_multimesh.set_instance_color(i, _get_segment_color_by_side(new_side, fd, seg_id2))
+			_request_image_sprite_update(seg_id2, i, new_side)
 
 
 func update_segment(segment_id: String) -> void:
@@ -595,11 +696,10 @@ func update_segment(segment_id: String) -> void:
 				break
 	if idx < 0 or idx >= _multimesh.instance_count:
 		return
-	var current_side: String = _segment_sides[idx] if idx < _segment_sides.size() else side_id
-	var face_data: Dictionary = _effective_face_data_for_ownership(segment_id, current_side)
-	var color: Color = _get_segment_color_by_side(current_side, face_data, segment_id)
-	_multimesh.set_instance_color(idx, color)
-	_request_image_sprite_update(segment_id, idx, current_side)
+	var cur_side: String       = _segment_sides[idx] if idx < _segment_sides.size() else side_id
+	var fd: Dictionary         = _effective_face_data_for_ownership(segment_id, cur_side)
+	_multimesh.set_instance_color(idx, _get_segment_color_by_side(cur_side, fd, segment_id))
+	_request_image_sprite_update(segment_id, idx, cur_side)
 
 
 func force_segment_visual_side(segment_id: String, forced_side: String) -> void:
@@ -618,9 +718,8 @@ func force_segment_visual_side(segment_id: String, forced_side: String) -> void:
 		_segment_sides[idx] = side_norm
 	if idx < _side_change_timers.size():
 		_side_change_timers[idx] = 0.0
-	var face_data: Dictionary = _effective_face_data_for_ownership(segment_id, side_norm)
-	var color: Color = _get_segment_color_by_side(side_norm, face_data, segment_id)
-	_multimesh.set_instance_color(idx, color)
+	var fd: Dictionary = _effective_face_data_for_ownership(segment_id, side_norm)
+	_multimesh.set_instance_color(idx, _get_segment_color_by_side(side_norm, fd, segment_id))
 	_request_image_sprite_update(segment_id, idx, side_norm)
 
 
@@ -637,52 +736,69 @@ func _request_image_sprite_update(segment_id: String, idx: int, segment_side: St
 			_release_sprite(segment_id)
 		return
 	if _texture_cache.has(img_path):
+		_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
 		_update_single_image_sprite(segment_id, idx, segment_side)
 		return
 	var qkey: String = "%s|%s" % [segment_id, img_path]
 	if not _texture_load_queued_keys.has(qkey):
 		_texture_load_queued_keys[qkey] = true
-		_texture_load_queue.append({
-			"segment_id": segment_id,
-			"idx": idx,
-			"segment_side": segment_side,
-			"img_path": img_path,
-			"qkey": qkey,
-		})
-		if _texture_load_queue.size() > MAX_TEXTURE_QUEUE_LENGTH:
-			var drop: Dictionary = _texture_load_queue.pop_front()
-			var dk: String = str(drop.get("qkey", ""))
-			if dk != "":
-				_texture_load_queued_keys.erase(dk)
+		# Stream Control: не добавляем если очередь уже полная
+		if _texture_load_queue.size() < MAX_TEXTURE_QUEUE_LENGTH:
+			_texture_load_queue.append({
+				"segment_id":   segment_id,
+				"idx":          idx,
+				"segment_side": segment_side,
+				"img_path":     img_path,
+				"qkey":         qkey,
+				"priority":     _calc_priority(segment_id),
+			})
+		else:
+			# Очередь полная — вытесняем запись с наименьшим приоритетом
+			var min_idx: int = _texture_load_queue.size() - 1
+			var min_p: float = float(_texture_load_queue[min_idx].get("priority", 0.0))
+			var new_p: float = _calc_priority(segment_id)
+			if new_p > min_p:
+				var drop: Dictionary = _texture_load_queue[min_idx]
+				var dk: String = str(drop.get("qkey", ""))
+				if dk != "":
+					_texture_load_queued_keys.erase(dk)
+				_texture_load_queue[min_idx] = {
+					"segment_id":   segment_id,
+					"idx":          idx,
+					"segment_side": segment_side,
+					"img_path":     img_path,
+					"qkey":         qkey,
+					"priority":     new_p,
+				}
+			else:
+				_texture_load_queued_keys.erase(qkey)
+				_dbg_dropped += 1
 
 
 func _get_segment_color_by_side(segment_side: String, face_data: Dictionary, segment_id: String = "") -> Color:
 	var base_color: Color = _get_side_color(segment_side)
-	var owner: String = str(face_data.get("owner", "")).strip_edges()
-	var is_owned: bool = owner != ""
-	if is_owned:
+	var owner: String     = str(face_data.get("owner", "")).strip_edges()
+	if owner != "":
 		base_color = base_color.lightened(0.15)
 
 	if dim_other_segments and segment_id != "":
 		var is_highlighted: bool = segment_id in _highlighted_segment_ids
-		var gs: Node = get_node_or_null("/root/GameState")
+		var gs: Node         = get_node_or_null("/root/GameState")
 		var buyer_uid: String = str(gs.get("player_uid")) if gs != null else ""
-		var is_my_segment: bool = owner == buyer_uid
-		if not is_my_segment and segment_id != "" and wall_data != null and buyer_uid != "":
+		var is_mine: bool    = owner == buyer_uid
+		if not is_mine and segment_id != "" and wall_data != null and buyer_uid != "":
 			for s in SIDES:
-				var ofd: Dictionary = wall_data.get_face_data(segment_id, s)
-				if str(ofd.get("owner", "")) == buyer_uid:
-					is_my_segment = true
+				if str(wall_data.get_face_data(segment_id, s).get("owner", "")) == buyer_uid:
+					is_mine = true
 					break
-		if not is_highlighted and not is_my_segment:
+		if not is_highlighted and not is_mine:
 			base_color = base_color.darkened(0.6)
 			base_color.a *= 0.4
 
 	if segment_id != "" and segment_id in _highlighted_segment_ids:
 		base_color = base_color.lerp(Color(1.0, 1.0, 1.0, 0.8), 0.5)
 
-	var has_visual_image: bool = _visual_face_image_path(segment_id, segment_side) != ""
-	if has_visual_image:
+	if _visual_face_image_path(segment_id, segment_side) != "":
 		base_color.a = 0.0
 
 	return base_color
@@ -699,7 +815,7 @@ func set_highlighted_segments(segment_ids: Array) -> void:
 		if s != "" and s not in new_ids:
 			new_ids.append(s)
 	var old_ids: Array[String] = _highlighted_segment_ids.duplicate()
-	_highlighted_segment_ids = new_ids
+	_highlighted_segment_ids   = new_ids
 	for sid in old_ids:
 		if sid not in new_ids:
 			update_segment(sid)
@@ -710,12 +826,13 @@ func set_highlighted_segments(segment_ids: Array) -> void:
 func clear_texture_cache() -> void:
 	_texture_cache.clear()
 	_texture_cache_order.clear()
+	_texture_last_used.clear()
 	_texture_load_queue.clear()
 	_texture_load_queued_keys.clear()
-	# Очищаем также thread-очередь
 	_thread_mutex.lock()
 	_thread_queue.clear()
 	_thread_queued_paths.clear()
+	_active_loading_count = 0
 	_thread_mutex.unlock()
 	_results_mutex.lock()
 	_thread_results.clear()
@@ -736,7 +853,7 @@ func clear_highlight() -> void:
 func refresh_images_from_wall_data() -> void:
 	clear_texture_cache()
 	_update_image_sprites()
-	print("[APPLY] wall image sprites refreshed from WallData (visible instances=", _multimesh.instance_count, ")")
+	print("[APPLY] wall image sprites refreshed from WallData (visible=", _multimesh.instance_count, ")")
 
 
 func set_dim_other_segments(enabled: bool) -> void:
@@ -750,7 +867,7 @@ func set_dim_other_segments(enabled: bool) -> void:
 
 func set_preview_image_paths(paths: Dictionary) -> void:
 	if DEBUG_LOG:
-		print("WallRenderer: set_preview_image_paths вызван с ", paths.size(), " путями")
+		print("WallRenderer: set_preview_image_paths n=", paths.size())
 	_preview_image_paths.clear()
 	for k in paths:
 		var v: String = str(paths[k])
@@ -763,13 +880,13 @@ func set_preview_image_paths(paths: Dictionary) -> void:
 
 func _get_side_color(segment_side: String) -> Color:
 	match segment_side:
-		"front":   return Color(0.0, 0.8, 0.7)
-		"back":    return Color(0.0, 0.5, 0.5)
-		"left":    return Color(0.2, 0.7, 0.6)
-		"right":   return Color(0.1, 0.6, 0.8)
-		"top":     return Color(0.3, 0.9, 0.8)
-		"bottom":  return Color(0.0, 0.4, 0.6)
-		_:         return Color(0.0, 0.8, 0.7)
+		"front":  return Color(0.0, 0.8, 0.7)
+		"back":   return Color(0.0, 0.5, 0.5)
+		"left":   return Color(0.2, 0.7, 0.6)
+		"right":  return Color(0.1, 0.6, 0.8)
+		"top":    return Color(0.3, 0.9, 0.8)
+		"bottom": return Color(0.0, 0.4, 0.6)
+		_:        return Color(0.0, 0.8, 0.7)
 
 
 func handle_click(global_pos: Vector2, for_price_preview: bool = false) -> Dictionary:
@@ -796,20 +913,20 @@ func handle_click(global_pos: Vector2, for_price_preview: bool = false) -> Dicti
 		var ix: int = int(_segment_index[segment_id])
 		if ix >= 0 and ix < _segment_sides.size():
 			segment_side_name = str(_segment_sides[ix])
-	var em: Node = get_node_or_null("/root/EconomyManager")
+	var em: Node        = get_node_or_null("/root/EconomyManager")
 	var listing_price: int = int(wall_data.get_segment_price(segment_id))
-	var fid: int = 0
+	var fid: int        = 0
 	if em != null and em.has_method("get_listing_price_for_hit"):
 		listing_price = int(em.call("get_listing_price_for_hit", side_id, segment_id, segment_side_name, wall_data))
 	if em != null and em.has_method("face_id_from_wall_segment"):
 		fid = int(em.call("face_id_from_wall_segment", side_id, segment_id, segment_side_name))
 	return {
-		"segment_id": segment_id,
-		"side": side_id,
+		"segment_id":   segment_id,
+		"side":         side_id,
 		"segment_side": segment_side_name,
-		"price": listing_price,
-		"height": seg_height,
-		"face_id": fid
+		"price":        listing_price,
+		"height":       seg_height,
+		"face_id":      fid
 	}
 
 
@@ -824,22 +941,22 @@ func get_visible_segment_side(segment_id: String) -> String:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# СПРАЙТЫ (Sprite2D поверх MultiMesh)
+# СПРАЙТЫ
 # ─────────────────────────────────────────────────────────────────────────────
 
 func _get_or_create_sprite(segment_id: String) -> Sprite2D:
 	if _segment_sprites.has(segment_id):
-		var existing: Sprite2D = _segment_sprites[segment_id]
-		if existing:
-			existing.visible = true
-			return existing
+		var ex: Sprite2D = _segment_sprites[segment_id]
+		if ex:
+			ex.visible = true
+			return ex
 	var sprite: Sprite2D = null
 	if _sprite_pool.size() > 0:
 		sprite = _sprite_pool.pop_back()
 	else:
 		sprite = Sprite2D.new()
 		sprite.centered = true
-		sprite.name = "SegSprite_" + segment_id
+		sprite.name     = "SegSprite_" + segment_id
 		_images_layer.add_child(sprite)
 	_segment_sprites[segment_id] = sprite
 	sprite.visible = true
@@ -866,15 +983,15 @@ func _update_image_sprites() -> void:
 		if not visible_ids.has(seg_id):
 			_release_sprite(seg_id)
 	for i in range(_segment_ids.size()):
-		var seg_id: String = _segment_ids[i]
+		var seg_id: String   = _segment_ids[i]
 		if i >= _segment_sides.size():
 			continue
-		var current_side: String = _segment_sides[i]
-		var img_path: String = ""
+		var cur_side: String  = _segment_sides[i]
+		var img_path: String  = ""
 		if _preview_image_paths.has(seg_id) and _preview_image_paths[seg_id] != "":
 			img_path = _preview_image_paths[seg_id]
 		elif wall_data != null:
-			img_path = wall_data.get_face_image_path(seg_id, current_side)
+			img_path = wall_data.get_face_image_path(seg_id, cur_side)
 		if img_path == "":
 			if _segment_sprites.has(seg_id):
 				_release_sprite(seg_id)
@@ -883,20 +1000,21 @@ func _update_image_sprites() -> void:
 			var qkey: String = "%s|%s" % [seg_id, img_path]
 			if not _texture_load_queued_keys.has(qkey):
 				_texture_load_queued_keys[qkey] = true
-				_texture_load_queue.append({
-					"segment_id": seg_id,
-					"idx": i,
-					"segment_side": current_side,
-					"img_path": img_path,
-					"qkey": qkey,
-				})
-				if _texture_load_queue.size() > MAX_TEXTURE_QUEUE_LENGTH:
-					var drop: Dictionary = _texture_load_queue.pop_front()
-					var dk: String = str(drop.get("qkey", ""))
-					if dk != "":
-						_texture_load_queued_keys.erase(dk)
+				if _texture_load_queue.size() < MAX_TEXTURE_QUEUE_LENGTH:
+					_texture_load_queue.append({
+						"segment_id":   seg_id,
+						"idx":          i,
+						"segment_side": cur_side,
+						"img_path":     img_path,
+						"qkey":         qkey,
+						"priority":     _calc_priority(seg_id),
+					})
+				else:
+					_texture_load_queued_keys.erase(qkey)
+					_dbg_dropped += 1
 			continue
-		_update_single_image_sprite(seg_id, i, current_side)
+		_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
+		_update_single_image_sprite(seg_id, i, cur_side)
 
 
 func _touch_texture_cache_key(img_path: String) -> void:
@@ -907,9 +1025,36 @@ func _touch_texture_cache_key(img_path: String) -> void:
 
 
 func _evict_texture_cache_if_needed() -> void:
-	while _texture_cache_order.size() > MAX_TEXTURE_CACHE_ENTRIES:
-		var oldest: String = _texture_cache_order.pop_front()
-		_texture_cache.erase(oldest)
+	# Memory Guard: MAX_TEXTURES_IN_MEMORY (LRU, не трогаем активные)
+	var active_now: Dictionary = {}
+	for i in range(_segment_ids.size()):
+		if i >= _segment_sides.size():
+			continue
+		var p: String = ""
+		if _preview_image_paths.has(_segment_ids[i]):
+			p = _preview_image_paths[_segment_ids[i]]
+		elif wall_data != null:
+			p = wall_data.get_face_image_path(_segment_ids[i], _segment_sides[i])
+		if p != "":
+			active_now[p] = true
+
+	while _texture_cache_order.size() > MAX_TEXTURES_IN_MEMORY:
+		# Ищем первый неактивный для evict
+		var evicted: bool = false
+		for i in range(_texture_cache_order.size()):
+			var oldest: String = _texture_cache_order[i]
+			if not active_now.has(oldest):
+				_texture_cache_order.remove_at(i)
+				_texture_cache.erase(oldest)
+				_texture_last_used.erase(oldest)
+				evicted = true
+				break
+		if not evicted:
+			# Все активны — принудительно выбрасываем самый старый
+			var oldest: String = _texture_cache_order.pop_front()
+			_texture_cache.erase(oldest)
+			_texture_last_used.erase(oldest)
+			break
 
 
 func _update_single_image_sprite(segment_id: String, idx: int, segment_side: String) -> void:
@@ -926,19 +1071,19 @@ func _update_single_image_sprite(segment_id: String, idx: int, segment_side: Str
 		return
 	var tex: Texture2D = _texture_cache.get(img_path, null)
 	if tex == null:
-		# Текстура ещё не готова — отправляем в очередь → Thread
-		_enqueue_thread_load(img_path)
+		_enqueue_thread_load(img_path, _calc_priority(segment_id))
 		return
+	_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
 	if DEBUG_LOG:
-		print("[MAIN] applying texture to segment: ", segment_id, " path=", img_path)
+		print("[MAIN] apply sprite: ", segment_id, " path=", img_path)
 	var sprite: Sprite2D = _get_or_create_sprite(segment_id)
 	sprite.texture = tex
 	if _gs_cache == null:
 		_gs_cache = get_node_or_null("/root/GameState")
-	var breathing_enabled2: bool = _gs_cache != null and bool(_gs_cache.get("wall_breathing_enabled"))
-	var current_transform: Transform2D
-	if breathing_enabled2 and idx < _multimesh.instance_count:
-		current_transform = _multimesh.get_instance_transform_2d(idx)
+	var breathing_on: bool = _gs_cache != null and bool(_gs_cache.get("wall_breathing_enabled"))
+	var cur_t: Transform2D
+	if breathing_on and idx < _multimesh.instance_count:
+		cur_t = _multimesh.get_instance_transform_2d(idx)
 	else:
-		current_transform = _transforms[idx]
-	sprite.position = current_transform.origin
+		cur_t = _transforms[idx]
+	sprite.position = cur_t.origin
