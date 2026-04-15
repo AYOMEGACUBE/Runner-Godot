@@ -507,8 +507,8 @@ func _get_segment_color_by_side(segment_side: String, face_data: Dictionary, seg
 	var owner: String = str(face_data.get("owner", "")).strip_edges()
 	var is_owned: bool = owner != ""
 	if is_owned:
-		var owned_color: Color = Color(0.1, 0.8, 0.2)
-		base_color = base_color.lerp(owned_color, 0.3)
+		# Лёгкое осветление без смещения в зелёный — тот же оттенок стороны, чуть ярче
+		base_color = base_color.lightened(0.15)
 	
 	# Затемнение чужих сегментов во время предпросмотра
 	if dim_other_segments and segment_id != "":

@@ -100,6 +100,8 @@ var current_side: String = "front"
 ## Переменные для перетаскивания камеры
 var _dragging_camera: bool = false
 var _last_drag_pos: Vector2 = Vector2.ZERO
+## Touch-drag: id первого пальца для перемещения камеры (когда не в режиме выбора)
+var _touch_drag_finger_id: int = -1
 
 ## Мини-карта
 var minimap_camera: Camera2D = null
@@ -298,9 +300,8 @@ func _setup_minimap() -> void:
 		
 		# Обновляем подпись мини-карты базовой информацией о стороне
 		var gs_map: Node = _gs_node()
-		if minimap_label and gs_map != null and gs_map.has_method("get_active_wall_side"):
-			var side: String = str(gs_map.call("get_active_wall_side"))
-			minimap_label.text = "Мини-карта\nСторона: %s" % side
+		if minimap_label:
+			minimap_label.text = "Мини-карта\nКуплено: ...\nСегментов: ..."
 	call_deferred("_refresh_minimap_ownership_label")
 
 func _add_minimap_wall_visualization(minimap_viewport: SubViewport) -> void:
@@ -395,12 +396,16 @@ func _refresh_minimap_ownership_label() -> void:
 	if gs_mm != null and gs_mm.has_method("get_active_wall_side"):
 		side = str(gs_mm.call("get_active_wall_side"))
 	var owned_count: int = 0
-	var total_count: int = wall_data.segments.size()
+	var total_segs: int = wall_data.segments.size()
+	# Считаем кол-во уникальных СТОРОН (граней) купленных по всему мегакубу
 	for seg_id in wall_data.segments.keys():
-		var face_data: Dictionary = wall_data.get_face_data(seg_id, side)
-		if str(face_data.get("owner", "")) != "":
-			owned_count += 1
-	minimap_label.text = "Мини-карта\nСторона: %s\nКуплено: %d\nВсего: %d" % [side, owned_count, total_count]
+		var seg: Dictionary = wall_data.segments[seg_id] as Dictionary
+		var faces: Dictionary = seg.get("faces", {}) as Dictionary
+		for face_key in faces.keys():
+			var fd: Dictionary = faces[face_key] as Dictionary
+			if str(fd.get("owner", "")).strip_edges() != "":
+				owned_count += 1
+	minimap_label.text = "Мини-карта\nКуплено: %d сторон\nСегментов: %d" % [owned_count, total_segs]
 
 
 ## [FIX] Тултип цены без обязательного режима bulk: превью по клику/тапу
@@ -464,14 +469,39 @@ func _input(event: InputEvent) -> void:
 				camera.zoom = clamp(camera.zoom, Vector2(0.1, 0.1), Vector2(5.0, 5.0))
 				get_viewport().set_input_as_handled()
 	
-	# Обработка перетаскивания камеры (правая кнопка мыши или тач)
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
-		if event.pressed:
-			_dragging_camera = true
-			_last_drag_pos = event.position
-		else:
-			_dragging_camera = false
-		get_viewport().set_input_as_handled()
+	# Перетаскивание камеры: правая кнопка мыши ИЛИ левая кнопка вне режима выбора
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		var is_right: bool = mb.button_index == MOUSE_BUTTON_RIGHT
+		var is_left_no_select: bool = mb.button_index == MOUSE_BUTTON_LEFT and not _bulk_selecting_location
+		if is_right or is_left_no_select:
+			if mb.pressed:
+				_dragging_camera = true
+				_last_drag_pos = mb.position
+			else:
+				_dragging_camera = false
+			if is_right:
+				get_viewport().set_input_as_handled()
+	
+	# Touch: первый палец двигает камеру когда не в режиме выбора
+	if event is InputEventScreenTouch:
+		var st := event as InputEventScreenTouch
+		if not _bulk_selecting_location:
+			if st.pressed and _touch_drag_finger_id == -1:
+				_touch_drag_finger_id = st.index
+				_last_drag_pos = st.position
+				get_viewport().set_input_as_handled()
+			elif not st.pressed and st.index == _touch_drag_finger_id:
+				_touch_drag_finger_id = -1
+				get_viewport().set_input_as_handled()
+	
+	if event is InputEventScreenDrag:
+		var sd := event as InputEventScreenDrag
+		if sd.index == _touch_drag_finger_id and not _bulk_selecting_location:
+			var camera: Camera2D = get_node_or_null("Camera2D")
+			if camera:
+				camera.position -= sd.relative / camera.zoom
+			get_viewport().set_input_as_handled()
 	
 	if event is InputEventMouseMotion:
 		if _dragging_camera:
