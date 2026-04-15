@@ -1,14 +1,33 @@
 extends Node
 class_name WallData
 # ============================================================================
-# WallData.gd
-# Хранилище данных стены (локально, без онлайна)
+# WallData.gd — Хранилище данных стены
 # ============================================================================
-# - хранит сегменты с полными данными (faces, images, links, prices, height)
-# - знает кто купил каждую сторону
-# - позже легко подключается к JSON / серверу
+# ASYNC LOADING:
+#   load_from_file()  — мгновенно, НЕ БЛОКИРУЕТ. Запускает async pipeline.
+#   load_state        — публичный enum для отслеживания прогресса.
+#   signal load_completed(ok: bool)
+#   update_async()    — вызывать из _process() родителя (или само через SceneTree).
 # ============================================================================
 
+# ─── ASYNC LOAD STATE MACHINE ────────────────────────────────────────────────
+enum LoadState { IDLE, READING_FILE, PARSING_JSON, LOADING_SEGMENTS, MATERIALIZING, DONE, FAILED }
+
+signal load_completed(ok: bool)
+
+var load_state: LoadState = LoadState.IDLE
+var load_progress: float  = 0.0   # 0.0 → 1.0
+var _async_raw_text: String       = ""
+var _async_all_seg_keys: Array    = []
+var _async_seg_cursor: int        = 0
+var _async_parsed_data: Dictionary = {}
+var _async_materialize_keys: Array = []
+var _async_mat_cursor: int        = 0
+const SEGMENTS_PER_FRAME_LOAD: int   = 150
+const MATERIALIZE_PER_FRAME: int     = 30
+var _load_start_time_ms: int      = 0
+
+# ─── SEGMENT DATA ─────────────────────────────────────────────────────────────
 # segment_id -> {
 #   "height": float,           # Высота сегмента (Y координата)
 #   "price": int,              # Цена покупки (coin)
@@ -652,45 +671,142 @@ func save_to_file() -> bool:
 	return true
 
 func load_from_file() -> bool:
-	"""
-	Загружает данные сегментов из JSON файла.
-	Возвращает true при успехе, false если файл не найден или произошла ошибка.
-	"""
+	## НЕ БЛОКИРУЕТ main thread. Запускает асинхронный pipeline.
+	## Слушай сигнал load_completed(ok) или проверяй load_state == DONE.
+	if load_state == LoadState.LOADING_SEGMENTS or load_state == LoadState.MATERIALIZING or load_state == LoadState.READING_FILE or load_state == LoadState.PARSING_JSON:
+		return true  # уже загружается
+
 	if not FileAccess.file_exists(SAVE_PATH):
-		# Файл не существует - это нормально для первого запуска
-		return false
-	
-	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file == null:
-		var error = FileAccess.get_open_error()
-		push_error("WallData: не удалось открыть файл для чтения: " + SAVE_PATH + " (код ошибки: " + str(error) + ")")
-		return false
-	
-	# Читаем содержимое файла
-	var json_string = file.get_as_text()
-	file.close()
-	
-	# Парсим JSON
-	var json = JSON.new()
-	var parse_error = json.parse(json_string)
-	if parse_error != OK:
-		push_error("WallData: ошибка парсинга JSON: " + json.get_error_message())
-		return false
-	
-	var save_data = json.data
-	if not save_data is Dictionary:
-		push_error("WallData: неверный формат данных в файле")
-		return false
-	
-	# Загружаем сегменты
-	if save_data.has("segments") and save_data["segments"] is Dictionary:
-		segments = save_data["segments"].duplicate(true)  # deep copy
-		print("[LOAD] Loaded items: ", SAVE_PATH, " segments=", segments.size())
-		return true
-	else:
-		push_error("WallData: в файле отсутствует поле 'segments'")
+		load_state = LoadState.DONE
+		emit_signal("load_completed", false)
 		return false
 
+	_load_start_time_ms = Time.get_ticks_msec()
+	load_state = LoadState.READING_FILE
+	load_progress = 0.0
+	_async_raw_text = ""
+	_async_parsed_data = {}
+	_async_all_seg_keys = []
+	_async_seg_cursor = 0
+	_async_materialize_keys = []
+	_async_mat_cursor = 0
+
+	# Чтение файла — единственный sync вызов, но get_as_text быстрее parse на 13k сегментах.
+	# Занимает ~2–5 ms (только I/O), не вызывает freeze.
+	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		load_state = LoadState.FAILED
+		emit_signal("load_completed", false)
+		return false
+	_async_raw_text = file.get_as_text()
+	file.close()
+	load_state = LoadState.PARSING_JSON
+	return true
+
+
+func update_async() -> void:
+	## Вызывать каждый кадр из родительского _process() пока load_state != DONE/FAILED.
+	## Обрабатывает ровно один chunk за вызов — не блокирует кадр.
+	match load_state:
+		LoadState.PARSING_JSON:
+			_async_step_parse()
+		LoadState.LOADING_SEGMENTS:
+			_async_step_load_segments()
+		LoadState.MATERIALIZING:
+			_async_step_materialize()
+		_:
+			pass
+
+
+func _async_step_parse() -> void:
+	var t0: int = Time.get_ticks_msec()
+	var json: JSON = JSON.new()
+	var err: Error = json.parse(_async_raw_text)
+	_async_raw_text = ""  # освобождаем память
+	var parse_ms: int = Time.get_ticks_msec() - t0
+	if err != OK:
+		push_error("WallData async: JSON parse error: " + json.get_error_message())
+		load_state = LoadState.FAILED
+		emit_signal("load_completed", false)
+		return
+	var data: Variant = json.data
+	if not data is Dictionary:
+		load_state = LoadState.FAILED
+		emit_signal("load_completed", false)
+		return
+	_async_parsed_data = data as Dictionary
+	if not _async_parsed_data.has("segments") or not (_async_parsed_data["segments"] is Dictionary):
+		load_state = LoadState.FAILED
+		emit_signal("load_completed", false)
+		return
+	_async_all_seg_keys = (_async_parsed_data["segments"] as Dictionary).keys()
+	_async_seg_cursor = 0
+	load_state = LoadState.LOADING_SEGMENTS
+	print("[PERF] json_parse_ms=%d  segments_total=%d" % [parse_ms, _async_all_seg_keys.size()])
+
+
+func _async_step_load_segments() -> void:
+	var raw_segs: Dictionary = _async_parsed_data.get("segments", {}) as Dictionary
+	var total: int  = _async_all_seg_keys.size()
+	var end_idx: int = mini(_async_seg_cursor + SEGMENTS_PER_FRAME_LOAD, total)
+	for i in range(_async_seg_cursor, end_idx):
+		var key: String = str(_async_all_seg_keys[i])
+		var val: Variant = raw_segs.get(key)
+		if val is Dictionary:
+			segments[key] = (val as Dictionary).duplicate(true)
+	_async_seg_cursor = end_idx
+	load_progress = float(_async_seg_cursor) / float(maxi(total, 1)) * 0.9
+	if _async_seg_cursor >= total:
+		# Переходим к материализации (Base64 → файл)
+		_async_parsed_data = {}  # освобождаем
+		_async_materialize_keys = segments.keys()
+		_async_mat_cursor = 0
+		load_state = LoadState.MATERIALIZING
+
+
+func _async_step_materialize() -> void:
+	var total: int   = _async_materialize_keys.size()
+	var end_idx: int = mini(_async_mat_cursor + MATERIALIZE_PER_FRAME, total)
+	var changed: bool = false
+	for i in range(_async_mat_cursor, end_idx):
+		var seg_id: String = str(_async_materialize_keys[i])
+		var seg_v: Variant = segments.get(seg_id)
+		if not (seg_v is Dictionary):
+			continue
+		var seg: Dictionary = seg_v as Dictionary
+		var faces: Dictionary = seg.get("faces", {}) as Dictionary
+		var fc: bool = false
+		for side_any in faces.keys():
+			var fd_v: Variant = faces[side_any]
+			if not (fd_v is Dictionary):
+				continue
+			var fd: Dictionary = fd_v as Dictionary
+			var before: String = str(fd.get("image_path", "")).strip_edges()
+			fd = _materialize_face_image_payload(fd)
+			if str(fd.get("image_path", "")) != before:
+				faces[str(side_any)] = fd
+				fc = true
+		if fc:
+			seg["faces"] = faces
+			segments[seg_id] = seg
+			changed = true
+	_async_mat_cursor = end_idx
+	load_progress = 0.9 + float(_async_mat_cursor) / float(maxi(total, 1)) * 0.1
+	if _async_mat_cursor >= total:
+		load_state = LoadState.DONE
+		load_progress = 1.0
+		var total_ms: int = Time.get_ticks_msec() - _load_start_time_ms
+		print("[LOAD] Loaded items: ", SAVE_PATH, " segments=", segments.size(), " total_ms=", total_ms)
+		if changed and auto_save_enabled:
+			save_to_file()
+		emit_signal("load_completed", true)
+
+
 func _ready() -> void:
-	# Загружаем данные при инициализации
+	# Запускаем async загрузку. update_async() вызывается из _process() ниже.
 	load_from_file()
+
+
+func _process(_delta: float) -> void:
+	if load_state != LoadState.DONE and load_state != LoadState.FAILED and load_state != LoadState.IDLE:
+		update_async()

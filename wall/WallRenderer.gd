@@ -14,6 +14,14 @@ class_name WallRenderer
 #   • MAX_TEXTURES_IN_MEMORY — LRU eviction
 #   • UNLOAD_IDLE_SEC       — выгрузка неиспользуемых текстур
 #   • MAX_APPLY_PER_FRAME   — бюджет применения за кадр
+#
+# THREAD SAFETY:
+#   • _thread_queue, _thread_queued_paths, _active_loading_count → _thread_mutex
+#   • _thread_results                                            → _results_mutex
+#   • _texture_cache, _texture_cache_order, _texture_last_used  → main thread only
+#
+# CACHE API: все операции через _cache_get / _cache_set / _cache_evict
+# INCREMENTAL: _update_image_sprites() обрабатывает MAX_SPRITE_UPDATES_PER_FRAME за кадр
 # ============================================================================
 
 const WorldSegmentGrid = preload("res://scripts/config/WorldSegmentGrid.gd")
@@ -95,8 +103,21 @@ const MAX_APPLY_PER_FRAME: int  = 8    # бюджет ImageTexture.create в к�
 
 ## Текущая позиция камеры для вычисления приоритетов (px)
 var _camera_position: Vector2 = Vector2.ZERO
-## Сколько задач сейчас находятся в потоке (не получили результат)
+## Счётчик активных задач в потоке (доступ только через _thread_mutex)
 var _active_loading_count: int = 0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INCREMENTAL SPRITE UPDATE
+# ─────────────────────────────────────────────────────────────────────────────
+## Курсор инкрементального обхода _segment_ids в _update_image_sprites
+var _sprite_update_cursor: int = 0
+const MAX_SPRITE_UPDATES_PER_FRAME: int = 50
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MEMORY GUARD (MB-based)
+# ─────────────────────────────────────────────────────────────────────────────
+const MAX_TEXTURE_MEMORY_MB: float = 120.0  # hard cap
+const TEX_BYTES_ESTIMATE: int      = 48 * 48 * 4  # RGBA 48x48
 
 # ─────────────────────────────────────────────────────────────────────────────
 # THREAD
@@ -253,26 +274,56 @@ func _thread_load_image(img_path: String) -> Dictionary:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CACHE API — единственная точка доступа к кэшу текстур (main thread only)
+# ─────────────────────────────────────────────────────────────────────────────
+func _cache_get(img_path: String) -> Texture2D:
+	var tex: Variant = _texture_cache.get(img_path, null)
+	if tex != null:
+		_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
+		_touch_texture_cache_key(img_path)
+		_dbg_cache_hits += 1
+		return tex as Texture2D
+	return null
+
+
+func _cache_set(img_path: String, tex: Texture2D) -> void:
+	_texture_cache[img_path] = tex
+	_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
+	_touch_texture_cache_key(img_path)
+	_evict_texture_cache_if_needed()
+
+
+func _cache_evict(img_path: String) -> void:
+	_texture_cache.erase(img_path)
+	_texture_last_used.erase(img_path)
+	var ix: int = _texture_cache_order.find(img_path)
+	if ix >= 0:
+		_texture_cache_order.remove_at(ix)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # STREAM CONTROL: постановка задачи в Thread с приоритетом
 # ─────────────────────────────────────────────────────────────────────────────
 func _enqueue_thread_load(img_path: String, priority: float = 0.0) -> void:
 	if _thread_stop or img_path.is_empty():
 		return
-	if _texture_cache.has(img_path):
+	# Проверяем кэш ДО мьютекса — main thread only, безопасно
+	if _cache_get(img_path) != null:
 		return
 	_thread_mutex.lock()
 	var already: bool = _thread_queued_paths.has(img_path)
 	if not already:
 		if _thread_queue.size() >= MAX_STREAM_QUEUE_SIZE:
-			# Вытесняем задачу с минимальным приоритетом (последняя — наименее приоритетная)
+			# Вытесняем последнюю (наименее приоритетную) задачу
 			var min_idx: int = _thread_queue.size() - 1
 			var dropped_path: String = str(_thread_queue[min_idx].get("key", ""))
 			_thread_queue.remove_at(min_idx)
 			if dropped_path != "":
 				_thread_queued_paths.erase(dropped_path)
+				_active_loading_count = maxi(0, _active_loading_count - 1)
 			_dbg_dropped += 1
 		_thread_queued_paths[img_path] = true
-		# Вставляем в позицию по приоритету (очередь отсортирована: 0=наивысший)
+		# Вставляем по приоритету (убывание: высокий → начало)
 		var inserted: bool = false
 		for i in range(_thread_queue.size()):
 			if float(_thread_queue[i].get("priority", 0.0)) < priority:
@@ -282,8 +333,10 @@ func _enqueue_thread_load(img_path: String, priority: float = 0.0) -> void:
 		if not inserted:
 			_thread_queue.append({"path": img_path, "key": img_path, "priority": priority})
 		_active_loading_count += 1
+	var has_work: bool = _thread_queue.size() > 0
 	_thread_mutex.unlock()
-	if not already:
+	# Semaphore.post() только если есть работа — защита от spurious wakeup
+	if not already and has_work:
 		_thread_semaphore.post()
 
 
@@ -330,10 +383,7 @@ func _apply_thread_results() -> void:
 
 		# MAIN THREAD: только здесь создаём GPU-объект
 		var tex: ImageTexture = ImageTexture.create_from_image(img)
-		_texture_cache[key] = tex
-		_texture_last_used[key] = Time.get_ticks_msec() * 0.001
-		_touch_texture_cache_key(key)
-		_evict_texture_cache_if_needed()
+		_cache_set(key, tex)  # единственная точка записи в кэш
 		if DEBUG_LOG:
 			print("[MAIN] texture ready: ", key)
 		_apply_texture_to_segments_by_path(key)
@@ -387,11 +437,7 @@ func _process_texture_unload(delta: float) -> void:
 			to_evict.append(path)
 
 	for path in to_evict:
-		_texture_cache.erase(path)
-		_texture_last_used.erase(path)
-		var ix: int = _texture_cache_order.find(path)
-		if ix >= 0:
-			_texture_cache_order.remove_at(ix)
+		_cache_evict(path)
 	if to_evict.size() > 0 and DEBUG_LOG:
 		print("[UNLOAD] evicted ", to_evict.size(), " idle textures")
 
@@ -413,11 +459,16 @@ func _process_debug_log(delta: float) -> void:
 	_results_mutex.lock()
 	var rq: int = _thread_results.size()
 	_results_mutex.unlock()
-	var mem_est: int = _texture_cache.size() * 48 * 48 * 4 / 1024  # KB (RGBA 48x48)
-	print("[DBG] cache=%d/%d  queue_main=%d  thread_q=%d  active=%d  results=%d  mem~%dKB  hits=%d  miss=%d  dropped=%d" % [
-		_texture_cache.size(), MAX_TEXTURES_IN_MEMORY,
+	var mem_kb: int  = _texture_cache.size() * TEX_BYTES_ESTIMATE / 1024
+	var mem_mb: float = float(mem_kb) / 1024.0
+	var hit_ratio: float = 0.0
+	var total_req: int = _dbg_cache_hits + _dbg_cache_misses
+	if total_req > 0:
+		hit_ratio = float(_dbg_cache_hits) / float(total_req) * 100.0
+	print("[PERF] cache=%d/%d(%.1fMB/%.0fMB)  main_q=%d  thread_q=%d  active=%d  results=%d  hit=%.0f%%  miss=%d  dropped=%d  sprite_cur=%d" % [
+		_texture_cache.size(), MAX_TEXTURES_IN_MEMORY, mem_mb, MAX_TEXTURE_MEMORY_MB,
 		_texture_load_queue.size(), tq, al, rq,
-		mem_est, _dbg_cache_hits, _dbg_cache_misses, _dbg_dropped
+		hit_ratio, _dbg_cache_misses, _dbg_dropped, _sprite_update_cursor
 	])
 
 
@@ -427,6 +478,7 @@ func _process_debug_log(delta: float) -> void:
 func _process(delta: float) -> void:
 	_apply_thread_results()
 	_process_texture_load_queue()
+	_tick_sprite_update()         # incremental sprite update (MAX_SPRITE_UPDATES_PER_FRAME)
 	_process_texture_unload(delta)
 	_process_debug_log(delta)
 
@@ -493,15 +545,12 @@ func _process_texture_load_queue() -> void:
 			continue
 		if not _segment_index.has(seg_id):
 			continue  # сегмент вне видимости
-		if _texture_cache.has(img_path):
-			_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
-			_touch_texture_cache_key(img_path)
+		if _cache_get(img_path) != null:
 			_update_single_image_sprite(seg_id, idx, seg_side)
-			_dbg_cache_hits += 1
 			budget -= 1
 			continue
 		_dbg_cache_misses += 1
-		# Проверяем лимит одновременных загрузок
+		# Backpressure: не превышаем MAX_ACTIVE_LOADING
 		_thread_mutex.lock()
 		var al: int = _active_loading_count
 		_thread_mutex.unlock()
@@ -735,8 +784,7 @@ func _request_image_sprite_update(segment_id: String, idx: int, segment_side: St
 		if _segment_sprites.has(segment_id):
 			_release_sprite(segment_id)
 		return
-	if _texture_cache.has(img_path):
-		_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
+	if _cache_get(img_path) != null:
 		_update_single_image_sprite(segment_id, idx, segment_side)
 		return
 	var qkey: String = "%s|%s" % [segment_id, img_path]
@@ -829,6 +877,7 @@ func clear_texture_cache() -> void:
 	_texture_last_used.clear()
 	_texture_load_queue.clear()
 	_texture_load_queued_keys.clear()
+	_sprite_update_cursor = 0
 	_thread_mutex.lock()
 	_thread_queue.clear()
 	_thread_queued_paths.clear()
@@ -974,20 +1023,37 @@ func _release_sprite(segment_id: String) -> void:
 
 
 func _update_image_sprites() -> void:
+	## Инкрементальная версия: обрабатывает MAX_SPRITE_UPDATES_PER_FRAME за вызов.
+	## Курсор _sprite_update_cursor сбрасывается при вызове (full pass разбит на кадры).
 	if wall_data == null and _preview_image_paths.is_empty():
 		return
+	# Одноразовый проход для удаления вышедших из видимости спрайтов
 	var visible_ids: Dictionary = {}
 	for seg_id in _segment_ids:
 		visible_ids[seg_id] = true
 	for seg_id in _segment_sprites.keys():
 		if not visible_ids.has(seg_id):
 			_release_sprite(seg_id)
-	for i in range(_segment_ids.size()):
-		var seg_id: String   = _segment_ids[i]
+	# Сброс курсора — incremental pass начнётся с 0
+	_sprite_update_cursor = 0
+	# Немедленно обрабатываем первый chunk (остальное — в _process через _tick_sprite_update)
+	_tick_sprite_update()
+
+
+func _tick_sprite_update() -> void:
+	## Обрабатывает один chunk сегментов за кадр. Вызывается из _process.
+	if wall_data == null and _preview_image_paths.is_empty():
+		return
+	var total: int = _segment_ids.size()
+	if _sprite_update_cursor >= total:
+		return
+	var end_idx: int = mini(_sprite_update_cursor + MAX_SPRITE_UPDATES_PER_FRAME, total)
+	for i in range(_sprite_update_cursor, end_idx):
 		if i >= _segment_sides.size():
 			continue
-		var cur_side: String  = _segment_sides[i]
-		var img_path: String  = ""
+		var seg_id: String   = _segment_ids[i]
+		var cur_side: String = _segment_sides[i]
+		var img_path: String = ""
 		if _preview_image_paths.has(seg_id) and _preview_image_paths[seg_id] != "":
 			img_path = _preview_image_paths[seg_id]
 		elif wall_data != null:
@@ -996,7 +1062,7 @@ func _update_image_sprites() -> void:
 			if _segment_sprites.has(seg_id):
 				_release_sprite(seg_id)
 			continue
-		if not _texture_cache.has(img_path):
+		if _cache_get(img_path) == null:
 			var qkey: String = "%s|%s" % [seg_id, img_path]
 			if not _texture_load_queued_keys.has(qkey):
 				_texture_load_queued_keys[qkey] = true
@@ -1013,8 +1079,8 @@ func _update_image_sprites() -> void:
 					_texture_load_queued_keys.erase(qkey)
 					_dbg_dropped += 1
 			continue
-		_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
 		_update_single_image_sprite(seg_id, i, cur_side)
+	_sprite_update_cursor = end_idx
 
 
 func _touch_texture_cache_key(img_path: String) -> void:
@@ -1025,7 +1091,13 @@ func _touch_texture_cache_key(img_path: String) -> void:
 
 
 func _evict_texture_cache_if_needed() -> void:
-	# Memory Guard: MAX_TEXTURES_IN_MEMORY (LRU, не трогаем активные)
+	## Memory Guard: MB-based cap + count cap. LRU, не трогаем активные текстуры.
+	var tex_count: int = _texture_cache_order.size()
+	var mem_mb: float  = float(tex_count * TEX_BYTES_ESTIMATE) / (1024.0 * 1024.0)
+	if tex_count <= MAX_TEXTURES_IN_MEMORY and mem_mb <= MAX_TEXTURE_MEMORY_MB:
+		return
+
+	# Собираем активные пути однократно
 	var active_now: Dictionary = {}
 	for i in range(_segment_ids.size()):
 		if i >= _segment_sides.size():
@@ -1038,22 +1110,20 @@ func _evict_texture_cache_if_needed() -> void:
 		if p != "":
 			active_now[p] = true
 
-	while _texture_cache_order.size() > MAX_TEXTURES_IN_MEMORY:
-		# Ищем первый неактивный для evict
+	while _texture_cache_order.size() > MAX_TEXTURES_IN_MEMORY or \
+		  float(_texture_cache_order.size() * TEX_BYTES_ESTIMATE) / (1024.0 * 1024.0) > MAX_TEXTURE_MEMORY_MB:
 		var evicted: bool = false
 		for i in range(_texture_cache_order.size()):
 			var oldest: String = _texture_cache_order[i]
 			if not active_now.has(oldest):
-				_texture_cache_order.remove_at(i)
-				_texture_cache.erase(oldest)
-				_texture_last_used.erase(oldest)
+				_cache_evict(oldest)
 				evicted = true
 				break
 		if not evicted:
-			# Все активны — принудительно выбрасываем самый старый
-			var oldest: String = _texture_cache_order.pop_front()
-			_texture_cache.erase(oldest)
-			_texture_last_used.erase(oldest)
+			# Все активны — выбрасываем старейший принудительно
+			if _texture_cache_order.is_empty():
+				break
+			_cache_evict(_texture_cache_order[0])
 			break
 
 
@@ -1069,11 +1139,11 @@ func _update_single_image_sprite(segment_id: String, idx: int, segment_side: Str
 		if _segment_sprites.has(segment_id):
 			_release_sprite(segment_id)
 		return
-	var tex: Texture2D = _texture_cache.get(img_path, null)
+	var tex: Texture2D = _cache_get(img_path)
 	if tex == null:
+		_dbg_cache_misses += 1
 		_enqueue_thread_load(img_path, _calc_priority(segment_id))
 		return
-	_texture_last_used[img_path] = Time.get_ticks_msec() * 0.001
 	if DEBUG_LOG:
 		print("[MAIN] apply sprite: ", segment_id, " path=", img_path)
 	var sprite: Sprite2D = _get_or_create_sprite(segment_id)
