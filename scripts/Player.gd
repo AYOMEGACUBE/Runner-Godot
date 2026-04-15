@@ -233,8 +233,9 @@ func _physics_process(delta: float) -> void:
 	velocity.x = move_dir * MOVE_SPEED
 	move_and_slide()
 	
-	if DEBUG and (old_velocity - velocity).length() > 10.0:
-		_log("[PLAYER_PHYSICS] pos=%s velocity=%s move_dir=%.1f" % [global_position, velocity, move_dir])
+	# PLAYER_PHYSICS log отключён в режиме продакшена — 60 записей/сек убивают FPS
+	# if DEBUG and (old_velocity - velocity).length() > 10.0:
+	# 	_log("[PLAYER_PHYSICS] pos=%s velocity=%s move_dir=%.1f" % [global_position, velocity, move_dir])
 
 	if USE_PIXEL_SNAP:
 		global_position = global_position.round()

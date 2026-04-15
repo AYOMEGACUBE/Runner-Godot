@@ -73,6 +73,10 @@ const MAX_TEXTURE_LOADS_PER_FRAME_VIEW: int = 24
 const MAX_TEXTURE_QUEUE_LENGTH: int = 2000
 @export var DEBUG_LOG: bool = false
 
+# Кэш ссылки на GameState — чтобы не делать get_node_or_null каждый кадр
+var _gs_cache: Node = null
+var _breathing_was_enabled: bool = false  # Последнее состояние дыхания (чтобы знать когда сбросить трансформы)
+
 func _ready() -> void:
 	if multimesh_instance == null:
 		multimesh_instance = MultiMeshInstance2D.new()
@@ -238,6 +242,9 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 	_side_change_intervals.resize(total_segments)
 	
 	# Заполняем трансформы и данные
+	# [OPTIMIZATION] Один раз достаём SeedManager — не делаем get_node_or_null для каждого из 1000+ сегментов
+	var _sm_cached: Node = get_node_or_null("/root/SeedManager")
+	var _gs_seed_cached: int = int(_sm_cached.get("global_seed")) if _sm_cached != null else 0
 	var idx: int = 0
 	for y in range(min_y, max_y + 1):
 		for x in range(min_x, max_x + 1):
@@ -245,8 +252,7 @@ func update_visible_area(min_x: int, max_x: int, min_y: int, max_y: int) -> void
 			var pos: Vector2 = Vector2(x * SEGMENT_SIZE, y * SEGMENT_SIZE)
 			
 			# Генерируем РАНДОМНЫЕ параметры на основе segment_id
-			var sm: Node = get_node_or_null("/root/SeedManager")
-			var gs_seed: int = int(sm.get("global_seed")) if sm != null else 0
+			var gs_seed: int = _gs_seed_cached
 			var seed_hash: int = int(hash(str(gs_seed) + "::" + segment_id)) & 0x7FFFFFFF
 			_shared_rng.seed = seed_hash if seed_hash != 0 else 1
 			
@@ -313,41 +319,46 @@ func _process(delta: float) -> void:
 		return
 	_process_side_changes(delta)
 	
-	var gs: Node = get_node_or_null("/root/GameState")
-	var breathing_enabled: bool = gs != null and bool(gs.get("wall_breathing_enabled"))
+	# Кэшируем ссылку на GameState — не делаем get_node_or_null каждый кадр
+	if _gs_cache == null:
+		_gs_cache = get_node_or_null("/root/GameState")
+	var breathing_enabled: bool = _gs_cache != null and bool(_gs_cache.get("wall_breathing_enabled"))
+	
 	if not breathing_enabled:
-		# Если дыхание выключено, применяем базовые трансформы без смещения
-		for i in range(_multimesh.instance_count):
-			_multimesh.set_instance_transform_2d(i, _transforms[i])
+		# [OPTIMIZATION] Когда дыхание выключается первый раз — сбрасываем трансформы в исходное.
+		# Потом НЕ трогаем MultiMesh каждый кадр (это главный источник фризов на 1000+ сегментах).
+		if _breathing_was_enabled:
+			_breathing_was_enabled = false
+			var cnt: int = _multimesh.instance_count
+			for i in range(cnt):
+				if i < _transforms.size():
+					_multimesh.set_instance_transform_2d(i, _transforms[i])
 		return
 	
+	_breathing_was_enabled = true
 	# Глобальное время для дыхания
 	_breathing_time += delta
 	
 	# Применяем НЕЗАВИСИМОЕ дыхание к каждому сегменту
-	for i in range(_multimesh.instance_count):
+	var cnt2: int = _multimesh.instance_count
+	for i in range(cnt2):
 		if i >= _breathing_params.size():
 			continue
 		
 		var base_transform: Transform2D = _transforms[i]
 		var params: Dictionary = _breathing_params[i]
 		
-		# Вычисляем независимое движение для каждого сегмента
 		var phase_x: float = _breathing_time * BASE_BREATHING_SPEED * params.speed_factor + params.phase + params.offset_x
 		var phase_y: float = _breathing_time * BASE_BREATHING_SPEED * params.speed_factor + params.phase + params.offset_y
 		
-		# Рандомное движение по осям X и Y независимо
 		var offset_x: float = sin(phase_x) * params.amplitude_x
 		var offset_y: float = cos(phase_y) * params.amplitude_y
 		
-		var random_offset: Vector2 = Vector2(offset_x, offset_y)
-		
 		var final_transform: Transform2D = base_transform
-		final_transform.origin += random_offset
+		final_transform.origin += Vector2(offset_x, offset_y)
 		
 		_multimesh.set_instance_transform_2d(i, final_transform)
 
-		# Обновляем позицию спрайта, если у сегмента есть изображение
 		if i < _segment_ids.size():
 			var seg_id := _segment_ids[i]
 			if _segment_sprites.has(seg_id):
@@ -379,6 +390,9 @@ func _process_side_changes(delta: float) -> void:
 					available_sides.append(side)
 			
 			if available_sides.size() > 0:
+				# [OPTIMIZATION] Используем кэш GameState — не вызываем get_node_or_null в каждой итерации
+				if _gs_cache == null:
+					_gs_cache = get_node_or_null("/root/GameState")
 				var sm2: Node = get_node_or_null("/root/SeedManager")
 				var gs_seed2: int = int(sm2.get("global_seed")) if sm2 != null else 0
 				var seed_hash: int = int(hash(str(gs_seed2) + "::" + _segment_ids[i] + "::sidepick")) & 0x7FFFFFFF

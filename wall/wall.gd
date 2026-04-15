@@ -27,6 +27,8 @@ const VIEWPORT_WIDTH: int = 1152
 
 # Минимальный сдвиг камеры / зума перед пересчётом видимой области (без периодического таймера)
 const UPDATE_DISTANCE_THRESHOLD: float = 400.0  # Увеличено с 256.0 для более редких обновлений
+# [OPTIMIZATION] Минимальный порог изменения zoom для пересчёта (защита от многократных update при плавном zoom-out)
+const UPDATE_ZOOM_THRESHOLD: float = 0.05  # 5% изменения zoom = пересчёт
 
 # Размеры виртуальной стены в пикселях
 const VIRTUAL_WALL_SIZE: int = SEGMENTS_PER_SIDE * SEGMENT_SIZE  # 153,600 px (было 34,560 px)
@@ -70,6 +72,8 @@ var _last_cache_clear_cam: Vector2 = Vector2.INF
 var _disk_reload_pending: bool = false
 var _disk_reload_debounce_left: float = 0.0
 const DISK_RELOAD_DEBOUNCE_SEC: float = 0.2
+# Кэш ссылки на GameState — не делать get_node_or_null каждый кадр в _process
+var _gs_node_cache: Node = null
 
 
 func _ready() -> void:
@@ -139,7 +143,9 @@ func _on_wall_segments_disk_updated() -> void:
 
 
 func _process(delta: float) -> void:
-	var gs2: Node = get_node_or_null("/root/GameState")
+	if _gs_node_cache == null:
+		_gs_node_cache = get_node_or_null("/root/GameState")
+	var gs2: Node = _gs_node_cache
 	if gs2 != null and bool(gs2.get("disable_wall")):
 		clear_wall()
 		return
@@ -184,7 +190,8 @@ func _process(delta: float) -> void:
 	else:
 		var dist: float = cam_pos.distance_to(_last_camera_position)
 		var zoom_delta: float = cam_zoom.distance_to(_last_camera_zoom)
-		if dist >= UPDATE_DISTANCE_THRESHOLD or zoom_delta > 0.0001:
+		# [OPTIMIZATION] Zoom threshold повышен: 5% изменения вместо 0.0001 — иначе плавный pinch-zoom даёт 30+ обновлений
+		if dist >= UPDATE_DISTANCE_THRESHOLD or zoom_delta > UPDATE_ZOOM_THRESHOLD:
 			need_update = true
 			_last_camera_position = cam_pos
 			_last_camera_zoom = cam_zoom
@@ -391,10 +398,8 @@ func set_preview_image_paths(paths: Dictionary) -> void:
 func _on_ownership_updated(wall_changed: bool, _platform_changed: bool) -> void:
 	if not wall_changed or wall_data == null:
 		return
-	wall_data.load_from_file()
-	_log("[WALL] ownership_updated -> wall_data reloaded, segments=%d" % wall_data.segments.size())
-	if wall_renderer != null and wall_renderer.has_method("clear_texture_cache"):
-		wall_renderer.clear_texture_cache()
-	_vis_cache_valid = false
-	_update_visible_segments(true)
-	refresh_segment_textures()
+	# [OPTIMIZATION] Используем тот же дебаунс-механизм что и для disk_updated.
+	# pull_ownership каждые 4 сек может совпадать с disk_updated — без дебаунса = двойная загрузка.
+	_disk_reload_pending = true
+	_disk_reload_debounce_left = DISK_RELOAD_DEBOUNCE_SEC
+	_log("[WALL] ownership_updated -> reload debounced")
